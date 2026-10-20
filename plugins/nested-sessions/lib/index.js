@@ -5,7 +5,7 @@ import { createUserMessage } from '@deepseek-ai/dsh-llm';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 
 export const name = 'nested-sessions';
-export const inject = ['sessionController', 'storage', 'agents', 'tools', 'systemPrompt', 'remoteAccess', 'typert', 'sessions', 'workspaceRegistry'];
+export const inject = ['sessionController', 'storage', 'agents', 'tools', 'remoteAccess', 'typert', 'sessions', 'workspaceRegistry'];
 const id = z.string().min(1).max(200).regex(/^[A-Za-z0-9_.-]+$/);
 const text = z.string().trim().min(1).max(16000);
 const schemas = {

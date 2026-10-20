@@ -1,0 +1,209 @@
+<!doctype html><meta charset="utf-8" /><title>DSH 批注安全载体验收</title>
+<style>
+  body {
+    margin: 0;
+    font: 14px system-ui;
+  }
+  .browser {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .browser form {
+    height: 36px;
+    flex: none;
+  }
+  .viewport {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  webview {
+    width: 100%;
+    height: 100%;
+    display: flex;
+  }
+</style>
+<div class="browser">
+  <form><button type="button">内置浏览器工具栏（隔离验收）</button></form>
+  <div class="viewport">
+    <webview data-sidebar-browser-frame="webview"></webview>
+  </div>
+</div>
+<script>
+  let plugin;
+  window.__ModuleLoader__ = {
+    load: (entry) => {
+      plugin = entry.factory();
+    },
+  };
+</script>
+<script src="review.js"></script>
+<script>
+  (async () => {
+    let dispose;
+    const assert = (value, message) => {
+        if (!value) throw new Error(message || "Assertion failed");
+      },
+      wait = async (predicate) => {
+        for (let i = 0; i < 150 && !predicate(); i++)
+          await new Promise((resolve) => setTimeout(resolve, 30));
+        assert(predicate(), "Wait failed");
+      };
+    try {
+      const frame = document.querySelector("webview");
+      frame.src = new URL(location.href).searchParams.get("fixture");
+      await new Promise((resolve) =>
+        frame.addEventListener("did-finish-load", resolve, { once: true }),
+      );
+      const deliveries = [],
+        session = {},
+        drafts = [];
+      let file;
+      const ctx = {
+        sidebarRight: {
+          commandTarget: () => ({ sessionId: "secure-fixture" }),
+        },
+        sessions: { binding: () => ({ session }) },
+        conversation: {
+          createDrafts: (_id, files) => {
+            file = files[0];
+            drafts.push(file);
+            return [{ id: "image-1", kind: "image" }];
+          },
+          sendSession: async (...args) => {
+            deliveries.push(args);
+            return { kind: "success" };
+          },
+          releaseDraftAttachments: () => {
+            throw new Error("Unexpected release");
+          },
+        },
+      };
+      dispose = plugin.installEmbeddedBrowserReview(ctx);
+      document.querySelector('[aria-label="内置浏览器批注"]').click();
+      await wait(() =>
+        document
+          .querySelector(".dsh-br-surface>img")
+          ?.getAttribute("src")
+          ?.startsWith("data:image"),
+      );
+      const surface = document.querySelector(".dsh-br-surface"),
+        image = surface.querySelector("img"),
+        viewport = await frame.executeJavaScript(
+          "({width:innerWidth,height:innerHeight})",
+        );
+      const element = await frame.executeJavaScript(
+          'document.querySelector("#review-target").getBoundingClientRect().toJSON()',
+        ),
+        rect = surface.getBoundingClientRect();
+      const point = {
+        x:
+          rect.left +
+          ((element.x + element.width / 2) * rect.width) / viewport.width,
+        y:
+          rect.top +
+          ((element.y + element.height / 2) * rect.height) / viewport.height,
+      };
+      surface.dispatchEvent(
+        new PointerEvent("pointermove", {
+          bubbles: true,
+          clientX: point.x,
+          clientY: point.y,
+        }),
+      );
+      await wait(() =>
+        document
+          .querySelector(".dsh-br-element")
+          .textContent.includes("#review-target"),
+      );
+      surface.dispatchEvent(
+        new PointerEvent("pointerup", {
+          bubbles: true,
+          button: 0,
+          clientX: point.x,
+          clientY: point.y,
+        }),
+      );
+      await wait(
+        () =>
+          !Array.from(document.querySelectorAll(".dsh-br-panel button")).find(
+            (b) => b.textContent === "保存选区",
+          ).disabled,
+      );
+      const editor = document.querySelector('[aria-label="批注意见"]');
+      editor.value = "元素吸附：保留圆角，改成蓝色";
+      Array.from(document.querySelectorAll(".dsh-br-panel button"))
+        .find((b) => b.textContent === "保存选区")
+        .click();
+      await wait(() =>
+        document.querySelector(".dsh-br-preview").src.startsWith("blob:"),
+      );
+      const priorViewport = await frame.executeJavaScript(
+        "({width:innerWidth,height:innerHeight})",
+      );
+      await window.fixture.resize({ width: 1400, height: 900 });
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      const after = surface.getBoundingClientRect(),
+        afterViewport = await frame.executeJavaScript(
+          "({width:innerWidth,height:innerHeight})",
+        );
+      assert(
+        Math.abs(
+          after.width / after.height - image.naturalWidth / image.naturalHeight,
+        ) < 0.01,
+        "Image stretched after resize",
+      );
+      assert(
+        afterViewport.width === priorViewport.width &&
+          afterViewport.height === priorViewport.height,
+        "CSS viewport changed during frozen review",
+      );
+      await window.fixture.proof();
+      Array.from(document.querySelectorAll(".dsh-br-panel button"))
+        .find((b) => b.textContent === "发送批注（含截图）")
+        .click();
+      await wait(() => deliveries.length === 1);
+      assert(deliveries[0][0] === session, "Wrong session");
+      assert(
+        JSON.stringify(deliveries[0][2]) === '["image-1"]',
+        "Wrong attachments",
+      );
+      assert(
+        deliveries[0][1].includes("button#review-target"),
+        "Missing CSS selector",
+      );
+      assert(
+        deliveries[0][1].includes("border-radius"),
+        "Missing computed style",
+      );
+      assert(file.type === "image/png" && file.size > 3000, "Missing image");
+      assert(frame.style.width === "", "Guest width was not restored");
+      const png = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+      });
+      window.fixture.report({
+        pass: true,
+        contextIsolation: true,
+        sandbox: true,
+        nodeIntegration: false,
+        elementSnapping: true,
+        cssSelector: true,
+        computedStyle: true,
+        fullScreenAspectRatio: true,
+        stableGuestViewport: true,
+        pngBytes: file.size,
+        ownAttachmentOnly: true,
+        png,
+      });
+    } catch (error) {
+      window.fixture.report({ pass: false, error: error.stack });
+    } finally {
+      dispose?.();
+    }
+  })();
+</script>

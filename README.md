@@ -30,6 +30,8 @@ rtk proxy node scripts/harness.mjs install
 
 可见浏览器、目标高亮、交互式批注和 Windows computer-use 的操作与验收边界见 [浏览器与桌面控制](docs/BROWSER-COMPUTER-USE.md)。
 
+内置批注支持元素边界吸附、CSS 定位线索、编号截图预览及全屏等比例显示。批注已从命令插件中拆出，职责与依赖回查见 [代码结构](docs/CODE-STRUCTURE.md)；后续改动遵循仓库根目录 `AGENTS.md`。
+
 独立父子会话、上下文分叉、家族通信与停止保护见 [嵌套会话](docs/NESTED-SESSIONS.md)。标题栏管理当前家族，左侧“嵌套会话”查看全部父子树；原工作区列表保留原生交互。
 
 旧 `liangshen` preset 已移除。升级前先完全退出 Harness，再迁移旧会话；安装器发现仍有会话绑定旧 preset 时会拒绝覆盖配置：

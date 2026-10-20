@@ -7,7 +7,8 @@
     "node": "^22.19.0 || >=24.0.0"
   },
   "scripts": {
-    "test": "node --test test/portable.test.mjs test/desktop-commands.test.mjs test/migration.test.cjs test/browser.test.mjs test/nested-client.test.mjs test/nested-backend.test.cjs",
+    "test:browser-native": "node scripts/test-browser-native.mjs",
+    "test": "node --test test/portable.test.mjs test/desktop-commands.test.mjs test/migration.test.cjs test/browser.test.mjs test/nested-client.test.mjs test/nested-backend.test.cjs test/browser-review.test.mjs",
     "build": "node scripts/harness.mjs build",
     "plan": "node scripts/harness.mjs install --dry-run",
     "deploy": "node scripts/harness.mjs install",

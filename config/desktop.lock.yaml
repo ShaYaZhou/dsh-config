@@ -23,6 +23,9 @@ importers:
       '@dsh-external/dsh-memory':
         specifier: file:../../local-plugins/${MEMORY_TGZ}
         version: file:../../local-plugins/${MEMORY_TGZ}(@deepseek-ai/schemastery@3.18.5)
+      '@local/dsh-browser-review':
+        specifier: file:../../local-plugins/${BROWSER-REVIEW_TGZ}
+        version: file:../../local-plugins/${BROWSER-REVIEW_TGZ}
       '@local/dsh-desktop-commands':
         specifier: file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}
         version: file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}
@@ -272,13 +275,17 @@ packages:
   '@lezer/yaml@1.0.4':
     resolution: {integrity: sha512-2lrrHqxalACEbxIbsjhqGpSW8kWpUKuY6RHgnSAFZa6qK62wvnPxA8hGOwOoDbwHcOFs5M4o27mjGu+P7TvBmw==}
 
+  '@local/dsh-browser-review@file:../../local-plugins/${BROWSER-REVIEW_TGZ}':
+    resolution: {integrity: ${BROWSER-REVIEW_INTEGRITY}, tarball: file:../../local-plugins/${BROWSER-REVIEW_TGZ}}
+    version: 1.0.0
+
   '@local/dsh-desktop-commands@file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}':
     resolution: {integrity: ${DESKTOP-COMMANDS_INTEGRITY}, tarball: file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}}
-    version: 1.0.1
+    version: 1.0.2
 
   '@local/dsh-nested-sessions@file:../../local-plugins/${NESTED-SESSIONS_TGZ}':
     resolution: {integrity: ${NESTED-SESSIONS_INTEGRITY}, tarball: file:../../local-plugins/${NESTED-SESSIONS_TGZ}}
-    version: 1.0.0
+    version: 1.0.1
     peerDependencies:
       '@deepseek-ai/dsh-llm': 0.2.1-rc.2
       '@deepseek-ai/dsh-storage-domain': 0.2.1-rc.2
@@ -1372,6 +1379,8 @@ snapshots:
       '@lezer/common': 1.5.3
       '@lezer/highlight': 1.2.5
       '@lezer/lr': 1.4.11
+
+  '@local/dsh-browser-review@file:../../local-plugins/${BROWSER-REVIEW_TGZ}': {}
 
   '@local/dsh-desktop-commands@file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}': {}
 

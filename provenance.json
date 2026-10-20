@@ -59,25 +59,36 @@
     {
       "id": "desktop-commands",
       "package": "@local/dsh-desktop-commands",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
         "changes": [
-          "Desktop slash entries for persistent agents and session navigation.",
-          "Embedded browser review toolbar with numbered regions, WebView screenshots and isolated feedback attachments."
+          "Desktop slash entries for persistent agents and session navigation."
         ]
       }
     },
     {
       "id": "nested-sessions",
       "package": "@local/dsh-nested-sessions",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
         "changes": [
           "Independent linked sessions through native session persistence and agent messaging; desktop family tree and controls."
+        ]
+      }
+    },
+    {
+      "id": "browser-review",
+      "package": "@local/dsh-browser-review",
+      "version": "1.0.0",
+      "license": "UNLICENSED",
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "changes": [
+          "Embedded browser capture, DOM element selection and region annotations through native browser and conversation interfaces."
         ]
       }
     }

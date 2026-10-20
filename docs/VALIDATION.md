@@ -1,5 +1,15 @@
 # 可迁移性验收
 
+## 2026-10-21 批注修复与职责分离
+
+- 复现同桌面安全设置下首次 `capturePage` 的 `UnknownVizError`，下一次短暂等待后成功；加入仅针对临时 surface 错误的有界重试，权限拒绝不重试。
+- 在 `sandbox=true`、`contextIsolation=true`、`nodeIntegration=false` 的隔离 Electron WebView 验证：元素边界吸附、CSS selector/有限计算样式、编号 PNG、附件预览、全屏比例保持和 guest CSS viewport 保持不变；结束后恢复原样式。
+- 使用实际 Harness ConversationController 的 createDrafts/sendSession 发送该 PNG，真实会话显示图片附件；本机 proxy 的 deepseek-v4.1-flash 只依据附图正确回答 `REVIEW_NATIVE_OK`。没有把 mocked send 当作这项验收。
+- 截图缺失不再自动退回纯文字；发送入口要求明确的文字模式选择，发送失败保留批注。
+- 批注从桌面命令插件分离为单一功能包；嵌套前端仅格式化和去除未使用依赖，后端行为不变。完整测试 29 项通过；原生嵌套运行时与重启持久化回归通过。
+
+这证明了指定载体与测试页，不代表所有动态网站、封闭 Shadow DOM、跨源 iframe 或 Canvas 内部都能按 DOM 元素选择。上轮未验证主窗相同沙箱条件，本次补齐该差异；用户真实窗口重开后的体验仍由实际使用结果校准。
+
 ## 浏览器、原生 computer-use 与嵌套会话增量验收
 
 2026-10-20：完整 `npm test` 25 项通过，无跳过；固定锁安装、原生运行时启动及真实 proxy/连续旁问 smoke 通过。headless 受管理文件逐字节未变。

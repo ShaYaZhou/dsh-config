@@ -1,0 +1,3 @@
+- insert:
+    - id: browser-review
+      name: '@local/dsh-browser-review'

@@ -17,7 +17,8 @@
     "dsh-subagent-workspace-ui": "1.10.0",
     "dshmarket": "1.66.44",
     "@local/dsh-desktop-commands": "@artifact/desktop-commands",
-    "@local/dsh-nested-sessions": "@artifact/nested-sessions"
+    "@local/dsh-nested-sessions": "@artifact/nested-sessions",
+    "@local/dsh-browser-review": "@artifact/browser-review"
   },
   "dsh": {
     "profile": {
@@ -35,7 +36,8 @@
         "@michengai/dsh-skills-manager",
         "@dsh-external/dsh-memory",
         "@local/dsh-desktop-commands",
-        "@local/dsh-nested-sessions"
+        "@local/dsh-nested-sessions",
+        "@local/dsh-browser-review"
       ]
     }
   }
