@@ -1,0 +1,275 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import assert from 'node:assert/strict';
+import {fileURLToPath, pathToFileURL} from 'node:url';
+import {createHash} from 'node:crypto';
+import {spawnSync} from 'node:child_process';
+
+export const repository=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const readJson=file=>JSON.parse(fs.readFileSync(file,'utf8'));
+const write=(file,data)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,data);};
+const json=value=>JSON.stringify(value,null,2)+'\n';
+const digest=file=>fs.existsSync(file)?createHash('sha256').update(fs.readFileSync(file)).digest('hex'):null;
+const configuration=name=>readJson(path.join(repository,'config',name));
+const provenance=readJson(path.join(repository,'provenance.json'));
+const stamp=()=>new Date().toISOString().replaceAll(':','-').replaceAll('.','-');
+
+export function emitYaml(value){
+ // JSON is YAML flow syntax; only explicit $js nodes become Harness expression tags.
+ return json(value).replace(/\{\s*"\$js":\s*("(?:[^"\\]|\\.)*")\s*\}/g,'!!js $1');
+}
+export function substitute(value,tokens){
+ if(Array.isArray(value))return value.map(x=>substitute(x,tokens));
+ if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,substitute(v,tokens)]));
+ if(typeof value!=='string')return value;
+ if(Object.hasOwn(tokens,value))return tokens[value];
+ return value.replace(/\$\{[A-Z_]+\}/g,key=>{assert(Object.hasOwn(tokens,key),'Unknown template token: '+key);return String(tokens[key]);});
+}
+export function settingsFrom(file,env=process.env){
+ const value={...configuration('local.example.json'),...(fs.existsSync(file)?readJson(file):{})};
+ if(env.OPENAI_BASE_URL)value.proxyBaseUrl=env.OPENAI_BASE_URL;
+ const allowed=Object.keys(configuration('local.example.json'));
+ for(const key of Object.keys(value))assert(allowed.includes(key),'Unknown local setting (credentials belong in environment/credential store): '+key);
+ const url=new URL(value.proxyBaseUrl);
+ assert(['http:','https:'].includes(url.protocol),'Proxy must use HTTP(S)');
+ assert(!url.username&&!url.password&&!url.search&&!url.hash,'Do not put credentials or query parameters in proxyBaseUrl');
+ assert(['read-only','workspace-write','danger-full-access'].includes(value.permissionPreset),'Unknown permission preset');
+ assert(['chrome','msedge','chromium','firefox','webkit'].includes(value.browser),'Unsupported browser');
+ const provider=configuration('desktop.patch.json').find(x=>x.id==='llm-pi-ai').config.providers.openai;
+ assert(provider.models.some(x=>x.id===value.defaultModel),'Add your model definition to config/desktop.patch.json before selecting it');
+ return value;
+}
+export function renderPlan(home,settings,artifacts={}, {clean=false}={}){
+ home=path.resolve(home);
+ const directory=clean?path.join(repository,'presets/native'):path.join(repository,'config');
+ const config=name=>readJson(path.join(directory,name));
+ const plugins=clean?[]:provenance.plugins;
+ const moduleNames=!clean&&fs.existsSync(path.join(repository,'modules'))?fs.readdirSync(path.join(repository,'modules')).filter(x=>x.endsWith('.mjs')):[];
+ const desktop=path.join(home,'profiles','desktop');
+ const tokens={
+  '${DSH_HOME}':home,'${DESKTOP_DIR}':desktop,'${NODE_EXECUTABLE}':process.execPath,
+  '${MODULE_URL}':pathToFileURL(path.join(desktop,'agent-capabilities')).href,
+  '${MEMORY_URL}':pathToFileURL(path.join(desktop,'node_modules','@dsh-external','dsh-memory','lib','index.js')).href,
+  '${PROXY_BASE_URL}':settings.proxyBaseUrl,'${DEFAULT_MODEL}':settings.defaultModel,
+  '${REASONING_EFFORT}':settings.reasoningEffort,'${PERMISSION_PRESET}':settings.permissionPreset,
+  '${HOOKS_DISABLED}':!fs.existsSync(path.join(home,'claude-hooks.json')),
+  '${USER_HOME}':os.homedir(),
+  '${ORCA_HOOKS_DISABLED}':!fs.existsSync(path.join(os.homedir(),'.orca','agent-hooks','dsh-hooks.json'))
+ };
+ const files=new Map();
+ for(const profile of ['desktop','headless']){
+  const manifest=config(profile+'.package.json');
+  for(const [pkg,spec]of Object.entries(manifest.dependencies??{}))if(spec.startsWith('@artifact/')){
+   const id=spec.slice('@artifact/'.length);manifest.dependencies[pkg]='file:../../local-plugins/'+(artifacts[id]?.filename??id+'-preview.tgz');
+  }
+  files.set('profiles/'+profile+'/package.json',json(manifest));
+  files.set('profiles/'+profile+'/pnpm-workspace.yaml',json(config('pnpm-workspace.json')));
+  const patch=substitute(config(profile+'.patch.json'),tokens);
+  const browser=patch.flatMap(x=>x.insert??[]).find(x=>x.id==='mcp-playwright');
+  if(browser){const index=browser.config.args.indexOf('--browser');browser.config.args[index+1]=settings.browser;}
+  files.set('profiles/'+profile+'/cordis.patch.yml',emitYaml(patch));
+  const lock=path.join(directory,profile+'.lock.yaml');
+  if(fs.existsSync(lock)){
+   let text=fs.readFileSync(lock,'utf8');
+   for(const plugin of plugins){
+    text=text.replaceAll('${'+plugin.id.toUpperCase()+'_TGZ}',artifacts[plugin.id]?.filename??plugin.id+'-preview.tgz');
+    text=text.replaceAll('${'+plugin.id.toUpperCase()+'_INTEGRITY}',artifacts[plugin.id]?.integrity??'sha512-preview');
+   }
+   files.set('profiles/'+profile+'/pnpm-lock.yaml',text);
+  }
+ }
+ files.set('cordis.patch.yml',emitYaml(substitute(config('global.patch.json'),tokens)));
+ files.set('AGENTS.md',fs.readFileSync(path.join(directory,'AGENTS.md'),'utf8'));
+ for(const name of moduleNames){
+  files.set('profiles/desktop/agent-capabilities/'+name,fs.readFileSync(path.join(repository,'modules',name),'utf8'));
+ }
+ files.set('profiles/desktop/agent-capabilities/manifest.json',json({managedBy:'deepseek-harness-config',flavor:clean?'native':provenance.flavor,runtime:provenance.runtime,modules:Object.fromEntries(moduleNames.map(name=>[name,digest(path.join(repository,'modules',name))])),artifacts}));
+ return files;
+}
+function execute(command,args,options={}){
+ const result=spawnSync(command,args,{encoding:'utf8',...options});
+ if(result.error)throw result.error;
+ if(result.status!==0)throw new Error(path.basename(command)+' failed ('+result.status+')\n'+(result.stderr??'')+'\n'+(result.stdout??''));
+ return result.stdout??'';
+}
+function npmCli(){
+ const candidates=[process.env.NPM_CLI_JS,path.join(path.dirname(process.execPath),'node_modules','npm','bin','npm-cli.js'),path.resolve(path.dirname(process.execPath),'..','lib','node_modules','npm','bin','npm-cli.js')].filter(Boolean);
+ const found=candidates.find(fs.existsSync);assert(found,'Cannot find npm-cli.js; set NPM_CLI_JS locally');return found;
+}
+export function runner(){
+ const appRoot=process.env.DSH_APP_DIR??path.join(process.env.LOCALAPPDATA??path.join(os.homedir(),'AppData','Local'),'Programs','DeepSeek Harness');
+ const executable=process.env.DSH_EXECUTABLE??path.join(appRoot,'DeepSeek Harness.exe');
+ const cli=process.env.DSH_CLI_JS??path.join(appRoot,'resources','app.asar','dsh','node_modules','@deepseek-ai','dsh-desktop-host','lib','cli.js');
+ assert(fs.existsSync(executable),'Desktop runtime not found; set DSH_EXECUTABLE and DSH_CLI_JS locally');
+ return {executable,cli};
+}
+function native(command,home,profile,args,stdio='inherit'){
+ return execute(command.executable,['--expose-internals',command.cli,'plugin','--profile',profile,...args],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1',DSH_HOME:home},stdio});
+}
+export function build({clean=false}={}){
+ const folder=path.join(repository,'build');fs.mkdirSync(folder,{recursive:true});
+ const records={};
+ for(const plugin of clean?[]:provenance.plugins){
+  const packed=JSON.parse(execute(process.execPath,[npmCli(),'pack','--ignore-scripts','--json','--pack-destination',folder],{cwd:path.join(repository,'plugins',plugin.id)}))[0];
+  const source=path.join(folder,packed.filename);const hash=digest(source);
+  const filename=plugin.id+'-'+plugin.version+'-'+hash.slice(0,12)+'.tgz';
+  fs.copyFileSync(source,path.join(folder,filename));records[plugin.id]={filename,sha256:hash,integrity:packed.integrity};
+ }
+ write(path.join(folder,'artifacts.json'),json(records));return records;
+}
+function globalRuntime(){
+ const root=execute(process.execPath,[npmCli(),'root','-g']).trim();
+ const location=path.join(root,'@deepseek-ai','dsh');
+ const manifest=path.join(location,'package.json');
+ assert(fs.existsSync(manifest),'Install the matching global @deepseek-ai/dsh version first; see README');
+ assert.equal(readJson(manifest).version,provenance.runtime,'Global Harness runtime version differs from the pinned source');
+ return path.join(location,'node_modules');
+}
+function linkRuntime(home,source){
+ // Local modules use the same pinned native dependency closure as the global CLI.
+ const root=path.join(home,'profiles','node_modules');fs.mkdirSync(root,{recursive:true});
+ function link(name){
+  const from=path.join(source,name),to=path.join(root,name);
+  if(!fs.existsSync(from))return;
+  if(fs.lstatSync(to,{throwIfNoEntry:false}))return;
+  fs.mkdirSync(path.dirname(to),{recursive:true});fs.symlinkSync(from,to,process.platform==='win32'?'junction':'dir');
+ }
+ for(const entry of fs.readdirSync(source,{withFileTypes:true})){
+  if(entry.name.startsWith('.'))continue;
+  if(entry.name.startsWith('@'))for(const child of fs.readdirSync(path.join(source,entry.name)))link(entry.name+'/'+child);
+  else if(entry.isDirectory()||entry.isSymbolicLink())link(entry.name);
+ }
+}
+function backup(home,files){
+ const folder=path.join(home,'backups','portable-harness-'+stamp());
+ const records=[];
+ for(const relative of files){
+  assert(!path.isAbsolute(relative)&&!relative.split('/').includes('..'),'Unsafe backup path');
+  const target=path.join(home,relative);const exists=fs.existsSync(target);
+  if(exists){fs.mkdirSync(path.dirname(path.join(folder,relative)),{recursive:true});fs.copyFileSync(target,path.join(folder,relative));}
+  records.push({path:relative,existed:exists});
+ }
+ write(path.join(folder,'backup.json'),json(records));return folder;
+}
+export function staleModulePaths(previous,next){
+ return Object.keys(previous?.files??{}).filter(relative=>/^profiles\/desktop\/agent-capabilities\/[a-z0-9-]+\.mjs$/.test(relative)&&!next.has(relative));
+}
+export function install(home,settings,{dryRun=false,refreshLock=false,clean=false}={}){
+ const preview=renderPlan(home,settings,{}, {clean});
+ if(dryRun){console.log('Would manage '+preview.size+' files in the selected DSH_HOME; source templates remain unchanged.');return preview;}
+ assert(new URL(settings.proxyBaseUrl).hostname!=='proxy.example.invalid','Configure .local/settings.json or OPENAI_BASE_URL before deploying');
+ const runtime=globalRuntime();const command=runner();
+ const version=execute(command.executable,['--expose-internals',command.cli,'--version'],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1'}});
+ assert(version.includes(provenance.runtime),'Desktop runtime differs from the pinned source');
+ const records=build({clean});const files=renderPlan(home,settings,records,{clean});
+ if(refreshLock)for(const profile of ['desktop','headless'])files.delete('profiles/'+profile+'/pnpm-lock.yaml');
+ const extra=['profiles/desktop/pnpm-lock.yaml','profiles/desktop/pnpm-workspace.yaml','profiles/headless/pnpm-lock.yaml','profiles/headless/pnpm-workspace.yaml','.portable-harness/state.json'];
+ const stateFile=path.join(home,'.portable-harness/state.json');
+ const previous=fs.existsSync(stateFile)?readJson(stateFile):undefined;
+ assert(!previous?.pending,'Previous installation is incomplete; rollback before installing again');
+ const stale=staleModulePaths(previous,files);
+ const saved=backup(home,[...new Set([...files.keys(),...stale,...extra])]);
+ write(path.join(home,'.portable-harness/state.json'),json({backup:path.relative(home,saved).split(path.sep).join('/'),files:{},sources:{},sourceHashes:{},pending:true}));
+ try{
+  fs.mkdirSync(path.join(home,'local-plugins'),{recursive:true});
+  for(const data of Object.values(records))fs.copyFileSync(path.join(repository,'build',data.filename),path.join(home,'local-plugins',data.filename));
+  for(const [relative,content]of files)write(path.join(home,relative),content);
+  for(const relative of stale){const target=path.join(home,relative);const info=fs.lstatSync(target,{throwIfNoEntry:false});if(info){assert(info.isFile()||info.isSymbolicLink(),'Old module must be a file');fs.unlinkSync(target);}}
+  linkRuntime(home,runtime);
+  for(const profile of ['desktop','headless'])native(command,home,profile,['install',...(!refreshLock&&files.has('profiles/'+profile+'/pnpm-lock.yaml')?['--frozen-lockfile']:[])]);
+  const tracked={};for(const relative of files.keys())tracked[relative]=digest(path.join(home,relative));
+  const sources={};
+  if(!clean&&fs.existsSync(path.join(repository,'modules')))for(const name of fs.readdirSync(path.join(repository,'modules')).filter(x=>x.endsWith('.mjs')))sources['profiles/desktop/agent-capabilities/'+name]='modules/'+name;
+  for(const plugin of clean?[]:provenance.plugins)sources['profiles/desktop/node_modules/'+plugin.package+'/lib/index.js']='plugins/'+plugin.id+'/lib/index.js';
+  for(const relative of Object.keys(sources))tracked[relative]=digest(path.join(home,relative));
+  write(path.join(home,'.portable-harness/state.json'),json({at:new Date().toISOString(),flavor:clean?'native':provenance.flavor,runtime:provenance.runtime,backup:path.relative(home,saved).split(path.sep).join('/'),files:tracked,sources,sourceHashes:Object.fromEntries(Object.values(sources).map(p=>[p,digest(path.join(repository,p))]))}));
+  console.log('Installed portable configuration. Backup: '+path.relative(home,saved));
+ }catch(error){console.error('Installation failed. Pre-install backup retained: '+path.relative(home,saved));throw error;}
+ return files;
+}
+export function status(home){
+ const file=path.join(home,'.portable-harness/state.json');assert(fs.existsSync(file),'No portable deployment state found; deploy first');
+ const state=readJson(file);const changed=[];
+ assert(!state.pending,'Previous installation is incomplete; run rollback');
+ for(const [relative,hash]of Object.entries(state.files))if(digest(path.join(home,relative))!==hash)changed.push(relative);
+ console.log(changed.length?'Local deployment drift:\n'+changed.join('\n'):'Managed deployment has no local drift.');return changed;
+}
+export function capture(home){
+ const state=readJson(path.join(home,'.portable-harness/state.json'));
+ const changes=[];
+ for(const [target,source]of Object.entries(state.sources)){
+  const live=path.join(home,target),file=path.join(repository,source);
+  if(digest(live)===state.files[target]||digest(live)===digest(file))continue;
+  assert(fs.existsSync(live),'Cannot capture a missing runtime source: '+target);
+  assert.equal(digest(file),state.sourceHashes[source],'Both repository and deployed source changed; resolve manually: '+source);
+  changes.push([live,file,source]);
+ }
+ for(const [live,file]of changes)fs.copyFileSync(live,file);
+ console.log('Captured '+changes.length+' changed source files. Config drift must be edited in config templates or ignored local settings; credentials are never exported.');
+}
+export function rollback(home){
+ const state=readJson(path.join(home,'.portable-harness/state.json'));
+ const folder=path.resolve(home,state.backup);
+ assert(folder.startsWith(path.join(path.resolve(home),'backups')+path.sep),'Backup must stay inside this DSH_HOME');
+ const records=readJson(path.join(folder,'backup.json'));
+ backup(home,records.map(x=>x.path));
+ for(const entry of records){
+  assert(!path.isAbsolute(entry.path)&&!entry.path.split('/').includes('..'),'Unsafe restore path');
+  if(entry.existed)write(path.join(home,entry.path),fs.readFileSync(path.join(folder,entry.path)));
+  else {
+   const target=path.join(home,entry.path);const info=fs.lstatSync(target,{throwIfNoEntry:false});
+   if(info){assert(info.isFile()||info.isSymbolicLink(),'Refusing to remove a directory during file rollback');fs.unlinkSync(target);}
+  }
+ }
+ const command=runner();for(const profile of ['desktop','headless'])if(fs.existsSync(path.join(home,'profiles',profile,'package.json')))native(command,home,profile,['install','--frozen-lockfile']);
+ console.log('Previous files restored; session/memory stores and added unmounted modules retained.');
+}
+export function saveLocks(home){
+ const artifacts=readJson(path.join(repository,'build/artifacts.json'));
+ for(const profile of ['desktop','headless']){
+  let text=fs.readFileSync(path.join(home,'profiles',profile,'pnpm-lock.yaml'),'utf8');
+  if(profile==='desktop')for(const plugin of provenance.plugins){
+   const packed=artifacts[plugin.id];assert(text.includes(packed.filename),'Lock does not match the current built sources: '+plugin.id);
+   assert(typeof packed.integrity==='string'&&text.includes(packed.integrity),'Lock integrity does not match the built package: '+plugin.id);
+   text=text.replaceAll(packed.filename,'${'+plugin.id.toUpperCase()+'_TGZ}').replaceAll(packed.integrity,'${'+plugin.id.toUpperCase()+'_INTEGRITY}');
+  }
+  assert(!/(?<![A-Za-z])[A-Za-z]:[\\/]/.test(text),'Lock contains a drive-absolute path');
+  write(path.join(repository,'config',profile+'.lock.yaml'),text);
+ }
+ console.log('Saved portable lock templates for desktop and headless.');
+}
+export function parseArgs(args){
+ const options={command:args[0]??'status',home:path.resolve(process.env.DSH_HOME??path.join(os.homedir(),'.dsh')),settings:path.join(repository,'.local/settings.json'),dryRun:false};
+ for(let i=1;i<args.length;i++){
+  if(args[i]==='--dry-run')options.dryRun=true;
+  else if(args[i]==='--refresh-lock')options.refreshLock=true;
+  else if(['--home','--settings'].includes(args[i])){assert(args[i+1]&&!args[i+1].startsWith('--'),'Missing option value');options[args[i].slice(2)]=path.resolve(args[++i]);}
+  else throw new Error('Unknown option: '+args[i]);
+ }
+ return options;
+}
+export function smoke(home){
+ assert(process.env.OPENAI_API_KEY,'Set OPENAI_API_KEY locally for the optional real-proxy smoke test');
+ const command=runner();
+ const state=readJson(path.join(home,'.portable-harness/state.json'));
+ const output=execute(command.executable,['--expose-internals',path.join(repository,'scripts/smoke.cjs')],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1',DSH_HOME:home,DSH_SMOKE_FLAVOR:state.flavor??provenance.flavor,DSH_NATIVE_ROOT:path.resolve(path.dirname(command.cli),'..','..')}});
+ assert(output.includes('PORTABLE_SMOKE_PASS'),'Runtime smoke test did not complete');
+ const safe=output.replaceAll(process.env.OPENAI_API_KEY,'<redacted>').replace(/([?&]token=)[^\s]+/g,'$1<redacted>');
+ write(path.join(repository,'.local/smoke-runtime.log'),safe);
+ console.log(safe.split(/\r?\n/).filter(x=>x.startsWith('PORTABLE_SMOKE_PASS')).join('\n'));
+}
+if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
+ try{
+  const options=parseArgs(process.argv.slice(2));
+  if(options.command==='build')console.log(json(build()));
+  else if(options.command==='install')install(options.home,settingsFrom(options.settings),options);
+  else if(options.command==='clean')install(options.home,settingsFrom(options.settings),{...options,clean:true});
+  else if(options.command==='status'){if(status(options.home).length)process.exitCode=1;}
+  else if(options.command==='capture')capture(options.home);
+  else if(options.command==='rollback')rollback(options.home);
+  else if(options.command==='lock')saveLocks(options.home);
+  else if(options.command==='smoke')smoke(options.home);
+  else throw new Error('Unknown command: '+options.command);
+ }catch(error){let message=error.message;if(process.env.OPENAI_API_KEY)message=message.replaceAll(process.env.OPENAI_API_KEY,'<redacted>');console.error(message.replace(/([?&]token=)[^\s]+/g,'$1<redacted>'));process.exitCode=1;}
+}

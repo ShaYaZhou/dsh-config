@@ -1,0 +1,13 @@
+node_modules/
+.local/
+build/
+.env
+.env.*
+*.log
+*.tgz
+.credentials*
+sessions/
+memories/
+agent-memory/
+backups/
+.DS_Store

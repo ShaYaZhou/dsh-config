@@ -1,0 +1,7 @@
+{
+  "runtime": "0.2.1-rc.2",
+  "date": "2026-10-20",
+  "nativeSource": "Official installed DeepSeek Harness desktop package",
+  "plugins": [],
+  "flavor": "native"
+}

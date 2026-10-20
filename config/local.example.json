@@ -1,0 +1,7 @@
+{
+  "proxyBaseUrl": "https://proxy.example.invalid/v1",
+  "defaultModel": "deepseek-v4.1-flash",
+  "reasoningEffort": "high",
+  "permissionPreset": "workspace-write",
+  "browser": "chrome"
+}
