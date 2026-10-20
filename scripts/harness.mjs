@@ -66,11 +66,6 @@ export function renderPlan(home,settings,artifacts={}, {clean=false}={}){
   files.set('profiles/'+profile+'/package.json',json(manifest));
   files.set('profiles/'+profile+'/pnpm-workspace.yaml',json(config('pnpm-workspace.json')));
   const patch=substitute(config(profile+'.patch.json'),tokens);
-  if(profile==='desktop'&&!clean){
-   // Existing session headers still name this retired preset; keep them resumable.
-   const standard=patch.find(row=>row.id==='preset-standard').config;
-   patch.push({insert:[{id:'preset-liangshen',name:'@deepseek-ai/dsh-agent-preset',config:{...structuredClone(standard),id:'liangshen',name:'liangshen',description:'Legacy sessions using the current standard agent composition.',order:100}}]});
-  }
   const browser=patch.flatMap(x=>x.insert??[]).find(x=>x.id==='mcp-playwright');
   if(browser){const index=browser.config.args.indexOf('--browser');browser.config.args[index+1]=settings.browser;}
   files.set('profiles/'+profile+'/cordis.patch.yml',emitYaml(patch));
@@ -167,6 +162,7 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
  const runtime=globalRuntime();const command=runner();
  const version=execute(command.executable,['--expose-internals',command.cli,'--version'],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1'}});
  assert(version.includes(provenance.runtime),'Desktop runtime differs from the pinned source');
+ assert.equal(migrateLiangshen(home,{dryRun:true}).count,0,'Legacy sessions remain; quit Harness and run: node scripts/harness.mjs migrate-liangshen');
  const records=build({clean});const files=renderPlan(home,settings,records,{clean});
  if(refreshLock)for(const profile of ['desktop','headless'])files.delete('profiles/'+profile+'/pnpm-lock.yaml');
  const extra=['profiles/desktop/pnpm-lock.yaml','profiles/desktop/pnpm-workspace.yaml','profiles/headless/pnpm-lock.yaml','profiles/headless/pnpm-workspace.yaml','.portable-harness/state.json'];
@@ -264,6 +260,10 @@ export function smoke(home){
  write(path.join(repository,'.local/smoke-runtime.log'),safe);
  console.log(safe.split(/\r?\n/).filter(x=>x.startsWith('PORTABLE_SMOKE_PASS')).join('\n'));
 }
+export function migrateLiangshen(home,{dryRun=false}={}){
+ const command=runner();
+ return JSON.parse(execute(command.executable,['--expose-internals',path.join(repository,'scripts/migrate-liangshen.cjs'),...(dryRun?[]:['--apply'])],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1',DSH_HOME:home,DSH_NATIVE_ROOT:path.resolve(path.dirname(command.cli),'..','..')}}));
+}
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  try{
   const options=parseArgs(process.argv.slice(2));
@@ -275,6 +275,7 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
   else if(options.command==='rollback')rollback(options.home);
   else if(options.command==='lock')saveLocks(options.home);
   else if(options.command==='smoke')smoke(options.home);
+  else if(options.command==='migrate-liangshen')console.log(json(migrateLiangshen(options.home,options)));
   else throw new Error('Unknown command: '+options.command);
  }catch(error){let message=error.message;if(process.env.OPENAI_API_KEY)message=message.replaceAll(process.env.OPENAI_API_KEY,'<redacted>');console.error(message.replace(/([?&]token=)[^\s]+/g,'$1<redacted>'));process.exitCode=1;}
 }

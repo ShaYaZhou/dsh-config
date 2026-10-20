@@ -28,7 +28,15 @@ rtk proxy node scripts/harness.mjs install
 
 桌面 `/agents`、`/clear`、`/resume`、`/fork`、`/help` 以及常显 rewind 按钮的说明见 [桌面命令](docs/DESKTOP-COMMANDS.md)。安装后必须从菜单/托盘真正退出应用再重开，关闭窗口可能只是隐藏到后台。
 
-增强配置保留旧 `liangshen` preset 的兼容入口，复用当前 `standard` 的工具和角色配置。旧会话的 preset 标识和日志不改写。缺少此入口会让旧会话恢复失败，同时阻止终端连接和整个 slash 命令目录加载；此时只重新安装前端命令插件无法解决。
+旧 `liangshen` preset 已移除。升级前先完全退出 Harness，再迁移旧会话；安装器发现仍有会话绑定旧 preset 时会拒绝覆盖配置：
+
+```powershell
+rtk proxy node scripts/harness.mjs migrate-liangshen --dry-run
+rtk proxy node scripts/harness.mjs migrate-liangshen
+rtk proxy node scripts/harness.mjs install
+```
+
+迁移器使用原生存储接口取得全部目标会话的独占写入锁，先完整备份到本机 `DSH_HOME/backups/preset-migration-*`，再为每个会话追加一条 `agent-preset/selected` 记录指向 `standard`。会话 ID、创建信息和原有历史事件保持不变，迁移后逐项校验历史一致；重复运行不会重复追加。旧创建信息中的名称作为历史事实保留，不再需要注册同名 preset。备份和迁移清单不会上传 Git。
 
 ## 新电脑使用
 

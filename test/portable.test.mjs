@@ -31,12 +31,10 @@ test('only explicit expression nodes emit JS tags; scalar strings retain their t
  assert.throws(()=>parseArgs(['install','--settings']),/Missing/);
 });
 
-test('retired liangshen sessions retain the same tools as standard without changing their history',()=>{
+test('desktop configuration does not register the retired liangshen preset',()=>{
  const rendered=renderPlan(path.join(os.tmpdir(),'legacy-session-home'),settings).get('profiles/desktop/cordis.patch.yml');
  const patch=JSON.parse(rendered.replace(/!!js ("(?:[^"\\]|\\.)*")/g,'{"$js":$1}'));
- const standard=patch.find(row=>row.id==='preset-standard').config;
- const legacy=patch.flatMap(row=>row.insert??[]).find(row=>row.id==='preset-liangshen').config;
- assert.equal(legacy.id,'liangshen');assert.deepEqual(legacy.plugins,standard.plugins);
+ assert(!patch.flatMap(row=>[row,...(row.insert??[])]).some(row=>row.config?.id==='liangshen'));
 });
 test('locks replace both tarball names and checksums for a different checkout build',()=>{
  const artifacts=Object.fromEntries(plugins.map(({id})=>[id,{filename:id+'-another-checkout.tgz',integrity:'sha512-'+id+'-another-checkout'}]));
