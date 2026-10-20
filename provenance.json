@@ -2,6 +2,60 @@
   "runtime": "0.2.1-rc.2",
   "date": "2026-10-20",
   "nativeSource": "Official installed DeepSeek Harness desktop package",
-  "plugins": [],
-  "flavor": "native"
+  "plugins": [
+    {
+      "id": "memory",
+      "package": "@dsh-external/dsh-memory",
+      "version": "0.5.1",
+      "license": "MIT",
+      "upstream": "https://github.com/haitang1/dsh-memory",
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "upstream": "https://github.com/haitang1/dsh-memory",
+        "baseCommit": "15de1c791bbcb5be2c9b0c2096eddedcaa61cc17",
+        "changes": [
+          "Await one-shot headless write-back before disposal.",
+          "Remove the hardcoded ten-minute gate on summary updates."
+        ]
+      }
+    },
+    {
+      "id": "btw",
+      "package": "@michengai/dsh-btw",
+      "version": "1.0.0-local.1",
+      "license": "Apache-2.0",
+      "upstream": {
+        "type": "git",
+        "url": "git+https://github.com/MichengAI/dsh-btw.git"
+      },
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "baseVersion": "1.0.0",
+        "date": "2026-10-20",
+        "changes": [
+          "Durable last-20 side conversation pairs.",
+          "Tool-enabled background-session promotion."
+        ]
+      }
+    },
+    {
+      "id": "rewind",
+      "package": "dsh-rewind-plugin",
+      "version": "0.17.1-local.1",
+      "license": "MIT",
+      "upstream": {
+        "type": "git",
+        "url": "git+https://github.com/SiriLee/dsh-rewind.git"
+      },
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "baseVersion": "0.17.1",
+        "date": "2026-10-20",
+        "changes": [
+          "Code-only restore through the original snapshot journal under native maintenance lock."
+        ]
+      }
+    }
+  ],
+  "flavor": "tuned"
 }

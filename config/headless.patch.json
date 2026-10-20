@@ -1,5 +1,46 @@
 [
   {
+    "id": "sandbox-policy",
+    "config": {
+      "mode": "${PERMISSION_PRESET}",
+      "workspaceRoot": {
+        "$js": "process.cwd()"
+      }
+    }
+  },
+  {
+    "id": "permission",
+    "config": {
+      "presets": {
+        "read-only": {
+          "sandbox": "read-only",
+          "approval": "ask"
+        },
+        "workspace-write": {
+          "sandbox": "workspace-write",
+          "approval": "ask"
+        },
+        "danger-full-access": {
+          "sandbox": "danger-full-access",
+          "approval": "never"
+        }
+      },
+      "defaultPreset": "${PERMISSION_PRESET}"
+    }
+  },
+  {
+    "insert": [
+      {
+        "id": "hooks-claude-code",
+        "name": "@deepseek-ai/dsh-hooks-claude-code",
+        "config": {
+          "configPath": "${DSH_HOME}/claude-hooks.json"
+        },
+        "disabled": "${HOOKS_DISABLED}"
+      }
+    ]
+  },
+  {
     "id": "agent-default-model",
     "name": "@deepseek-ai/dsh-agent-default-model",
     "config": {
@@ -88,5 +129,27 @@
   {
     "id": "credentials",
     "disabled": false
+  },
+  {
+    "insert": [
+      {
+        "id": "dsh-memory",
+        "config": {
+          "scopedMemory": true,
+          "seedFromAgentsMd": false,
+          "autoSummarize": true,
+          "summarizeProvider": "openai",
+          "summarizeModel": "${DEFAULT_MODEL}",
+          "maxBytes": 10000,
+          "scopeMaxBytes": 8000,
+          "injectTokens": 2400,
+          "consolidateEvery": 1,
+          "summarizeDebounceMs": 60000,
+          "maxActiveSummaries": 2,
+          "redactSecrets": true
+        },
+        "name": "${MEMORY_URL}"
+      }
+    ]
   }
 ]

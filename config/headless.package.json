@@ -1,7 +1,10 @@
 {
   "name": "dsh-profile-headless",
   "private": true,
-  "dependencies": {},
+  "dependencies": {
+    "@deepseek-ai/dsh-hook-protocol": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-hooks-claude-code": "0.2.1-rc.2"
+  },
   "dsh": {
     "profile": {
       "bundles": [

@@ -1,7 +1,7 @@
 {
-  "packages": [
-    "."
-  ],
+  "packages": ["."],
   "nodeLinker": "hoisted",
-  "autoInstallPeers": false
+  "autoInstallPeers": false,
+  "minimumReleaseAgeExclude": ["dshmarket@1.66.44", "dsh-rewind-plugin@0.17.1-local.1"],
+  "allowBuilds": {"protobufjs": false, "koffi": false, "cloudflared": true, "cpu-features": true, "ssh2": true}
 }

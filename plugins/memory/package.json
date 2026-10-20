@@ -1,0 +1,81 @@
+{
+  "name": "@dsh-external/dsh-memory",
+  "version": "0.5.1",
+  "description": "Codex-like persistent memory for DeepSeek Harness: auto-injected memory summary, raw memory tools, and per-session rollout summaries distilled into a bounded global memory file.",
+  "keywords": [
+    "deepseek",
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "memory",
+    "agent-memory",
+    "codex-memory",
+    "persistent-memory",
+    "rollout-summary"
+  ],
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": ">=20.3.0"
+  },
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "bin": {
+    "dsh-memory-mcp": "./bin/dsh-memory-mcp.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "bin",
+    "examples",
+    "scripts",
+    "cordis.patch.yml",
+    "CHANGELOG.md",
+    "README.md",
+    "README.zh.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-primitives"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-llm": "^0.1.7-rc.1 || ^0.2.0-rc.1",
+    "@deepseek-ai/dsh-settings": "^0.1.7-rc.1 || ^0.2.0-rc.1",
+    "@deepseek-ai/dsh-tools": "^0.1.7-rc.1 || ^0.2.0-rc.1",
+    "@deepseek-ai/schemastery": "^3.18.0"
+  },
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test test/store.test.js test/browser.test.js test/web-settings.test.js test/volatile.test.js test/automation.test.js test/embedding.integration.test.js test/mcp.integration.test.js test/host-wiring.test.js",
+    "check": "node scripts/check-release.mjs"
+  },
+  "harnessTuning": {
+    "unpublishedLocalBuild": true,
+    "upstream": "https://github.com/haitang1/dsh-memory",
+    "baseCommit": "15de1c791bbcb5be2c9b0c2096eddedcaa61cc17",
+    "changes": [
+      "Await one-shot headless write-back before disposal.",
+      "Remove the hardcoded ten-minute gate on summary updates."
+    ]
+  }
+}

@@ -1,12 +1,35 @@
 {
   "name": "dsh-profile-desktop",
   "private": true,
-  "dependencies": {},
+  "dependencies": {
+    "@deepseek-ai/dsh-hook-protocol": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-hooks-claude-code": "0.2.1-rc.2",
+    "@dsh-external/dsh-memory": "@artifact/memory",
+    "@michengai/dsh-btw": "@artifact/btw",
+    "@michengai/dsh-code-review": "1.0.1",
+    "@michengai/dsh-skills-manager": "1.2.8",
+    "@playwright/mcp": "0.0.83",
+    "@tt-a1i/archify-dsh": "1.0.0",
+    "dsh-better-sidebar": "0.28.0",
+    "dsh-rewind-plugin": "@artifact/rewind",
+    "dsh-subagent-workspace-ui": "1.10.0",
+    "dshmarket": "1.66.44"
+  },
   "dsh": {
     "profile": {
       "bundles": [
         "@deepseek-ai/dsh-base",
-        "@deepseek-ai/dsh-web-app"
+        "@deepseek-ai/dsh-web-app",
+        "dshmarket",
+        "@tt-a1i/archify-dsh",
+        "@michengai/dsh-btw",
+        "dsh-rewind-plugin",
+        "dsh-better-sidebar",
+        "@michengai/dsh-code-review",
+        "@deepseek-ai/dsh-experimental-agent-team-profile",
+        "dsh-subagent-workspace-ui",
+        "@michengai/dsh-skills-manager",
+        "@dsh-external/dsh-memory"
       ]
     }
   }

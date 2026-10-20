@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "insert": [
+      {
+        "id": "orca-agent-hooks",
+        "name": "@deepseek-ai/dsh-hooks-claude-code",
+        "disabled": "${ORCA_HOOKS_DISABLED}",
+        "config": {
+          "configPath": "${USER_HOME}/.orca/agent-hooks/dsh-hooks.json"
+        }
+      }
+    ]
+  }
+]
