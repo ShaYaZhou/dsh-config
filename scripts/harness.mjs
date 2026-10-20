@@ -181,7 +181,7 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
   const tracked={};for(const relative of files.keys())tracked[relative]=digest(path.join(home,relative));
   const sources={};
   if(!clean&&fs.existsSync(path.join(repository,'modules')))for(const name of fs.readdirSync(path.join(repository,'modules')).filter(x=>x.endsWith('.mjs')))sources['profiles/desktop/agent-capabilities/'+name]='modules/'+name;
-  for(const plugin of clean?[]:provenance.plugins)sources['profiles/desktop/node_modules/'+plugin.package+'/lib/index.js']='plugins/'+plugin.id+'/lib/index.js';
+  for(const plugin of clean?[]:provenance.plugins)for(const name of ['index.js','client.js'])sources['profiles/desktop/node_modules/'+plugin.package+'/lib/'+name]='plugins/'+plugin.id+'/lib/'+name;
   for(const relative of Object.keys(sources))tracked[relative]=digest(path.join(home,relative));
   write(path.join(home,'.portable-harness/state.json'),json({at:new Date().toISOString(),flavor:clean?'native':provenance.flavor,runtime:provenance.runtime,backup:path.relative(home,saved).split(path.sep).join('/'),files:tracked,sources,sourceHashes:Object.fromEntries(Object.values(sources).map(p=>[p,digest(path.join(repository,p))]))}));
   console.log('Installed portable configuration. Backup: '+path.relative(home,saved));

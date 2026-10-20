@@ -19,11 +19,14 @@ rtk proxy node scripts/harness.mjs clean
 若希望同时通过 Git 记录恢复操作：
 
 ```powershell
-rtk git revert tuned
+rtk git revert --no-commit native-clean..HEAD
+rtk git commit -m "Restore native Harness configuration"
 rtk proxy node scripts/harness.mjs install
 ```
 
-第二条命令才会改变本机部署。`git revert` 后安装器仍然存在，默认配置变回原生基线；已经部署的旧增强模块也会清理。后续存在其他改动时，Git 可能需要先合并冲突。重新部署当前 Git 配置用 `install`；仅撤销最近一次部署用 `rollback`，三者含义不同。
+最后一条命令才会改变本机部署。`git revert` 后安装器仍然存在，默认配置变回原生基线；已经部署的旧增强模块也会清理。区间写法会连同后续命令修复一起撤销；仅撤销最初的 tuned 提交可能与后续改动冲突。重新部署当前 Git 配置用 `install`；仅撤销最近一次部署用 `rollback`，三者含义不同。
+
+桌面 `/agents`、`/clear`、`/resume`、`/fork`、`/help` 以及常显 rewind 按钮的说明见 [桌面命令](docs/DESKTOP-COMMANDS.md)。安装后必须从菜单/托盘真正退出应用再重开，关闭窗口可能只是隐藏到后台。
 
 ## 新电脑使用
 

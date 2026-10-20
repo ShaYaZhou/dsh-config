@@ -41,7 +41,7 @@
     {
       "id": "rewind",
       "package": "dsh-rewind-plugin",
-      "version": "0.17.1-local.1",
+      "version": "0.17.1-local.2",
       "license": "MIT",
       "upstream": {
         "type": "git",
@@ -53,6 +53,18 @@
         "date": "2026-10-20",
         "changes": [
           "Code-only restore through the original snapshot journal under native maintenance lock."
+        ]
+      }
+    },
+    {
+      "id": "desktop-commands",
+      "package": "@local/dsh-desktop-commands",
+      "version": "1.0.0",
+      "license": "UNLICENSED",
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "changes": [
+          "Desktop slash entries for persistent agents and session navigation."
         ]
       }
     }

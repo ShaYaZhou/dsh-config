@@ -20,7 +20,7 @@ async function main(){
   const tuned=process.env.DSH_SMOKE_FLAVOR!=='native';
   assert(tools.some(t=>t.name==='read'));assert(tools.some(t=>t.name==='write'));assert(tools.some(t=>['pwsh','bash'].includes(t.name)));
   const presets=await ctx.get('agentPresets').list();assert(presets.some(p=>p.id==='standard'));
-  if(tuned){assert(tools.find(t=>t.name==='spawn_teammate').parameters.properties.isolation);assert(tools.some(t=>t.name==='create_worktree'));assert(tools.some(t=>t.name==='job_output'));for(const id of ['explore','planner','reviewer'])assert(presets.some(p=>p.id===id));}
+  if(tuned){assert(tools.find(t=>t.name==='spawn_teammate').parameters.properties.isolation);assert(tools.some(t=>t.name==='create_worktree'));assert(tools.some(t=>t.name==='job_output'));for(const id of ['explore','planner','reviewer'])assert(presets.some(p=>p.id===id));assert(ctx.get('commands').find(agent,'rewind').input);assert(ctx.get('clientModules').graph().entries.some(row=>row.id==='@local/dsh-desktop-commands'));}
   else {assert(!presets.some(p=>p.id==='reviewer'));assert(!ctx.commands.list().some(c=>c.name==='btw'));}
   const signal=AbortSignal.timeout(120000);
   await controller.prompt({sessionId:created.sessionId,requestId:randomUUID(),mode:'queue',content:[{type:'text',text:'Portable configuration smoke test. Do not use tools or store memory. Reply exactly PORTABLE_PROXY_OK.'}]},signal);

@@ -31,7 +31,7 @@ test('only explicit expression nodes emit JS tags; scalar strings retain their t
  assert.throws(()=>parseArgs(['install','--settings']),/Missing/);
 });
 test('locks replace both tarball names and checksums for a different checkout build',()=>{
- const artifacts=Object.fromEntries(['memory','btw','rewind'].map(id=>[id,{filename:id+'-another-checkout.tgz',integrity:'sha512-'+id+'-another-checkout'}]));
+ const artifacts=Object.fromEntries(plugins.map(({id})=>[id,{filename:id+'-another-checkout.tgz',integrity:'sha512-'+id+'-another-checkout'}]));
  const text=renderPlan(path.join(os.tmpdir(),'separate-lock-home'),settings,artifacts).get('profiles/desktop/pnpm-lock.yaml');
  const source=fs.readFileSync(path.join(repository,'config/desktop.lock.yaml'),'utf8');
  for(const {id} of plugins){

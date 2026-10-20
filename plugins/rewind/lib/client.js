@@ -1641,7 +1641,7 @@ function apply(ctx) {
     const t = ctx.locale.bind(NS2);
     const style = document.createElement("style");
     style.dataset.plugin = PLUGIN_PACKAGE;
-    style.textContent = STYLE;
+    style.textContent = STYLE + `.dsh-rewind-header{position:relative}.dsh-rewind-header summary{cursor:pointer;list-style:none;padding:4px 8px;border-radius:6px;color:var(--dsw-alias-label-primary)}.dsh-rewind-header[open]>div{position:absolute;top:100%;right:0;z-index:500;min-width:260px;max-width:420px;max-height:320px;overflow:auto;background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-3));color:var(--dsw-alias-label-primary);border:1px solid var(--dsw-alias-border-l2,#ccc);border-radius:8px;padding:6px;box-shadow:0 6px 24px #0002}.dsh-rewind-header button{display:block;width:100%;text-align:left;border:0;background:none;color:inherit;padding:8px;cursor:pointer}.dsh-rewind-header button:hover{background:var(--dsw-alias-interactive-bg-hover,#eee)}`;
     document.head.appendChild(style);
     const sessionOf = (sessionId) => ctx.sessions.binding(sessionId)?.session;
     const isMainViewSession = (sessionId) => (ctx.sessions.list.getSnapshot().byId[sessionId]?.retainedBy.mainView ?? 0) > 0;
@@ -1832,6 +1832,20 @@ function apply(ctx) {
     for (const name2 of ["rewind", "undo"]) {
       yield commandUi.decorate({ name: name2, ...rewindPopupSpec });
     }
+    function HeaderRewind({sessionId}) {
+      const [rows,setRows]=import_react.useState([]);
+      const [status,setStatus]=import_react.useState('');
+      return import_react.createElement('details',{className:'dsh-rewind-header',onToggle:async event=>{
+        if(!event.currentTarget.open)return;
+        setRows([]);setStatus('正在读取回退位置…');
+        try {const options=await rewindPopupSpec.ui.options({sessionId});setRows(options);setStatus(options.length?'':'当前会话还没有可回退的消息');}
+        catch(error){setStatus(error.message??String(error));}
+      }},import_react.createElement('summary',{'aria-label':'回退 /rewind',title:'回退 /rewind'},'↶'),
+      import_react.createElement('div',{'aria-label':'选择回退位置'},status?import_react.createElement('p',{role:'status'},status):null,...rows.map(option=>import_react.createElement('button',{key:option.id,type:'button','aria-label':option.label,onClick:event=>{
+        event.currentTarget.closest('details').open=false;rewindPopupSpec.ui.onSelect(option,{sessionId});
+      }},option.label))));
+    }
+    yield slots.inject(HEADER_ACTIONS_SLOT,()=>slots.register({name:HEADER_ACTIONS_SLOT,id:'dsh-rewind-header',order:999},HeaderRewind));
     const composerSurface2 = () => document.querySelector(COMPOSER_EDITABLE_SELECTOR2);
     yield () => {
       closePopover();

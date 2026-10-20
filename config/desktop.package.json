@@ -13,7 +13,8 @@
     "dsh-better-sidebar": "0.28.0",
     "dsh-rewind-plugin": "@artifact/rewind",
     "dsh-subagent-workspace-ui": "1.10.0",
-    "dshmarket": "1.66.44"
+    "dshmarket": "1.66.44",
+    "@local/dsh-desktop-commands": "@artifact/desktop-commands"
   },
   "dsh": {
     "profile": {
@@ -29,7 +30,8 @@
         "@deepseek-ai/dsh-experimental-agent-team-profile",
         "dsh-subagent-workspace-ui",
         "@michengai/dsh-skills-manager",
-        "@dsh-external/dsh-memory"
+        "@dsh-external/dsh-memory",
+        "@local/dsh-desktop-commands"
       ]
     }
   }

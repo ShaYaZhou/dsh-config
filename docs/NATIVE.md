@@ -15,7 +15,8 @@ rtk proxy node scripts/harness.mjs clean
 如果希望 Git 历史也记录回退，在只有这两层提交的仓库中执行：
 
 ```powershell
-rtk git revert tuned
+rtk git revert --no-commit native-clean..HEAD
+rtk git commit -m "Restore native Harness configuration"
 rtk proxy node scripts/harness.mjs install
 ```
 

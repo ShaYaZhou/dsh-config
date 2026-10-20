@@ -17,6 +17,9 @@ importers:
       '@dsh-external/dsh-memory':
         specifier: file:../../local-plugins/${MEMORY_TGZ}
         version: file:../../local-plugins/${MEMORY_TGZ}(@deepseek-ai/schemastery@3.18.5)
+      '@local/dsh-desktop-commands':
+        specifier: file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}
+        version: file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}
       '@michengai/dsh-btw':
         specifier: file:../../local-plugins/${BTW_TGZ}
         version: file:../../local-plugins/${BTW_TGZ}
@@ -222,6 +225,10 @@ packages:
 
   '@lezer/yaml@1.0.4':
     resolution: {integrity: sha512-2lrrHqxalACEbxIbsjhqGpSW8kWpUKuY6RHgnSAFZa6qK62wvnPxA8hGOwOoDbwHcOFs5M4o27mjGu+P7TvBmw==}
+
+  '@local/dsh-desktop-commands@file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}':
+    resolution: {integrity: ${DESKTOP-COMMANDS_INTEGRITY}, tarball: file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}}
+    version: 1.0.0
 
   '@marijn/find-cluster-break@1.0.4':
     resolution: {integrity: sha512-Wy0V7+SGUjnF9/TkiM1hKVDPj7jKXduPNboMVtHTA8dySMURWqfg/JZ9E2Sq8JgSJmkl7k7Qe9FLeMSrSraWmQ==}
@@ -633,7 +640,7 @@ packages:
 
   dsh-rewind-plugin@file:../../local-plugins/${REWIND_TGZ}:
     resolution: {integrity: ${REWIND_INTEGRITY}, tarball: file:../../local-plugins/${REWIND_TGZ}}
-    version: 0.17.1-local.1
+    version: 0.17.1-local.2
     engines: {dsh: '>=0.2.1-rc.1 <0.3.0-0', node: ^22.19.0 || >=24.0.0}
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.5
@@ -1149,6 +1156,8 @@ snapshots:
       '@lezer/common': 1.5.3
       '@lezer/highlight': 1.2.5
       '@lezer/lr': 1.4.11
+
+  '@local/dsh-desktop-commands@file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}': {}
 
   '@marijn/find-cluster-break@1.0.4': {}
 

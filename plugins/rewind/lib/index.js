@@ -2916,6 +2916,7 @@ function apply(ctx, config) {
       yield ctx.commands.register({
         name: "rewind",
         description: t("command.description"),
+        input: {hint:"[@消息序号 chat|code|both]"},
         handler: rewindHandler
       });
     } catch (error) {
@@ -2925,6 +2926,7 @@ function apply(ctx, config) {
       yield ctx.commands.register({
         name: "undo",
         description: t("command.undoDescription"),
+        input: {hint:"[@消息序号 chat|code|both]"},
         handler: rewindHandler
       });
     } catch (error) {

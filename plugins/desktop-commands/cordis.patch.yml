@@ -1,0 +1,3 @@
+- insert:
+    - id: desktop-commands
+      name: '@local/dsh-desktop-commands'
