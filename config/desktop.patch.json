@@ -191,14 +191,17 @@
           "command": "${NODE_EXECUTABLE}",
           "args": [
             "${DESKTOP_DIR}/node_modules/@playwright/mcp/cli.js",
-            "--headless",
+            "--caps",
+            "vision,devtools",
+            "--snapshot-boxes",
             "--browser",
             "chrome",
             "--isolated",
             "--output-dir",
             "${DSH_HOME}/browser-output"
           ],
-          "failOnStartupError": false
+          "failOnStartupError": false,
+          "toolCallTimeoutMs": 600000
         }
       }
     ]
@@ -213,6 +216,18 @@
   },
   {
     "insert": [
+      {
+        "id": "computer-use",
+        "name": "@deepseek-ai/dsh-computer-use"
+      },
+      {
+        "id": "computer-use-native",
+        "name": "@deepseek-ai/dsh-experimental-computer-use-cua-driver-native"
+      },
+      {
+        "id": "browser-guidance",
+        "name": "${MODULE_URL}/browser-guidance.mjs"
+      },
       {
         "id": "agent-team-local",
         "name": "${MODULE_URL}/team.mjs"

@@ -28,6 +28,10 @@ rtk proxy node scripts/harness.mjs install
 
 桌面 `/agents`、`/clear`、`/resume`、`/fork`、`/help` 以及常显 rewind 按钮的说明见 [桌面命令](docs/DESKTOP-COMMANDS.md)。安装后必须从菜单/托盘真正退出应用再重开，关闭窗口可能只是隐藏到后台。
 
+可见浏览器、目标高亮、交互式批注和 Windows computer-use 的操作与验收边界见 [浏览器与桌面控制](docs/BROWSER-COMPUTER-USE.md)。
+
+独立父子会话、上下文分叉、家族通信与停止保护见 [嵌套会话](docs/NESTED-SESSIONS.md)。标题栏管理当前家族，左侧“嵌套会话”查看全部父子树；原工作区列表保留原生交互。
+
 旧 `liangshen` preset 已移除。升级前先完全退出 Harness，再迁移旧会话；安装器发现仍有会话绑定旧 preset 时会拒绝覆盖配置：
 
 ```powershell
@@ -67,7 +71,8 @@ rtk proxy node scripts/harness.mjs status
 
 | 内容 | 版本控制位置 |
 |---|---|
-| 7 个原生能力补丁 | `modules/` |
+| 原生能力补丁与浏览器操作指引 | `modules/` |
+| DSH 专用 computer-use 技能 | `skills/computer-use/SKILL.md` |
 | 记忆、BTW、Rewind 本地包及原浏览器资源 | `plugins/` |
 | profile 插件、模型、权限、记忆参数 | `config/*.json` |
 | 可独立恢复的官方原生基线 | `presets/native/` |

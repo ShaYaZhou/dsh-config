@@ -84,6 +84,7 @@ export function renderPlan(home,settings,artifacts={}, {clean=false}={}){
  for(const name of moduleNames){
   files.set('profiles/desktop/agent-capabilities/'+name,fs.readFileSync(path.join(repository,'modules',name),'utf8'));
  }
+ if(!clean)files.set('profiles/desktop/agent-capabilities/skills/computer-use/SKILL.md',fs.readFileSync(path.join(repository,'skills/computer-use/SKILL.md'),'utf8'));
  files.set('profiles/desktop/agent-capabilities/manifest.json',json({managedBy:'deepseek-harness-config',flavor:clean?'native':provenance.flavor,runtime:provenance.runtime,modules:Object.fromEntries(moduleNames.map(name=>[name,digest(path.join(repository,'modules',name))])),artifacts}));
  return files;
 }
@@ -153,7 +154,7 @@ function backup(home,files){
  write(path.join(folder,'backup.json'),json(records));return folder;
 }
 export function staleModulePaths(previous,next){
- return Object.keys(previous?.files??{}).filter(relative=>/^profiles\/desktop\/agent-capabilities\/[a-z0-9-]+\.mjs$/.test(relative)&&!next.has(relative));
+ return Object.keys(previous?.files??{}).filter(relative=>(/^profiles\/desktop\/agent-capabilities\/[a-z0-9-]+\.mjs$/.test(relative)||relative==='profiles/desktop/agent-capabilities/skills/computer-use/SKILL.md')&&!next.has(relative));
 }
 export function install(home,settings,{dryRun=false,refreshLock=false,clean=false}={}){
  const preview=renderPlan(home,settings,{}, {clean});

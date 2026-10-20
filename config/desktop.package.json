@@ -2,6 +2,8 @@
   "name": "dsh-profile-desktop",
   "private": true,
   "dependencies": {
+    "@deepseek-ai/dsh-computer-use": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-experimental-computer-use-cua-driver-native": "0.2.1-rc.2",
     "@deepseek-ai/dsh-hook-protocol": "0.2.1-rc.2",
     "@deepseek-ai/dsh-hooks-claude-code": "0.2.1-rc.2",
     "@dsh-external/dsh-memory": "@artifact/memory",
@@ -14,7 +16,8 @@
     "dsh-rewind-plugin": "@artifact/rewind",
     "dsh-subagent-workspace-ui": "1.10.0",
     "dshmarket": "1.66.44",
-    "@local/dsh-desktop-commands": "@artifact/desktop-commands"
+    "@local/dsh-desktop-commands": "@artifact/desktop-commands",
+    "@local/dsh-nested-sessions": "@artifact/nested-sessions"
   },
   "dsh": {
     "profile": {
@@ -31,7 +34,8 @@
         "dsh-subagent-workspace-ui",
         "@michengai/dsh-skills-manager",
         "@dsh-external/dsh-memory",
-        "@local/dsh-desktop-commands"
+        "@local/dsh-desktop-commands",
+        "@local/dsh-nested-sessions"
       ]
     }
   }

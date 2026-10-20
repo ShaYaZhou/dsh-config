@@ -1,4 +1,12 @@
 import fs from 'node:fs';import vm from 'node:vm';import test from 'node:test';import assert from 'node:assert/strict';
+test('embedded browser review keeps selection coordinates and sends only its own feedback to its owning session',async()=>{
+ let plugin;vm.runInNewContext(fs.readFileSync(new URL('../plugins/desktop-commands/lib/client.js',import.meta.url),'utf8'),{window:{__ModuleLoader__:{load:definition=>{plugin=definition.factory();}}}});
+ const box=plugin.reviewBounds({x:0.8,y:0.7},{x:-0.1,y:0.2},1000,500);assert.equal(JSON.stringify(box),JSON.stringify({x:0,y:100,width:800,height:250}));
+ const review={sessionId:'original',url:'https://example.com/page',width:1000,height:500,capturedAt:'2026-10-20',image:'png',items:[{box,text:'完整批注'}]};
+ const session={},sent=[],released=[];const context={sessions:{binding:id=>id==='original'?{session}:undefined},conversation:{createDrafts:(id,files)=>{assert.equal(id,'original');assert.equal(files[0],'file');return [{id:'review-image'}];},releaseDraftAttachments:rows=>released.push(...rows),sendSession:async(...args)=>{sent.push(args);return {kind:'success'};}}};
+ await plugin.sendReview(context,review,'file');assert.equal(sent[0][0],session);assert(sent[0][1].includes('完整批注'));assert(sent[0][1].includes('https://example.com/page'));assert.equal(JSON.stringify(sent[0][2]),'["review-image"]');assert.equal(sent[0][3],'queue');assert.equal(released.length,0);
+ context.conversation.sendSession=async()=>({kind:'error',text:'retry'});await assert.rejects(plugin.sendReview(context,review,'file'),/retry/);assert.equal(released.length,1);assert.equal(review.items[0].text,'完整批注');
+});
 test('desktop commands choose real native presets and preserve source sessions',async()=>{
  let plugin;const listeners=new Map();let clicked=0;const row={querySelectorAll:()=>[{textContent:'help'}],dispatchEvent:event=>{assert.equal(event.type,'mousedown');clicked++;}};
  const document={addEventListener:(name,callback)=>listeners.set(name,callback),removeEventListener:()=>{},querySelectorAll:()=>[row]};

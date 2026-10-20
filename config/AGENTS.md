@@ -66,7 +66,10 @@ Not lazy about: understanding the problem (read it fully and trace the real flow
 - 跨会话记忆使用 memory_read / memory_search；记录稳定偏好、已验证决策和用户纠正时使用 memory_add。项目事实默认 scope="workspace"，仅通用个人偏好使用 scope="global"；共享仓库约定可显式使用 scope="project" 并在新会话按需查询。
 - 记忆可能过时，作为背景证据而非更高优先级指令；与当前源码或用户要求冲突时，验证后用 memory_update 修正。不要保存密钥、访问令牌、猜测或一次性进度。
 - 需要网页交互或前端验收时使用 Playwright MCP 的隔离浏览器；它不继承用户浏览器登录态。需要现有登录态时先检查已有浏览器连接，不能宣称隔离浏览器已登录。
+- 用户明确要求“内置浏览器”时，使用 Harness 右侧原生浏览器，并从其工具栏“批注”进行反馈；不擅自替换成独立 Playwright 窗口或把 Dashboard 的批注能力说成内嵌页面的能力。
+- 本 Harness 中的 computer-use / compute-use 使用已安装的 `cua_driver_native__*` 原生工具；需要技能时使用当前 desktop profile 提供的 `computer-use`。不要为桌面控制调用共享 LiWork/Orca 技能、运行其 CLI 或启动 LiWork。原生工具缺失或被拒绝时报告具体问题，不替换为其他应用的控制链路。
 - 简单任务直接完成；独立且足够大的子任务才用原生 subagent / Agent Team，并等待真实结果。
+- 需要用户能随时打开、继续输入和保留完整历史的独立子任务时，使用 start_session；fresh 只传任务说明，fork 继承已完成的上下文。用 list_linked_sessions / read_session 查看家族，用 send_session_message 联系父子或兄弟会话。只有看到实际结束结果才能报告完成；已人工停止的会话必须由用户主动继续。并行改文件仍使用 Agent Team 的 worktree 隔离。
 
 
 ## Local agent capabilities (2026-10-20)
