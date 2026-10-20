@@ -30,6 +30,14 @@ test('only explicit expression nodes emit JS tags; scalar strings retain their t
  assert.deepEqual(parseArgs(['install','--home','relative home','--dry-run']).dryRun,true);
  assert.throws(()=>parseArgs(['install','--settings']),/Missing/);
 });
+
+test('retired liangshen sessions retain the same tools as standard without changing their history',()=>{
+ const rendered=renderPlan(path.join(os.tmpdir(),'legacy-session-home'),settings).get('profiles/desktop/cordis.patch.yml');
+ const patch=JSON.parse(rendered.replace(/!!js ("(?:[^"\\]|\\.)*")/g,'{"$js":$1}'));
+ const standard=patch.find(row=>row.id==='preset-standard').config;
+ const legacy=patch.flatMap(row=>row.insert??[]).find(row=>row.id==='preset-liangshen').config;
+ assert.equal(legacy.id,'liangshen');assert.deepEqual(legacy.plugins,standard.plugins);
+});
 test('locks replace both tarball names and checksums for a different checkout build',()=>{
  const artifacts=Object.fromEntries(plugins.map(({id})=>[id,{filename:id+'-another-checkout.tgz',integrity:'sha512-'+id+'-another-checkout'}]));
  const text=renderPlan(path.join(os.tmpdir(),'separate-lock-home'),settings,artifacts).get('profiles/desktop/pnpm-lock.yaml');

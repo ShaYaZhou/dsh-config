@@ -28,6 +28,8 @@ rtk proxy node scripts/harness.mjs install
 
 桌面 `/agents`、`/clear`、`/resume`、`/fork`、`/help` 以及常显 rewind 按钮的说明见 [桌面命令](docs/DESKTOP-COMMANDS.md)。安装后必须从菜单/托盘真正退出应用再重开，关闭窗口可能只是隐藏到后台。
 
+增强配置保留旧 `liangshen` preset 的兼容入口，复用当前 `standard` 的工具和角色配置。旧会话的 preset 标识和日志不改写。缺少此入口会让旧会话恢复失败，同时阻止终端连接和整个 slash 命令目录加载；此时只重新安装前端命令插件无法解决。
+
 ## 新电脑使用
 
 先安装匹配版本的 DeepSeek Harness 桌面程序、Node.js 22.19+（22 系列）或 24+，以及所选浏览器。全局 CLI 的原生依赖闭包必须与桌面版本一致：

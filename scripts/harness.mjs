@@ -66,6 +66,11 @@ export function renderPlan(home,settings,artifacts={}, {clean=false}={}){
   files.set('profiles/'+profile+'/package.json',json(manifest));
   files.set('profiles/'+profile+'/pnpm-workspace.yaml',json(config('pnpm-workspace.json')));
   const patch=substitute(config(profile+'.patch.json'),tokens);
+  if(profile==='desktop'&&!clean){
+   // Existing session headers still name this retired preset; keep them resumable.
+   const standard=patch.find(row=>row.id==='preset-standard').config;
+   patch.push({insert:[{id:'preset-liangshen',name:'@deepseek-ai/dsh-agent-preset',config:{...structuredClone(standard),id:'liangshen',name:'liangshen',description:'Legacy sessions using the current standard agent composition.',order:100}}]});
+  }
   const browser=patch.flatMap(x=>x.insert??[]).find(x=>x.id==='mcp-playwright');
   if(browser){const index=browser.config.args.indexOf('--browser');browser.config.args[index+1]=settings.browser;}
   files.set('profiles/'+profile+'/cordis.patch.yml',emitYaml(patch));
