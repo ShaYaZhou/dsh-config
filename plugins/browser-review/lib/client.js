@@ -248,8 +248,8 @@ window.__ModuleLoader__.load({
     }
 
     const css = `
-      .dsh-br-screenshot{max-width:85vw;max-height:85vh;overflow:auto;border:1px solid var(--dsw-alias-border-l2,#ccd);border-radius:10px;padding:16px;color:var(--dsw-alias-label-primary,#222);background:var(--dsw-alias-bg-layer-1,#fff);font:13px system-ui}.dsh-br-screenshot::backdrop{background:#0004}.dsh-br-screenshot>img{display:block;max-width:78vw;max-height:60vh;object-fit:contain;margin:10px 0}.dsh-br-screenshot button{margin:6px 8px 0 0;padding:7px 12px;border:1px solid var(--dsw-alias-border-l2,#ccd);border-radius:6px;background:inherit;color:inherit;cursor:pointer}
-      .dsh-br-panel{flex:none;padding:8px;border-top:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1,#fff);color:var(--dsw-alias-label-primary,#18243b);font:12px system-ui;max-height:260px;overflow:auto}
+      .dsh-br-screenshot{max-width:85vw;max-height:85vh;overflow:auto;border:1px solid var(--dsw-alias-border-l2,#ccd);border-radius:10px;padding:16px;color:var(--dsw-alias-label-primary,#222);background:var(--dsw-alias-bg-layer-1,#fff);font:13px system-ui}.dsh-br-screenshot::backdrop{background:#0004}.dsh-br-shot-surface{position:relative;display:table;margin:10px 0;cursor:crosshair;touch-action:none;user-select:none}.dsh-br-shot-surface>img{display:block;max-width:78vw;max-height:55vh;object-fit:contain;pointer-events:none}.dsh-br-screenshot button{margin:6px 8px 0 0;padding:7px 12px;border:1px solid var(--dsw-alias-border-l2,#ccd);border-radius:6px;background:inherit;color:inherit;cursor:pointer}
+      .dsh-br-panel{position:absolute;z-index:45;bottom:8px;left:8px;right:8px;box-sizing:border-box;padding:8px 12px;border:1px solid var(--dsw-alias-border-l2,#bbc);border-radius:10px;background:var(--dsw-alias-bg-layer-1,#fff);color:var(--dsw-alias-label-primary,#18243b);font:12px system-ui;max-height:35%;overflow:auto;box-shadow:0 4px 20px #0002;user-select:text;touch-action:auto}
       .dsh-br-panel button{margin:4px 6px 4px 0;padding:5px 9px;border:1px solid var(--dsw-alias-border-l2,#bbc);border-radius:5px;color:inherit;background:var(--dsw-alias-bg-base,#fff);cursor:pointer}
       .dsh-br-panel button:disabled{opacity:.5;cursor:default}
       .dsh-br-stage{position:absolute;inset:0;z-index:30;touch-action:none;user-select:none;overflow:hidden;background:var(--dsw-alias-bg-base,#eef1f5)}
@@ -259,7 +259,7 @@ window.__ModuleLoader__.load({
       .dsh-br-editor textarea{display:block;box-sizing:border-box;width:100%;height:84px;resize:vertical;margin:8px 0;padding:8px;border:1px solid #bbc8dd;border-radius:7px;font:14px/1.5 system-ui;color:var(--dsw-alias-label-primary,#172033)!important;background:var(--dsw-alias-bg-layer-1,#fff)!important;-webkit-text-fill-color:currentColor;caret-color:currentColor;opacity:1}
       .dsh-br-editor button{padding:5px 10px;margin-right:6px;border:1px solid #cbd5e1;border-radius:6px;background:inherit;color:inherit;cursor:pointer}.dsh-br-box>button{position:absolute;left:-2px;top:-2px;min-width:22px;height:22px;border:0;border-radius:4px;background:#2563eb;color:white;font:12px system-ui;pointer-events:auto;cursor:pointer}
       .dsh-br-editor[hidden],.dsh-br-stage[hidden],.dsh-br-hover[hidden]{display:none!important}
-      .dsh-br-status{white-space:pre-wrap;margin:4px 0}.dsh-br-preview{max-width:100%;max-height:100px;object-fit:contain}.dsh-br-element{color:var(--dsw-alias-label-secondary,#556);overflow-wrap:anywhere}
+      .dsh-br-panel [data-review-send]{background:#2563eb;color:#fff;border-color:#2563eb;font-weight:600}.dsh-br-panel>details{display:inline-block;margin-left:8px}.dsh-br-panel summary{cursor:pointer}.dsh-br-status{white-space:pre-wrap;margin:4px 0}.dsh-br-preview{max-width:100%;max-height:100px;object-fit:contain}.dsh-br-element{color:var(--dsw-alias-label-secondary,#556);overflow-wrap:anywhere}
     `;
 
     const make = (tag, text) => {
@@ -278,6 +278,45 @@ window.__ModuleLoader__.load({
       return new File([bytes], "网页截图.png", { type: "image/png" });
     }
 
+    async function cropScreenshot(file, bounds) {
+      const bitmap = await createImageBitmap(file);
+      try {
+        if (
+          !Object.values(bounds).every(Number.isFinite) ||
+          bounds.width < 1 ||
+          bounds.height < 1 ||
+          bounds.x < 0 ||
+          bounds.y < 0 ||
+          bounds.x + bounds.width > bitmap.width ||
+          bounds.y + bounds.height > bitmap.height
+        )
+          throw new Error("截图选区无效，请重新框选");
+        const canvas = document.createElement("canvas");
+        canvas.width = bounds.width;
+        canvas.height = bounds.height;
+        canvas
+          .getContext("2d")
+          .drawImage(
+            bitmap,
+            bounds.x,
+            bounds.y,
+            bounds.width,
+            bounds.height,
+            0,
+            0,
+            bounds.width,
+            bounds.height,
+          );
+        const blob = await new Promise((resolve) =>
+          canvas.toBlob(resolve, "image/png"),
+        );
+        if (!blob) throw new Error("选区图片编码失败，请重试");
+        return new File([blob], "网页选区截图.png", { type: "image/png" });
+      } finally {
+        bitmap.close();
+      }
+    }
+
     async function openScreenshot(ctx, state, isDisposed) {
       state.screenshotClose?.();
       const { frame, screenshotButton } = state,
@@ -286,23 +325,92 @@ window.__ModuleLoader__.load({
       const dialog = make("dialog"),
         title = make("h3", "网页截图"),
         status = make("p", "正在截取当前页面…"),
-        image = make("img");
-      const send = make("button", "发送到对话"),
+        image = make("img"),
+        surface = make("div"),
+        box = make("div");
+      const send = make("button", "发送可见页"),
+        clear = make("button", "清除选区"),
         retry = make("button", "重新截图"),
         close = make("button", "关闭");
       dialog.className = "dsh-br-screenshot";
       dialog.setAttribute("aria-label", "网页截图预览");
       image.alt = "待发送的网页截图";
       image.hidden = true;
+      surface.className = "dsh-br-shot-surface";
+      surface.setAttribute("aria-label", "拖动选择截图范围");
+      box.className = "dsh-br-box";
+      box.hidden = true;
+      surface.append(image, box);
+      clear.disabled = true;
       send.disabled = true;
-      dialog.append(title, status, image, send, retry, close);
+      dialog.append(title, status, surface, send, clear, retry, close);
       document.body.append(dialog);
       let closed = false,
         sending = false,
         url,
         file,
         pageUrl,
-        capturedAt;
+        capturedAt,
+        selection,
+        start;
+      clear.onclick = () => {
+        selection = start = undefined;
+        box.hidden = true;
+        clear.disabled = true;
+        send.textContent = "发送可见页";
+      };
+      const point = (event) => {
+        const r = image.getBoundingClientRect();
+        return {
+          x: (event.clientX - r.left) / r.width,
+          y: (event.clientY - r.top) / r.height,
+        };
+      };
+      const showBox = (bounds) => {
+        for (const [name, value] of Object.entries({
+          left: bounds.x / image.naturalWidth,
+          top: bounds.y / image.naturalHeight,
+          width: bounds.width / image.naturalWidth,
+          height: bounds.height / image.naturalHeight,
+        }))
+          box.style[name] = value * 100 + "%";
+        box.hidden = false;
+      };
+      surface.onpointerdown = (event) => {
+        if (event.button !== 0 || sending || !file) return;
+        event.preventDefault();
+        clear.onclick();
+        start = point(event);
+        surface.setPointerCapture(event.pointerId);
+      };
+      surface.onpointermove = (event) => {
+        if (start)
+          showBox(
+            reviewBounds(
+              start,
+              point(event),
+              image.naturalWidth,
+              image.naturalHeight,
+            ),
+          );
+      };
+      surface.onpointerup = (event) => {
+        if (!start) return;
+        const bounds = reviewBounds(
+          start,
+          point(event),
+          image.naturalWidth,
+          image.naturalHeight,
+        );
+        start = undefined;
+        if (bounds.width < 4 || bounds.height < 4) return clear.onclick();
+        selection = bounds;
+        showBox(bounds);
+        clear.disabled = false;
+        send.textContent = "发送选区";
+        status.textContent = `已选择 ${bounds.width} × ${bounds.height} 像素；只发送框内图片，不附带批注意见。`;
+      };
+      surface.onpointercancel = clear.onclick;
       const active = () =>
         !closed &&
         !isDisposed() &&
@@ -324,6 +432,7 @@ window.__ModuleLoader__.load({
       };
       dialog.showModal();
       const capture = async () => {
+        clear.onclick();
         send.disabled = retry.disabled = true;
         status.textContent = "正在截取当前页面…";
         try {
@@ -344,7 +453,7 @@ window.__ModuleLoader__.load({
           image.src = url;
           image.hidden = false;
           status.textContent =
-            "这是当前页面的截图，不含批注。发送后会作为图片进入原对话。";
+            "拖动框选要发送的区域；不框选时发送当前网页可见区域。";
           send.disabled = false;
         } catch (error) {
           if (active()) status.textContent = "截图失败：" + error.message;
@@ -356,6 +465,7 @@ window.__ModuleLoader__.load({
       send.onclick = async () => {
         if (!active() || !file) return;
         sending = true;
+        const selected = selection && { ...selection };
         send.disabled = retry.disabled = close.disabled = true;
         try {
           await sendImageMessage(
@@ -364,8 +474,9 @@ window.__ModuleLoader__.load({
             "网页截图\n页面 URL（仅作为背景）：" +
               pageUrl +
               "\n截图时间：" +
-              capturedAt,
-            file,
+              capturedAt +
+              (selected ? "\n截图选区：" + JSON.stringify(selected) : ""),
+            selected ? await cropScreenshot(file, selected) : file,
           );
           cleanup();
         } catch (error) {
@@ -380,7 +491,7 @@ window.__ModuleLoader__.load({
     }
 
     async function openReview(ctx, state, isDisposed) {
-      const { frame, root, content, button } = state;
+      const { frame, content, button } = state;
       if (state.panel) {
         state.setVisible?.(state.panel.hidden);
         return;
@@ -399,7 +510,9 @@ window.__ModuleLoader__.load({
         cancel = make("button", "关闭（保留草稿）"),
         discard = make("button", "退出批注"),
         status = make("div"),
-        preview = make("img");
+        preview = make("img"),
+        previewDetails = make("details"),
+        previewLabel = make("summary", "预览编号图片");
       panel.className = "dsh-br-panel";
       state.panel = panel;
       includeImage.type = "checkbox";
@@ -410,20 +523,21 @@ window.__ModuleLoader__.load({
       preview.className = "dsh-br-preview";
       preview.alt = "待发送编号截图";
       preview.hidden = true;
+      previewDetails.append(previewLabel, preview);
+      send.dataset.reviewSend = "true";
       send.disabled = true;
       for (const control of [retry, send, cancel, discard])
         control.type = "button";
       panel.append(
-        hint,
-        includeLabel,
-        retry,
         send,
+        includeLabel,
         cancel,
         discard,
+        retry,
+        previewDetails,
+        hint,
         status,
-        preview,
       );
-      root.append(panel);
       let closed = false,
         resize,
         hoverTimer,
@@ -510,7 +624,7 @@ window.__ModuleLoader__.load({
       remove.type = done.type = "button";
       popover.append(detail, editor, done, remove);
       surface.append(image);
-      stage.append(surface, popover);
+      stage.append(surface, popover, panel);
       state.stage = stage;
       const freezeFrame = () => {
         frame.style.width = review.width + "px";
@@ -621,6 +735,9 @@ window.__ModuleLoader__.load({
         const area = stage.getBoundingClientRect(),
           page = surface.getBoundingClientRect(),
           b = selected.box;
+        const bottom = Math.max(80, panel.offsetTop - 8);
+        popover.style.maxHeight = Math.max(80, bottom - 16) + "px";
+        popover.style.overflow = "auto";
         popover.style.width =
           Math.max(120, Math.min(300, area.width - 16)) + "px";
         const x = page.left - area.left + (b.x / review.width) * page.width,
@@ -633,8 +750,8 @@ window.__ModuleLoader__.load({
           Math.max(
             8,
             Math.min(
-              below + height <= area.height - 8 ? below : top - height - 8,
-              area.height - height - 8,
+              below + height <= bottom ? below : top - height - 8,
+              bottom - height,
             ),
           ) + "px";
       };
@@ -954,6 +1071,7 @@ window.__ModuleLoader__.load({
       sendReview,
       sendImageMessage,
       screenshotFile,
+      cropScreenshot,
       openScreenshot,
       installEmbeddedBrowserReview,
     };

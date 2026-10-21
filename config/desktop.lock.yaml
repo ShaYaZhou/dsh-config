@@ -277,7 +277,7 @@ packages:
 
   '@local/dsh-browser-review@file:../../local-plugins/${BROWSER-REVIEW_TGZ}':
     resolution: {integrity: ${BROWSER-REVIEW_INTEGRITY}, tarball: file:../../local-plugins/${BROWSER-REVIEW_TGZ}}
-    version: 1.1.1
+    version: 1.2.0
 
   '@local/dsh-desktop-commands@file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}':
     resolution: {integrity: ${DESKTOP-COMMANDS_INTEGRITY}, tarball: file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}}

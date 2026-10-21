@@ -6,6 +6,7 @@
   }
   .browser {
     height: 100vh;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
   }
@@ -90,7 +91,7 @@
       shot.click();
       await wait(() =>
         document
-          .querySelector(".dsh-br-screenshot>img")
+          .querySelector(".dsh-br-screenshot .dsh-br-shot-surface>img")
           ?.getAttribute("src")
           ?.startsWith("blob:"),
       );
@@ -100,7 +101,7 @@
       );
       await window.fixture.proof("screenshot");
       Array.from(document.querySelectorAll(".dsh-br-screenshot button"))
-        .find((button) => button.textContent === "发送到对话")
+        .find((button) => button.textContent === "发送可见页")
         .click();
       await wait(() => deliveries.length === 1);
       assert(file.name === "网页截图.png", "Standalone screenshot filename");
@@ -109,6 +110,72 @@
           !deliveries[0][1].includes("用户批注"),
         "Screenshot was mixed with annotation",
       );
+      const fullScreenshot = file;
+      deliveries.length = 0;
+      shot.click();
+      await wait(() =>
+        document
+          .querySelector(".dsh-br-shot-surface>img")
+          ?.getAttribute("src")
+          ?.startsWith("blob:"),
+      );
+      const shotImage = document.querySelector(".dsh-br-shot-surface>img"),
+        shotRect = shotImage.getBoundingClientRect(),
+        cropX = Math.round(shotRect.left + 20),
+        cropY = Math.round(shotRect.top + 20),
+        expectedWidth = Math.round(
+          (140 * shotImage.naturalWidth) / shotRect.width,
+        ),
+        expectedHeight = Math.round(
+          (70 * shotImage.naturalHeight) / shotRect.height,
+        );
+      await window.fixture.input([
+        {
+          type: "mouseDown",
+          x: cropX,
+          y: cropY,
+          button: "left",
+          clickCount: 1,
+        },
+        { type: "mouseMove", x: cropX + 140, y: cropY + 70, buttons: ["left"] },
+        {
+          type: "mouseUp",
+          x: cropX + 140,
+          y: cropY + 70,
+          button: "left",
+          clickCount: 1,
+        },
+      ]);
+      const sendCrop = Array.from(
+        document.querySelectorAll(".dsh-br-screenshot button"),
+      ).find((button) => button.textContent === "发送选区");
+      assert(sendCrop, "Screenshot has no region send action");
+      sendCrop.click();
+      await wait(() => deliveries.length === 1);
+      assert(
+        file.name === "网页选区截图.png" &&
+          deliveries[0][1].includes("截图选区"),
+        "Selection was sent as a full-page screenshot",
+      );
+      const crop = await createImageBitmap(file);
+      assert(
+        Math.abs(crop.width - expectedWidth) <= 1 &&
+          Math.abs(crop.height - expectedHeight) <= 1,
+        "Sent crop dimensions do not match the selected region",
+      );
+      crop.close();
+      let invalidRejected = false;
+      try {
+        await plugin.cropScreenshot(fullScreenshot, {
+          x: -1,
+          y: 0,
+          width: 20,
+          height: 20,
+        });
+      } catch {
+        invalidRejected = true;
+      }
+      assert(invalidRejected, "Invalid screenshot crop was accepted");
       deliveries.length = 0;
       drafts.length = 0;
       document.querySelector('[aria-label="内置浏览器批注"]').click();
@@ -180,6 +247,23 @@
             style.opacity === "1" &&
             style.webkitTextFillColor === style.color,
           "Comment text is not visibly contrasted",
+        );
+        const send = document.querySelector("[data-review-send]"),
+          sendBox = send.getBoundingClientRect();
+        assert(
+          sendBox.width > 40 &&
+            sendBox.top >= page.top &&
+            sendBox.bottom <= page.bottom &&
+            sendBox.left >= page.left &&
+            sendBox.right <= page.right,
+          "Annotation send action lies outside the browser viewport",
+        );
+        assert(
+          document.elementFromPoint(
+            sendBox.left + sendBox.width / 2,
+            sendBox.top + sendBox.height / 2,
+          ) === send,
+          "Annotation send action is covered by the page or editor",
         );
       };
       visibleEditor();
@@ -408,6 +492,8 @@
       window.fixture.report({
         pass: true,
         independentScreenshot: true,
+        regionScreenshot: true,
+        sendControlVisibleInsideViewport: true,
         trustedCustomRectangle: true,
         nativeCommentInput: true,
         clickSnapsDragSelects: true,

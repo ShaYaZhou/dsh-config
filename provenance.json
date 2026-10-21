@@ -83,12 +83,12 @@
     {
       "id": "browser-review",
       "package": "@local/dsh-browser-review",
-      "version": "1.1.1",
+      "version": "1.2.0",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
         "changes": [
-          "Click-to-snap and drag-to-select in one gesture flow, nearby auto-saved comment editor, independent screenshot capture."
+          "Viewport-contained annotation send controls and independent region screenshot cropping; native click/drag and input regression."
         ]
       }
     }
