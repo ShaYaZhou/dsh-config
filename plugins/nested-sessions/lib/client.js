@@ -8,6 +8,7 @@ window.__ModuleLoader__.load({
       "sessions",
       "workspaces",
       "uiWorkspace",
+      "uiSession",
       "connection",
       "sidebarRight",
       "sidebarRightTabs",
@@ -371,12 +372,45 @@ window.__ModuleLoader__.load({
       );
     }
 
+    function sidebarGroups(groups, links, list, unavailable) {
+      const ids = list.ids.filter((id) => !unavailable.has(id)),
+        tree = familyTree(
+          links,
+          ids.map((id) => ({ id })),
+        ),
+        visible = new Map(
+          groups.flatMap(({ key, ids }) => ids.map((id) => [id, key])),
+        ),
+        owners = new Map();
+      for (const id of ids) {
+        const root = rootFor(tree.parents, id);
+        if (root !== id && visible.has(root)) owners.set(id, visible.get(root));
+      }
+      return groups.map(({ key, ids: original }) => {
+        const retained = original.filter(
+            (id) => !owners.has(id) || owners.get(id) === key,
+          ),
+          aliases = ids.filter(
+            (id) => owners.get(id) === key && !original.includes(id),
+          );
+        return {
+          key,
+          ids: [...retained, ...aliases],
+          aliases,
+          hidden: original.filter(
+            (id) => owners.has(id) && owners.get(id) !== key,
+          ),
+        };
+      });
+    }
+
     // Native 0.2.1-rc.2 has no row-order slot; adapt only its semantic row markers, never move React-owned nodes.
     function installSidebarTree(ctx) {
       const selector = '[data-row-key^="session:"]',
         collapsed = new Set(),
         saved = new Map(),
-        containers = new Map();
+        containers = new Map(),
+        aliases = new Map();
       let disposed = false,
         links = [],
         frame,
@@ -453,6 +487,106 @@ window.__ModuleLoader__.load({
               !unavailable.has(link.sessionId) &&
               !unavailable.has(link.parentId),
           );
+        const catalog = ctx.sessions.list.getSnapshot(),
+          available = catalog.ids.filter((id) => !unavailable.has(id)),
+          family = familyTree(
+            visibleLinks,
+            available.map((id) => ({ id })),
+          ),
+          plans = sidebarGroups(
+            [...groups].map(([key, rows]) => ({
+              key,
+              ids: rows.map((row) => row.id),
+            })),
+            visibleLinks,
+            catalog,
+            unavailable,
+          ),
+          activeAliases = new Set();
+        for (const plan of plans) {
+          const rows = groups.get(plan.key);
+          for (const id of plan.hidden) {
+            const { wrapper } = rows.find((item) => item.id === id);
+            preserve(wrapper, ["order", "display"]);
+            wrapper.style.display = "none";
+            live.add(wrapper);
+          }
+          groups.set(
+            plan.key,
+            rows.filter((item) => !plan.hidden.includes(item.id)),
+          );
+          for (const id of plan.aliases) {
+            let alias = aliases.get(id);
+            if (!alias) {
+              const wrapper = document.createElement("div"),
+                row = document.createElement("div"),
+                title = document.createElement("span"),
+                status = document.createElement("span");
+              row.dataset.dshFamilyAlias = id;
+              row.className = "dsh-linked-alias";
+              row.setAttribute("role", "treeitem");
+              row.tabIndex = 0;
+              title.style.cssText =
+                "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0";
+              status.style.cssText =
+                "font-size:11px;color:var(--dsw-alias-label-tertiary);flex-shrink:0";
+              row.append(title, status);
+              row.onclick = () => ctx.uiWorkspace.openSession(id);
+              row.onkeydown = (event) => {
+                if (["Enter", " "].includes(event.key)) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  ctx.uiWorkspace.openSession(id);
+                }
+              };
+              wrapper.append(row);
+              alias = { id, row, wrapper, title, status };
+              aliases.set(id, alias);
+            }
+            const summary = catalog.byId[id],
+              title = summary?.displayTitle ?? summary?.title ?? "子会话",
+              link = visibleLinks.find((link) => link.sessionId === id),
+              state =
+                {
+                  running: "进行中",
+                  queued: "排队中",
+                  completed: "已完成",
+                  error: "出错",
+                  blocked: "待处理",
+                  stopped: "已停止",
+                  question: "等你回答",
+                  approval: "等你确认",
+                  "plan-review": "等你审阅",
+                  paused: "已暂停",
+                  unread: "待查看",
+                }[
+                  progressStatus(
+                    summary ?? { id },
+                    link,
+                    ctx.uiSession.sessionStatus.getSnapshot(),
+                  )
+                ] ?? "";
+            if (alias.title.textContent !== title)
+              alias.title.textContent = title;
+            if (alias.status.textContent !== state)
+              alias.status.textContent = state;
+            alias.row.title = summary?.cwd ?? title;
+            const active = String(selected === id);
+            if (alias.row.getAttribute("aria-selected") !== active)
+              alias.row.setAttribute("aria-selected", active);
+            if (alias.wrapper.parentElement !== plan.key)
+              plan.key.append(alias.wrapper);
+            groups.get(plan.key).push(alias);
+            activeAliases.add(id);
+          }
+        }
+        for (const [id, alias] of aliases)
+          if (!activeAliases.has(id)) {
+            restore(alias.row);
+            restore(alias.wrapper);
+            alias.wrapper.remove();
+            aliases.delete(id);
+          }
         for (const [container, rows] of groups) {
           const overflow = Array.from(container.children).find((node) =>
             node.dataset.rowKey?.startsWith("overflow:"),
@@ -471,10 +605,17 @@ window.__ModuleLoader__.load({
                       .getSnapshot()
                       .ids.filter((id) => !accounted.has(id))
                   : []),
-              eligible = new Set(members.filter((id) => !unavailable.has(id)));
+              memberSet = new Set(members),
+              eligible = new Set(
+                available.filter((id) =>
+                  memberSet.has(rootFor(family.parents, id)),
+                ),
+              );
             if (
               hasPartialFamily(
-                rows.map((item) => item.id),
+                [...groups.values()].flatMap((items) =>
+                  items.map((item) => item.id),
+                ),
                 visibleLinks,
                 eligible,
               )
@@ -620,6 +761,7 @@ window.__ModuleLoader__.load({
       });
       const unsubscribe = ctx.sessions.list.subscribe(schedule),
         unsubscribeWorkspaces = ctx.workspaces.list.subscribe(schedule),
+        unsubscribeStatus = ctx.uiSession.sessionStatus.subscribe(schedule),
         timer = setInterval(refresh, 2000);
       refresh();
       return () => {
@@ -627,9 +769,12 @@ window.__ModuleLoader__.load({
         observer.disconnect();
         unsubscribe();
         unsubscribeWorkspaces();
+        unsubscribeStatus();
         clearInterval(timer);
         cancelAnimationFrame(frame);
         for (const element of [...saved.keys()]) restore(element);
+        for (const alias of aliases.values()) alias.wrapper.remove();
+        aliases.clear();
         for (const [container, [display, direction]] of containers) {
           container.style.display = display;
           container.style.flexDirection = direction;
@@ -709,7 +854,13 @@ window.__ModuleLoader__.load({
         ];
       });
     }
-    function GlobalAttention({ ctx, useSessions, useSessionStatus, useWorkspaces, wide }) {
+    function GlobalAttention({
+      ctx,
+      useSessions,
+      useSessionStatus,
+      useWorkspaces,
+      wide,
+    }) {
       const list = useSessions((value) => value),
         statuses = useSessionStatus((value) => value);
       const workspaces = useWorkspaces((value) => value);
@@ -973,6 +1124,8 @@ window.__ModuleLoader__.load({
 .dsh-nested-card p{font-size:13px;margin:8px 0;color:var(--dsw-alias-label-secondary,#697386)}
 .dsh-nested-row{display:flex;align-items:center;gap:8px}
 .dsh-nested-title{border:0!important;background:transparent!important;text-align:left;min-width:0;flex:1;padding:0!important;font-weight:600!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dsh-linked-alias{display:flex;align-items:center;gap:8px;min-height:32px;padding:6px 8px;box-sizing:border-box;border-radius:var(--dsw-radius-md);font-size:14px;line-height:20px;color:var(--dsw-alias-label-primary);cursor:pointer;outline-offset:-2px}
+.dsh-linked-alias:hover,.dsh-linked-alias[aria-selected="true"]{background:var(--dsw-alias-interactive-bg-hover)}
 .dsh-nested-status{font-size:12px;white-space:nowrap;color:var(--dsw-alias-label-secondary,#697386)}
 .dsh-nested-status[data-status=completed]{color:#15803d}
 .dsh-nested-status[data-status=running],.dsh-nested-status[data-status=queued]{color:#2563eb}
@@ -1604,6 +1757,7 @@ window.__ModuleLoader__.load({
       familyTree,
       sidebarRows,
       hasPartialFamily,
+      sidebarGroups,
       progressStatus,
       attentionGroup,
       attentionRows,

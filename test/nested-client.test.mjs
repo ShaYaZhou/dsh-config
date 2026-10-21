@@ -3,6 +3,78 @@ import vm from "node:vm";
 import test from "node:test";
 import assert from "node:assert/strict";
 
+test("sidebar lineage projects cross-directory children without changing native ownership", () => {
+  let plugin;
+  vm.runInNewContext(
+    fs.readFileSync(
+      new URL("../plugins/nested-sessions/lib/client.js", import.meta.url),
+      "utf8",
+    ),
+    {
+      window: {
+        __ModuleLoader__: {
+          load: (entry) => {
+            plugin = entry.factory(() => ({}));
+          },
+        },
+      },
+    },
+  );
+  const groups = [
+      { key: "source", ids: ["root", "ordinary"] },
+      { key: "other", ids: ["child", "unrelated"] },
+    ],
+    links = [{ sessionId: "child", parentId: "root" }],
+    list = { ids: ["root", "ordinary", "child", "unrelated"] },
+    initial = JSON.stringify(groups),
+    plain = (value) => JSON.parse(JSON.stringify(value));
+  assert.deepEqual(
+    plain(plugin.sidebarGroups(groups, links, list, new Set())),
+    [
+      {
+        key: "source",
+        ids: ["root", "ordinary", "child"],
+        aliases: ["child"],
+        hidden: [],
+      },
+      { key: "other", ids: ["unrelated"], aliases: [], hidden: ["child"] },
+    ],
+  );
+  assert.equal(JSON.stringify(groups), initial);
+  for (const blocked of ["root", "child"]) {
+    const plan = plugin.sidebarGroups(groups, links, list, new Set([blocked]));
+    assert(
+      plan.every((group) => !group.aliases.length && !group.hidden.length),
+    );
+  }
+  assert(
+    plugin
+      .sidebarGroups(groups, [], list, new Set())
+      .every((group) => !group.aliases.length),
+  );
+  assert(
+    plugin
+      .sidebarGroups(groups.slice(1), links, list, new Set())
+      .every((group) => !group.aliases.length),
+  );
+  const cyclic = plugin.sidebarGroups(
+    groups,
+    [...links, { sessionId: "root", parentId: "child" }],
+    list,
+    new Set(),
+  );
+  const visible = cyclic.flatMap((group) => group.ids);
+  assert.equal(new Set(visible).size, list.ids.length);
+  assert.equal(visible.length, list.ids.length);
+  const nested = plugin.sidebarGroups(
+    groups,
+    [...links, { sessionId: "grandchild", parentId: "child" }],
+    { ids: [...list.ids, "grandchild"] },
+    new Set(),
+  );
+  assert.deepEqual(plain(nested[0].aliases), ["child", "grandchild"]);
+});
+
 test("the retired panel redirects to an existing conversation without recreating a navigation entry", () => {
   let plugin;
   const registrations = [],
