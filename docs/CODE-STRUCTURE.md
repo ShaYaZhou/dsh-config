@@ -1,5 +1,7 @@
 # 自写改动的职责与依赖回查
 
+并排会话集中在嵌套前端 `installSplitView`：只注册自己的资源地址/右侧标签类型，使用原生 `sessions.retain/release`、`SessionProvider` 和内嵌 `conversation.content` Factory。渲染前检查引用与目标身份一致，切换/卸载释放引用；不复制对话渲染器、输入草稿或会话存储，不用 DOM 搬运主面板。
+
 任务与回顾只读原生 `sessionController.projections` 的精确 `todos` / `turnOutline`，不使用迁移提示作为当前进展、不另建任务或摘要存储。`progress` RPC 在读取前后复核 RemoteAccess；前端按需挂载读取组件，单次轮询、卸载清理并忽略迟到结果，不激活 Agent。
 
 会话停止与通信竞争控制集中在 `nested-sessions` 后端，复用原生 `agent/pre-step` 的取消信号、`agent/inbox/spliced` 用户输入事件及既有串行写入队列。瞬时取消版本只存在内存；持久关系 schema 不变。显式消息走 `followup`，终态汇总走 `steer`，前端不复制消息队列。`test-session-lifecycle.cjs` 仅提供隔离合成数据的原生/代理验收，共用现有 home/output lease，不增加产品服务。

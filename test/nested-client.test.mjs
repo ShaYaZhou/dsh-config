@@ -3,23 +3,93 @@ import vm from "node:vm";
 import test from "node:test";
 import assert from "node:assert/strict";
 
+test("split addresses accept one ordinary native session identity only", () => {
+  let plugin;
+  vm.runInNewContext(
+    fs.readFileSync(
+      new URL("../plugins/nested-sessions/lib/client.js", import.meta.url),
+      "utf8",
+    ),
+    {
+      window: {
+        __ModuleLoader__: {
+          load: (entry) => {
+            plugin = entry.factory(() => ({}));
+          },
+        },
+      },
+    },
+  );
+  assert.equal(
+    plugin.splitSessionId("dsh-resource://linked-session/session-abc_1"),
+    "session-abc_1",
+  );
+  for (const bad of [
+    "https://example.com",
+    "dsh-resource://linked-session/../secret",
+    "dsh-resource://linked-session/a/b",
+    "dsh-resource://linked-session/a?token=x",
+    "dsh-resource://linked-session/" + "a".repeat(201),
+  ])
+    assert.equal(plugin.splitSessionId(bad), undefined);
+});
+
 test("native attention state uses the Map and pending interaction takes priority over running", () => {
   let plugin;
-  vm.runInNewContext(fs.readFileSync(new URL("../plugins/nested-sessions/lib/client.js", import.meta.url), "utf8"), {
-    window: {__ModuleLoader__: {load: entry => { plugin = entry.factory(() => ({})); }}},
-  });
-  const item = {id: "child", running: false}, link = {status: "running"};
+  vm.runInNewContext(
+    fs.readFileSync(
+      new URL("../plugins/nested-sessions/lib/client.js", import.meta.url),
+      "utf8",
+    ),
+    {
+      window: {
+        __ModuleLoader__: {
+          load: (entry) => {
+            plugin = entry.factory(() => ({}));
+          },
+        },
+      },
+    },
+  );
+  const item = { id: "child", running: false },
+    link = { status: "running" };
   for (const kind of ["question", "approval", "plan-review"]) {
-    const states = new Map([[item.id, {running: true, pendingInteraction: {kind}}]]);
+    const states = new Map([
+      [item.id, { running: true, pendingInteraction: { kind } }],
+    ]);
     assert.equal(plugin.progressStatus(item, link, states), kind);
     assert.equal(plugin.attentionGroup(kind), "needs-input");
   }
-  const running = new Map([[item.id, {running: true}]]);
-  assert.equal(plugin.progressStatus(item, {status: "completed"}, running), "running");
-  assert.equal(plugin.progressStatus(item, {status: "stopped", stoppedByUser: true}, running), "stopped");
-  assert.equal(plugin.progressStatus(item, null, new Map([[item.id, {completionUnread:true}]])), "unread");
+  const running = new Map([[item.id, { running: true }]]);
+  assert.equal(
+    plugin.progressStatus(item, { status: "completed" }, running),
+    "running",
+  );
+  assert.equal(
+    plugin.progressStatus(
+      item,
+      { status: "stopped", stoppedByUser: true },
+      running,
+    ),
+    "stopped",
+  );
+  assert.equal(
+    plugin.progressStatus(
+      item,
+      null,
+      new Map([[item.id, { completionUnread: true }]]),
+    ),
+    "unread",
+  );
   assert.equal(plugin.attentionGroup("unread"), undefined);
-  assert.equal(plugin.progressStatus(item, {status:"blocked"}, new Map([[item.id, {completionUnread:true}]])), "blocked");
+  assert.equal(
+    plugin.progressStatus(
+      item,
+      { status: "blocked" },
+      new Map([[item.id, { completionUnread: true }]]),
+    ),
+    "blocked",
+  );
   assert.equal(plugin.attentionGroup("queued"), "working");
   assert.equal(plugin.attentionGroup("completed"), "completed");
   assert.equal(plugin.attentionGroup("stopped"), undefined);
@@ -146,6 +216,6 @@ test("nested tree preserves sibling ordering, descendants and orphan history wit
   });
   assert.deepEqual(
     registrations.map((row) => row.name),
-    ["conversation.session.header.actions","main"],
+    ["sidebar.right.pane.tab", "nested.split.conversation", "conversation.session.header.actions", "main"],
   );
 });

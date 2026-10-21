@@ -9,7 +9,87 @@ window.__ModuleLoader__.load({
       "workspaces",
       "uiWorkspace",
       "connection",
+      "sidebarRight",
+      "sidebarRightTabs",
     ];
+    const splitPrefix = "dsh-resource://linked-session/";
+    const splitSessionId = (address) =>
+      /^dsh-resource:\/\/linked-session\/([A-Za-z0-9_.-]{1,200})$/.exec(
+        address,
+      )?.[1];
+    function installSplitView(ctx) {
+      const key = "nested-session-chat";
+      ctx.effect(() =>
+        ctx.sidebarRightTabs.register({
+          id: key,
+          kind: key,
+          patterns: [splitPrefix + "**"],
+          canOpen: (address) => Boolean(splitSessionId(address)),
+          title: (address) =>
+            ctx.sessions.list.getSnapshot().byId[splitSessionId(address)]
+              ?.title || "会话",
+        }),
+      );
+      function FixedView({ renderSlot }) {
+        return renderSlot("conversation.session", { view: "chat" });
+      }
+      function Content({ useSession, renderFactorySlot }) {
+        const session = useSession((value) => value);
+        return renderFactorySlot(
+          "conversation.content",
+          {
+            variant: "embedded",
+            phase: session.openState === "loading" ? "settling" : "active",
+            hero: false,
+          },
+          { slots: { views: FixedView } },
+        );
+      }
+      function Tab({ useTabInfo, SessionProvider, renderSlot }) {
+        const { tab } = useTabInfo();
+        const id = splitSessionId(tab.contentId);
+        const [reference, setReference] = React.useState(null);
+        React.useEffect(() => {
+          if (!id) return;
+          const held = ctx.sessions.retain(id, { source: "sidebarChat" });
+          setReference(held);
+          return () => held.release();
+        }, [id]);
+        return h(
+          "div",
+          {
+            style: {
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              minHeight: 0,
+            },
+            "aria-label": "并排会话",
+          },
+          reference?.sessionId === id &&
+            h(
+              SessionProvider,
+              { session: reference },
+              renderSlot("nested.split.conversation", {}),
+            ),
+        );
+      }
+      ctx.slots.inject("sidebar.right.pane.tab", () =>
+        ctx.slots.register(
+          {
+            name: "sidebar.right.pane.tab",
+            key,
+            children: {
+              "nested.split.conversation": { kind: "single", scope: "session" },
+            },
+          },
+          Tab,
+        ),
+      );
+      ctx.slots.inject("nested.split.conversation", () =>
+        ctx.slots.register({ name: "nested.split.conversation" }, Content),
+      );
+    }
     function familyTree(links, rows, focusedId) {
       const byId = new Map(rows.map((row) => [row.id, row])),
         parents = new Map();
@@ -530,11 +610,7 @@ window.__ModuleLoader__.load({
               ),
             )
           : h("p", null, "尚无已结束回合的回复摘要"),
-        h(
-          "small",
-          null,
-          "回顾仅展示回复片段，不代表验收通过。",
-        ),
+        h("small", null, "回顾仅展示回复片段，不代表验收通过。"),
       );
     }
     function Progress({ ctx, sessionId, useSessions, useSessionStatus }) {
@@ -682,6 +758,18 @@ window.__ModuleLoader__.load({
                 "使用模型：" + (link.selection?.model ?? "继承当前模型"),
               ),
             link?.reason && h("p", null, link.reason),
+            h(
+              "button",
+              {
+                disabled: id === current,
+                onClick: () =>
+                  ctx.sidebarRight.openResource(splitPrefix + id, {
+                    kind: "nested-session-chat",
+                    preferNewPane: true,
+                  }),
+              },
+              "并排查看",
+            ),
             h(
               "details",
               {
@@ -849,6 +937,7 @@ window.__ModuleLoader__.load({
     }
 
     function apply(ctx) {
+      installSplitView(ctx);
       ctx.effect(() => installSidebarTree(ctx));
       ctx.effect(() => {
         const style = document.createElement("style");
@@ -985,6 +1074,7 @@ window.__ModuleLoader__.load({
       hasPartialFamily,
       progressStatus,
       attentionGroup,
+      splitSessionId,
     };
   },
 });
