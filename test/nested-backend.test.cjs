@@ -192,6 +192,66 @@ function fixture() {
 }
 
 nativeTest(
+  "task recap reads bounded exact native projections without waking an agent",
+  async () => {
+    const f = fixture();
+    let calls = 0;
+    f.ctx.sessionController.projections = async ({ sessionId }, signal) => {
+      assert.equal(sessionId, "root");
+      assert(signal instanceof AbortSignal);
+      calls++;
+      return {
+        kind: "sequenced",
+        values: {
+          todos: Array.from({ length: 45 }, (_, i) => ({
+            content: "task " + i,
+            status: "pending",
+          })),
+          turnOutline: Array.from({ length: 6 }, (_, i) => ({
+            turn: i,
+            response: i === 5 ? "" : "response " + i,
+          })),
+          otherPrivateProjection: "DO_NOT_RETURN",
+        },
+      };
+    };
+    const value = await f.service.progress({ sessionId: "root" });
+    assert.equal(value.available, true);
+    assert.equal(value.tasks.length, 40);
+    assert.equal(value.taskCount, 45);
+    assert.deepEqual(
+      Array.from(value.recap, (item) => item.turn),
+      [2, 3, 4],
+    );
+    assert(!JSON.stringify(value).includes("DO_NOT_RETURN"));
+    assert.equal(f.deliveries.length, 0);
+    f.deny("root");
+    await assert.rejects(
+      f.service.progress({ sessionId: "root" }),
+      /denied|forbidden|access/i,
+    );
+    assert.equal(calls, 1);
+    f.deny(undefined);
+    f.ctx.sessionController.projections = async () => ({
+      kind: "migration-required",
+      values: { todos: [{ content: "stale" }] },
+    });
+    assert.equal(
+      (await f.service.progress({ sessionId: "root" })).available,
+      false,
+    );
+    f.ctx.sessionController.projections = async () => {
+      f.deny("root");
+      return { kind: "sequenced", values: {} };
+    };
+    await assert.rejects(
+      f.service.progress({ sessionId: "root" }),
+      /denied|forbidden|access/i,
+    );
+  },
+);
+
+nativeTest(
   "one coordinator owns delegation and child collaboration requests route to the root",
   async () => {
     const f = fixture();

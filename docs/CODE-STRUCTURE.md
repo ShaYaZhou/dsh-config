@@ -1,5 +1,7 @@
 # 自写改动的职责与依赖回查
 
+任务与回顾只读原生 `sessionController.projections` 的精确 `todos` / `turnOutline`，不使用迁移提示作为当前进展、不另建任务或摘要存储。`progress` RPC 在读取前后复核 RemoteAccess；前端按需挂载读取组件，单次轮询、卸载清理并忽略迟到结果，不激活 Agent。
+
 会话停止与通信竞争控制集中在 `nested-sessions` 后端，复用原生 `agent/pre-step` 的取消信号、`agent/inbox/spliced` 用户输入事件及既有串行写入队列。瞬时取消版本只存在内存；持久关系 schema 不变。显式消息走 `followup`，终态汇总走 `steer`，前端不复制消息队列。`test-session-lifecycle.cjs` 仅提供隔离合成数据的原生/代理验收，共用现有 home/output lease，不增加产品服务。
 
 自然语言完整交付由 `skills/dsh-spec-delivery` 编排官方 CLI 和已有 linked-session 工具；不另建任务引擎、不修改官方分阶段技能。`role-policy` 仅调整该角色可使用的局部只读/通信工具，家族授权仍由 nested-sessions 服务校验。测试目录保护与同 home lease 集中于 `scripts/test-home.cjs`，命令入口和直接脚本共同调用；`test-output-lock.cjs` 提供结果单写者保护。

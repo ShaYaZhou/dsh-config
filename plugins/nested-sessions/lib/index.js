@@ -76,6 +76,7 @@ const schemas = {
     limit: z.number().int().min(1).max(40).optional(),
   }),
   stop: z.strictObject({ sessionId: id }),
+  progress: z.strictObject({ sessionId: id }),
 };
 const initializers = [];
 const messageText = (data) => {
@@ -412,6 +413,26 @@ export class NestedSessions extends TypertRemoteService {
           status: this.status(link.sessionId, state),
           stoppedByUser: this.isStopped(link.sessionId, state),
         })),
+    };
+  }
+  async progress(request) {
+    const input = parse("progress", request);
+    this.assertAccess(input.sessionId);
+    const snapshot = await this.ctx.sessionController.projections(
+      { sessionId: input.sessionId },
+      AbortSignal.timeout(30000),
+    );
+    this.assertAccess(input.sessionId);
+    const values = snapshot?.kind === "sequenced" ? snapshot.values : undefined;
+    const todos = values?.todos ?? [];
+    return {
+      available: snapshot?.kind === "sequenced",
+      tasks: todos.slice(0, 40),
+      taskCount: todos.length,
+      recap: (values?.turnOutline ?? [])
+        .filter((turn) => turn.response)
+        .slice(-3)
+        .map(({ turn, response }) => ({ turn, response })),
     };
   }
   async start(request) {

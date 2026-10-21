@@ -369,7 +369,9 @@ window.__ModuleLoader__.load({
       if (link?.stoppedByUser || link?.status === "stopped") return "stopped";
       const state = statuses.get(item.id);
       if (
-        ["approval", "plan-review", "question"].includes(state?.pendingInteraction?.kind)
+        ["approval", "plan-review", "question"].includes(
+          state?.pendingInteraction?.kind,
+        )
       )
         return state.pendingInteraction.kind;
       if (state?.running ?? item.running) return "running";
@@ -378,8 +380,16 @@ window.__ModuleLoader__.load({
     }
     function attentionGroup(status) {
       if (
-        ["approval", "plan-review", "question", "error", "blocked", "paused"].includes(status)
-      ) return "needs-input";
+        [
+          "approval",
+          "plan-review",
+          "question",
+          "error",
+          "blocked",
+          "paused",
+        ].includes(status)
+      )
+        return "needs-input";
       if (["running", "queued"].includes(status)) return "working";
       if (status === "completed") return "completed";
     }
@@ -447,6 +457,86 @@ window.__ModuleLoader__.load({
       return result.value;
     }
 
+    function TaskRecap({ ctx, sessionId }) {
+      const [value, setValue] = React.useState(null),
+        [error, setError] = React.useState("");
+      React.useEffect(() => {
+        let disposed = false,
+          pending = false;
+        const update = async () => {
+          if (pending) return;
+          pending = true;
+          try {
+            const next = await call(ctx, "progress", { sessionId });
+            if (!disposed) {
+              setValue(next);
+              setError("");
+            }
+          } catch (e) {
+            if (!disposed) setError(e.message);
+          } finally {
+            pending = false;
+          }
+        };
+        update();
+        const timer = setInterval(update, 2000);
+        return () => {
+          disposed = true;
+          clearInterval(timer);
+        };
+      }, [ctx, sessionId]);
+      if (error)
+        return h("p", { className: "dsh-nested-error", role: "alert" }, error);
+      if (!value) return h("p", { role: "status" }, "正在读取任务与回顾…");
+      if (!value.available)
+        return h("p", null, "暂时无法读取进展，请打开会话查看历史。");
+      const taskLabels = {
+        completed: "已完成",
+        in_progress: "进行中",
+        pending: "待处理",
+      };
+      return h(
+        "div",
+        { "aria-label": "任务与回顾" },
+        h("h3", null, "任务清单"),
+        value.tasks.length
+          ? h(
+              "ol",
+              null,
+              value.tasks.map((task, i) =>
+                h(
+                  "li",
+                  { key: i },
+                  h(
+                    "span",
+                    null,
+                    (taskLabels[task.status] ?? task.status) +
+                      " · " +
+                      task.content,
+                  ),
+                ),
+              ),
+            )
+          : h("p", null, "尚未建立任务清单"),
+        value.taskCount > value.tasks.length &&
+          h("p", null, "共 " + value.taskCount + " 项；打开会话查看完整清单。"),
+        h("h3", null, "最近回合回顾"),
+        value.recap.length
+          ? value.recap.map((item) =>
+              h(
+                "p",
+                { key: item.turn },
+                "第 " + item.turn + " 回合 · " + item.response,
+              ),
+            )
+          : h("p", null, "尚无已结束回合的回复摘要"),
+        h(
+          "small",
+          null,
+          "回顾仅展示回复片段，不代表验收通过。",
+        ),
+      );
+    }
     function Progress({ ctx, sessionId, useSessions, useSessionStatus }) {
       const list = useSessions((state) => state),
         statuses = useSessionStatus((state) => state);
@@ -456,7 +546,8 @@ window.__ModuleLoader__.load({
         [collapsed, setCollapsed] = React.useState(new Set());
       const [error, setError] = React.useState(""),
         [loadError, setLoadError] = React.useState(""),
-        [busy, setBusy] = React.useState(false);
+        [busy, setBusy] = React.useState(false),
+        [expandedRecaps, setExpandedRecaps] = React.useState(new Set());
       const current =
         sessionId ??
         Object.values(list.byId).find(
@@ -580,7 +671,8 @@ window.__ModuleLoader__.load({
                 },
                 link
                   ? (labels[status] ?? status)
-                  : "主会话" + (status !== "idle" ? " · " + labels[status] : ""),
+                  : "主会话" +
+                      (status !== "idle" ? " · " + labels[status] : ""),
               ),
             ),
             link &&
@@ -590,6 +682,24 @@ window.__ModuleLoader__.load({
                 "使用模型：" + (link.selection?.model ?? "继承当前模型"),
               ),
             link?.reason && h("p", null, link.reason),
+            h(
+              "details",
+              {
+                open: expandedRecaps.has(id),
+                onToggle: (event) => {
+                  const open = event.currentTarget.open;
+                  setExpandedRecaps((old) => {
+                    const next = new Set(old);
+                    if (open) next.add(id);
+                    else next.delete(id);
+                    return next;
+                  });
+                },
+              },
+              h("summary", null, "任务与回顾"),
+              expandedRecaps.has(id) &&
+                h(TaskRecap, { key: id, ctx, sessionId: id }),
+            ),
             link &&
               h(
                 "div",
@@ -599,7 +709,15 @@ window.__ModuleLoader__.load({
                   { disabled: busy, onClick: () => showResult(id) },
                   "查看结果",
                 ),
-                ["queued", "running", "paused", "blocked", "approval", "plan-review", "question"].includes(status) &&
+                [
+                  "queued",
+                  "running",
+                  "paused",
+                  "blocked",
+                  "approval",
+                  "plan-review",
+                  "question",
+                ].includes(status) &&
                   h(
                     "button",
                     {
@@ -701,7 +819,11 @@ window.__ModuleLoader__.load({
         currentLinks.length > 0 &&
           h(
             "div",
-            { className: "dsh-nested-attention", "aria-label": "子任务状态分类", role: "status" },
+            {
+              className: "dsh-nested-attention",
+              "aria-label": "子任务状态分类",
+              role: "status",
+            },
             h("span", null, "需要介入 " + counts["needs-input"]),
             h("span", null, "进行中 " + counts.working),
             h("span", null, "已完成 " + counts.completed),
@@ -855,6 +977,14 @@ window.__ModuleLoader__.load({
         ),
       );
     }
-    return { inject, apply, familyTree, sidebarRows, hasPartialFamily, progressStatus, attentionGroup };
+    return {
+      inject,
+      apply,
+      familyTree,
+      sidebarRows,
+      hasPartialFamily,
+      progressStatus,
+      attentionGroup,
+    };
   },
 });
