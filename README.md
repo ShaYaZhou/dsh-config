@@ -30,9 +30,9 @@ rtk proxy node scripts/harness.mjs install
 
 可见浏览器、目标高亮、交互式批注和 Windows computer-use 的操作与验收边界见 [浏览器与桌面控制](docs/BROWSER-COMPUTER-USE.md)。
 
-内置批注支持元素边界吸附、CSS 定位线索、编号截图预览及全屏等比例显示。批注已从命令插件中拆出，职责与依赖回查见 [代码结构](docs/CODE-STRUCTURE.md)；后续改动遵循仓库根目录 `AGENTS.md`。
+内置浏览器有独立的 **截图** 和 **批注** 入口：截图不必填写意见；批注支持元素吸附、CSS 定位和可选的编号图片。职责与依赖回查见 [代码结构](docs/CODE-STRUCTURE.md)；后续改动遵循仓库根目录 `AGENTS.md`。
 
-独立父子会话、上下文分叉、家族通信与停止保护见 [嵌套会话](docs/NESTED-SESSIONS.md)。标题栏管理当前家族，左侧“嵌套会话”查看全部父子树；原工作区列表保留原生交互。
+在原对话输入 **/collaborate 任务内容** 可明确启用协作；Agent 自己分析分工、选择子会话数量和已配置模型，收集结果后汇总。普通对话仍按需判断，小任务可能直接完成。标题栏 **任务协作** 与左侧 **协作进度** 用于查看结果和停止任务，不要求手工填参数。详见 [嵌套会话](docs/NESTED-SESSIONS.md)。
 
 旧 `liangshen` preset 已移除。升级前先完全退出 Harness，再迁移旧会话；安装器发现仍有会话绑定旧 preset 时会拒绝覆盖配置：
 
@@ -88,7 +88,7 @@ rtk proxy node scripts/harness.mjs status
 
 优先编辑仓库文件，再测试和部署，最后用 `git diff` 审查并提交。安装后运行 `status` 会对比本机部署的文件哈希，发现 GUI 或手工编辑产生的漂移；它不会扫描会话或凭据。
 
-如果直接修改了已安装的模块或三个插件的 `lib/index.js`，可以运行 `capture` 把这些明确列出的源码改动收回仓库。仓库源码也同时有修改时会拒绝覆盖，需手工合并。配置漂移不会自动回收，避免把机器路径、凭据或 GUI 临时状态带入版本控制；应修改 `config/` 或本机 settings，再部署。
+如果直接修改了已安装模块或本仓库插件 `lib/` 根目录的 JS/MJS 源码，可以运行 `capture` 将受管理的源码改动收回仓库。仓库源码也同时有修改时会拒绝覆盖，需手工合并。配置漂移不会自动回收，避免把机器路径、凭据或 GUI 临时状态带入版本控制；应修改 `config/` 或本机 settings，再部署。
 
 ```powershell
 rtk proxy node scripts/harness.mjs status

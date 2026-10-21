@@ -22,7 +22,7 @@ async function main(){
   const presets=await ctx.get('agentPresets').list();assert(presets.some(p=>p.id==='standard'));
   if(tuned){assert(tools.find(t=>t.name==='spawn_teammate').parameters.properties.isolation);assert(tools.some(t=>t.name==='create_worktree'));assert(tools.some(t=>t.name==='job_output'));for(const id of ['explore','planner','reviewer'])assert(presets.some(p=>p.id===id));assert(ctx.get('commands').find(agent,'rewind').input);assert(ctx.get('clientModules').graph().entries.some(row=>row.id==='@local/dsh-desktop-commands'));
    for(const name of ['cua_driver_native__get_window_state','cua_driver_native__browser_prepare','mcp__playwright__browser_highlight','mcp__playwright__browser_annotate'])assert(tools.some(t=>t.name===name),'Missing browser/computer tool: '+name);
-   for(const name of ['start_session','list_linked_sessions','send_session_message','read_session','stop_session'])assert(tools.some(t=>t.name===name),'Missing nested session tool: '+name);
+   for(const name of ['start_session','list_session_models','wait_for_sessions','list_linked_sessions','send_session_message','read_session','stop_session'])assert(tools.some(t=>t.name===name),'Missing nested session tool: '+name);
    assert(ctx.get('clientModules').graph().entries.some(row=>row.id==='@local/dsh-nested-sessions'));
    assert(ctx.get('clientModules').graph().entries.some(row=>row.id==='@local/dsh-browser-review'));
    const computerSkill=await ctx.skills.get('computer-use',{scope:agent,cwd:temporary});assert(computerSkill?.path.replaceAll('\\','/').endsWith('/agent-capabilities/skills/computer-use/SKILL.md'),'computer-use must resolve to the desktop profile, not a shared foreign skill: '+JSON.stringify({path:computerSkill?.path,source:computerSkill?.source}));

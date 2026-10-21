@@ -32,9 +32,20 @@ app.whenReady().then(async () => {
   ipcMain.handle("review-resize", (_event, size) =>
     window.setSize(size.width, size.height),
   );
-  ipcMain.handle("review-proof", async () => {
+  ipcMain.handle("review-input", async (_event, events) => {
+    for (const event of events) {
+      window.webContents.sendInputEvent(event);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    }
+  });
+  ipcMain.handle("review-type", (_event, text) =>
+    window.webContents.insertText(text),
+  );
+  ipcMain.handle("review-proof", async (_event, name) => {
     fs.writeFileSync(
-      process.env.DSH_REVIEW_PROOF,
+      name === "screenshot"
+        ? process.env.DSH_REVIEW_SCREENSHOT_PROOF
+        : process.env.DSH_REVIEW_PROOF,
       (await window.webContents.capturePage()).toPNG(),
     );
   });

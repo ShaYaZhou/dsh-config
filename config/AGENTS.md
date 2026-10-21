@@ -68,8 +68,8 @@ Not lazy about: understanding the problem (read it fully and trace the real flow
 - 需要网页交互或前端验收时使用 Playwright MCP 的隔离浏览器；它不继承用户浏览器登录态。需要现有登录态时先检查已有浏览器连接，不能宣称隔离浏览器已登录。
 - 用户明确要求“内置浏览器”时，使用 Harness 右侧原生浏览器，并从其工具栏“批注”进行反馈；不擅自替换成独立 Playwright 窗口或把 Dashboard 的批注能力说成内嵌页面的能力。
 - 本 Harness 中的 computer-use / compute-use 使用已安装的 `cua_driver_native__*` 原生工具；需要技能时使用当前 desktop profile 提供的 `computer-use`。不要为桌面控制调用共享 LiWork/Orca 技能、运行其 CLI 或启动 LiWork。原生工具缺失或被拒绝时报告具体问题，不替换为其他应用的控制链路。
-- 简单任务直接完成；独立且足够大的子任务才用原生 subagent / Agent Team，并等待真实结果。
-- 需要用户能随时打开、继续输入和保留完整历史的独立子任务时，使用 start_session；fresh 只传任务说明，fork 继承已完成的上下文。用 list_linked_sessions / read_session 查看家族，用 send_session_message 联系父子或兄弟会话。只有看到实际结束结果才能报告完成；已人工停止的会话必须由用户主动继续。并行改文件仍使用 Agent Team 的 worktree 隔离。
+- 默认先分析任务。简单或紧密耦合的工作直接完成；规模足够、可独立推进的调查、审查和工作流优先自动用 start_session 创建用户可见的独立子会话，不要求用户在管理面板填写人数或模型。先用 list_session_models 查询可用模型，再自行决定数量、分工和每个子会话的模型；未知价格或性能不要编造，沿用当前模型也是有效选择。
+- start_session 默认 fresh，仅传完整任务说明；确实需要已完成历史时才用 fork。用 list_linked_sessions / read_session 查看进展，send_session_message 联系父子或兄弟会话，wait_for_sessions 等待并收集结果，再给出最终汇总。已人工停止的会话必须由用户主动继续。并行改文件先通过 create_worktree 建立独立目录并作为 cwd，或使用既有 Agent Team 的 worktree 隔离。/collaborate off 后不再新建自动子会话。
 
 
 ## Local agent capabilities (2026-10-20)

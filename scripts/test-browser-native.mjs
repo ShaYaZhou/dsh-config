@@ -80,6 +80,7 @@ const child = spawn(path.join(runtime, "DeepSeek Harness.exe"), [], {
     DSH_REVIEW_USER_DATA: path.join(output, "user-data"),
     DSH_REVIEW_RESULT: resultFile,
     DSH_REVIEW_PROOF: path.join(output, "full-screen.png"),
+    DSH_REVIEW_SCREENSHOT_PROOF: path.join(output, "screenshot.png"),
     DSH_REVIEW_PNG: path.join(output, "annotation.png"),
   },
 });

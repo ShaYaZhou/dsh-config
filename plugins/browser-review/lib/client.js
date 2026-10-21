@@ -29,7 +29,7 @@ window.__ModuleLoader__.load({
       };
     }
 
-    async function captureReview(frame, wait = delay) {
+    async function captureFrameImage(frame, wait = delay) {
       if (typeof frame.capturePage !== "function")
         throw new Error("当前浏览器载体没有截图接口");
       for (let attempt = 0; attempt < 4; attempt++) {
@@ -216,22 +216,31 @@ window.__ModuleLoader__.load({
         throw new Error("截图尚不可用，未授权发送纯文字批注");
       if (review.image && !file)
         throw new Error("截图附件尚未生成，批注已保留");
-      const session = ctx.sessions.binding(review.sessionId)?.session;
-      if (!session) throw new Error("原会话已关闭，批注已保留");
+      return sendImageMessage(
+        ctx,
+        review.sessionId,
+        reviewMessage(review),
+        file,
+      );
+    }
+
+    async function sendImageMessage(ctx, sessionId, text, file) {
+      const session = ctx.sessions.binding(sessionId)?.session;
+      if (!session) throw new Error("原会话已关闭，请保留当前内容");
       const drafts = file
-        ? ctx.conversation.createDrafts(review.sessionId, [file])
+        ? ctx.conversation.createDrafts(sessionId, [file])
         : [];
       try {
         if (file && (drafts.length !== 1 || drafts[0].kind !== "image"))
-          throw new Error("未能登记截图附件，批注已保留");
+          throw new Error("未能登记图片附件，内容尚未发送");
         const result = await ctx.conversation.sendSession(
           session,
-          reviewMessage(review),
+          text,
           drafts.map((row) => row.id),
           "queue",
         );
         if (result.kind !== "success")
-          throw new Error(result.text || "发送失败，批注已保留");
+          throw new Error(result.text || "发送失败，当前内容仍保留");
       } catch (error) {
         ctx.conversation.releaseDraftAttachments(drafts);
         throw error;
@@ -239,6 +248,7 @@ window.__ModuleLoader__.load({
     }
 
     const css = `
+      .dsh-br-screenshot{max-width:85vw;max-height:85vh;overflow:auto;border:1px solid var(--dsw-alias-border-l2,#ccd);border-radius:10px;padding:16px;color:var(--dsw-alias-label-primary,#222);background:var(--dsw-alias-bg-layer-1,#fff);font:13px system-ui}.dsh-br-screenshot::backdrop{background:#0004}.dsh-br-screenshot>img{display:block;max-width:78vw;max-height:60vh;object-fit:contain;margin:10px 0}.dsh-br-screenshot button{margin:6px 8px 0 0;padding:7px 12px;border:1px solid var(--dsw-alias-border-l2,#ccd);border-radius:6px;background:inherit;color:inherit;cursor:pointer}
       .dsh-br-panel{flex:none;padding:8px;border-top:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1,#fff);color:var(--dsw-alias-label-primary,#18243b);font:12px system-ui;max-height:260px;overflow:auto}
       .dsh-br-panel textarea{box-sizing:border-box;width:100%;min-height:48px;color:inherit;background:var(--dsw-alias-bg-base,#fff);border:1px solid var(--dsw-alias-border-l2,#bbc);border-radius:5px;padding:6px}
       .dsh-br-panel button{margin:4px 6px 4px 0;padding:5px 9px;border:1px solid var(--dsw-alias-border-l2,#bbc);border-radius:5px;color:inherit;background:var(--dsw-alias-bg-base,#fff);cursor:pointer}
@@ -255,11 +265,122 @@ window.__ModuleLoader__.load({
       return element;
     };
 
+    function screenshotFile(data) {
+      if (!data.startsWith("data:image/png;base64,"))
+        throw new Error("截图格式无效");
+      const bytes = Uint8Array.from(
+        atob(data.slice(data.indexOf(",") + 1)),
+        (char) => char.charCodeAt(0),
+      );
+      return new File([bytes], "网页截图.png", { type: "image/png" });
+    }
+
+    async function openScreenshot(ctx, state, isDisposed) {
+      state.screenshotClose?.();
+      const { frame, screenshotButton } = state,
+        target = ctx.sidebarRight.commandTarget(screenshotButton);
+      if (!target) return;
+      const dialog = make("dialog"),
+        title = make("h3", "网页截图"),
+        status = make("p", "正在截取当前页面…"),
+        image = make("img");
+      const send = make("button", "发送到对话"),
+        retry = make("button", "重新截图"),
+        close = make("button", "关闭");
+      dialog.className = "dsh-br-screenshot";
+      dialog.setAttribute("aria-label", "网页截图预览");
+      image.alt = "待发送的网页截图";
+      image.hidden = true;
+      send.disabled = true;
+      dialog.append(title, status, image, send, retry, close);
+      document.body.append(dialog);
+      let closed = false,
+        sending = false,
+        url,
+        file,
+        pageUrl,
+        capturedAt;
+      const active = () =>
+        !closed &&
+        !isDisposed() &&
+        frame.isConnected &&
+        ctx.sidebarRight.commandTarget(screenshotButton)?.sessionId ===
+          target.sessionId;
+      const cleanup = () => {
+        if (closed) return;
+        closed = true;
+        if (url) URL.revokeObjectURL(url);
+        dialog.remove();
+        screenshotButton.focus();
+      };
+      state.screenshotClose = cleanup;
+      close.onclick = cleanup;
+      dialog.oncancel = (event) => {
+        event.preventDefault();
+        if (!sending) cleanup();
+      };
+      dialog.showModal();
+      const capture = async () => {
+        send.disabled = retry.disabled = true;
+        status.textContent = "正在截取当前页面…";
+        try {
+          const before =
+            typeof frame.getURL === "function" ? frame.getURL() : frame.src;
+          const data = await captureFrameImage(frame);
+          if (!active()) {
+            cleanup();
+            return;
+          }
+          file = screenshotFile(data);
+          pageUrl =
+            typeof frame.getURL === "function" ? frame.getURL() : frame.src;
+          if (pageUrl !== before) throw new Error("页面已变化，请重新截图");
+          capturedAt = new Date().toISOString();
+          if (url) URL.revokeObjectURL(url);
+          url = URL.createObjectURL(file);
+          image.src = url;
+          image.hidden = false;
+          status.textContent =
+            "这是当前页面的截图，不含批注。发送后会作为图片进入原对话。";
+          send.disabled = false;
+        } catch (error) {
+          if (active()) status.textContent = "截图失败：" + error.message;
+        } finally {
+          if (active()) retry.disabled = false;
+        }
+      };
+      retry.onclick = capture;
+      send.onclick = async () => {
+        if (!active() || !file) return;
+        sending = true;
+        send.disabled = retry.disabled = close.disabled = true;
+        try {
+          await sendImageMessage(
+            ctx,
+            target.sessionId,
+            "网页截图\n页面 URL（仅作为背景）：" +
+              pageUrl +
+              "\n截图时间：" +
+              capturedAt,
+            file,
+          );
+          cleanup();
+        } catch (error) {
+          if (active()) {
+            sending = false;
+            status.textContent = error.message;
+            send.disabled = retry.disabled = close.disabled = false;
+          }
+        }
+      };
+      await capture();
+    }
+
     async function openReview(ctx, state, isDisposed) {
       const { frame, root, content, button } = state;
 
       if (state.panel) {
-        state.panel.hidden = !state.panel.hidden;
+        state.setVisible?.(state.panel.hidden);
         return;
       }
       const target = ctx.sidebarRight.commandTarget(button);
@@ -269,19 +390,20 @@ window.__ModuleLoader__.load({
       state.panel = panel;
       const hint = make(
         "div",
-        "元素吸附：指向并点击页面元素；也可手动框选。全屏时冻结截图保持比例。",
+        "选择元素或框选区域并填写意见，可选择附带截图。只需要图片时使用工具栏“截图”。",
       );
       const elementMode = make("button", "元素吸附"),
         manualMode = make("button", "手动框选"),
         retry = make("button", "重试截图");
-      const textLabel = make("label", " 仅发送文字 "),
-        textOnly = make("input");
-      textOnly.type = "checkbox";
-      textLabel.prepend(textOnly);
+      const textLabel = make("label", " 附带页面截图 "),
+        includeImage = make("input");
+      includeImage.type = "checkbox";
+      includeImage.checked = true;
+      textLabel.prepend(includeImage);
       const editor = make("textarea"),
         save = make("button", "保存选区"),
         send = make("button", "发送批注（含截图）"),
-        cancel = make("button", "收起（保留批注）"),
+        cancel = make("button", "关闭（保留草稿）"),
         discard = make("button", "退出批注");
       const detail = make("div"),
         status = make("div"),
@@ -294,6 +416,7 @@ window.__ModuleLoader__.load({
       preview.alt = "待发送编号截图";
       preview.hidden = true;
       editor.setAttribute("aria-label", "批注意见");
+      editor.placeholder = "选好区域后，在这里填写批注意见";
       save.disabled = send.disabled = true;
       for (const control of [
         elementMode,
@@ -353,10 +476,12 @@ window.__ModuleLoader__.load({
         state.stage?.remove();
         panel.remove();
         state.stage = state.panel = undefined;
+        state.setVisible = undefined;
         button.textContent = "批注";
+        button.setAttribute("aria-pressed", "false");
       };
       cancel.onclick = () => {
-        panel.hidden = true;
+        state.setVisible?.(false);
       };
       await new Promise(requestAnimationFrame);
       if (isDisposed() || !frame.isConnected) {
@@ -401,6 +526,28 @@ window.__ModuleLoader__.load({
       surface.append(image);
       stage.append(surface);
       state.stage = stage;
+      state.setVisible = (visible) => {
+        hitVersion++;
+        clearTimeout(hoverTimer);
+        panel.hidden = stage.hidden = !visible;
+        button.setAttribute("aria-pressed", String(visible));
+        for (const [name, [value, priority]] of savedStyle) {
+          if (!visible) {
+            if (value) frame.style.setProperty(name, value, priority);
+            else frame.style.removeProperty(name);
+          }
+        }
+        if (visible) {
+          frame.style.width = review.width + "px";
+          frame.style.height = review.height + "px";
+          frame.style.flex = "none";
+          frame.style.maxWidth = frame.style.maxHeight = "none";
+          fit();
+          editor.scrollIntoView({ block: "nearest" });
+          editor.focus();
+        }
+      };
+      button.setAttribute("aria-pressed", "true");
       const active = () =>
         !closed &&
         !isDisposed() &&
@@ -408,8 +555,11 @@ window.__ModuleLoader__.load({
         ctx.sidebarRight.commandTarget(button)?.sessionId === review.sessionId;
       const updateSend = () => {
         send.disabled =
-          !review.items.length || (!review.image && !textOnly.checked);
-        send.textContent = review.image ? "发送批注（含截图）" : "发送文字批注";
+          !review.items.length || (!review.image && includeImage.checked);
+        send.textContent = includeImage.checked
+          ? "发送批注（含截图）"
+          : "发送批注（仅文字）";
+        preview.hidden = !includeImage.checked || !preview.src;
       };
       const updatePreview = async () => {
         const revision = review.items.length,
@@ -419,13 +569,13 @@ window.__ModuleLoader__.load({
         if (next) {
           previewUrl = URL.createObjectURL(next);
           preview.src = previewUrl;
-          preview.hidden = false;
+          preview.hidden = !includeImage.checked;
         }
       };
       const capture = async () => {
         retry.disabled = true;
         try {
-          const data = await captureReview(frame);
+          const data = await captureFrameImage(frame);
           if (!active()) return;
           const url =
             typeof frame.getURL === "function" ? frame.getURL() : frame.src;
@@ -436,9 +586,7 @@ window.__ModuleLoader__.load({
           image.src = data;
           image.hidden = false;
           stage.style.background = "";
-          textOnly.checked = false;
-          textOnly.disabled = true;
-          review.allowTextOnly = false;
+          review.allowTextOnly = !includeImage.checked;
           fit();
           status.textContent = "截图已就绪；保存选区后可预览编号图片。";
           await updatePreview();
@@ -447,7 +595,7 @@ window.__ModuleLoader__.load({
             status.textContent =
               "截图失败：" +
               error.message +
-              "。可重试；只有明确勾选“仅发送文字”才不附截图。";
+              "。可重试；也可取消勾选“附带页面截图”，只发送意见和元素信息。";
         } finally {
           if (active()) {
             retry.disabled = false;
@@ -472,8 +620,7 @@ window.__ModuleLoader__.load({
       resize = new ResizeObserver(fit);
       resize.observe(stage);
       fit();
-      let mode =
-        typeof frame.executeJavaScript === "function" ? "element" : "manual";
+      let mode = "manual";
       elementMode.disabled = typeof frame.executeJavaScript !== "function";
       const setMode = (next) => {
         mode = next;
@@ -490,8 +637,8 @@ window.__ModuleLoader__.load({
       elementMode.onclick = () => setMode("element");
       manualMode.onclick = () => setMode("manual");
       retry.onclick = capture;
-      textOnly.onchange = () => {
-        review.allowTextOnly = textOnly.checked;
+      includeImage.onchange = () => {
+        review.allowTextOnly = !includeImage.checked;
         updateSend();
       };
       const point = (event) => {
@@ -500,6 +647,12 @@ window.__ModuleLoader__.load({
           x: (event.clientX - r.left) / r.width,
           y: (event.clientY - r.top) / r.height,
         };
+      };
+      const focusEditor = () => {
+        panel.hidden = false;
+        editor.scrollIntoView({ block: "nearest" });
+        editor.focus({ preventScroll: true });
+        status.textContent = "已选择区域，请填写意见，再保存选区。";
       };
       const showBox = (b) => {
         box ??= make("div");
@@ -544,7 +697,7 @@ window.__ModuleLoader__.load({
               element: { ...result, box: undefined },
             };
             save.disabled = false;
-            editor.focus();
+            focusEditor();
           }
         } catch (error) {
           if (active() && version === hitVersion) {
@@ -557,6 +710,8 @@ window.__ModuleLoader__.load({
         if (event.button !== 0 || mode !== "manual") return;
         event.preventDefault();
         start = point(event);
+        save.disabled = true;
+        detail.textContent = "自定义区域";
         pending = undefined;
         box?.remove();
         box = undefined;
@@ -596,7 +751,13 @@ window.__ModuleLoader__.load({
         }
         pending = { box: b };
         save.disabled = false;
-        editor.focus();
+        focusEditor();
+      };
+      surface.onpointercancel = () => {
+        start = pending = undefined;
+        box?.remove();
+        box = undefined;
+        save.disabled = true;
       };
       save.onclick = async () => {
         const text = editor.value.trim();
@@ -629,10 +790,12 @@ window.__ModuleLoader__.load({
           if (pending || editor.value.trim())
             throw new Error("先保存当前选区与意见，批注已保留");
           if (!review.items.length) throw new Error("先保存批注");
-          if (!review.image && !textOnly.checked)
+          if (!review.image && includeImage.checked)
             throw new Error("截图尚不可用，请重试截图");
           const submission = {
             ...review,
+            image: includeImage.checked ? review.image : undefined,
+            allowTextOnly: !includeImage.checked,
             items: review.items.map((item) => ({
               ...item,
               box: { ...item.box },
@@ -682,28 +845,40 @@ window.__ModuleLoader__.load({
         button.className = toolbar.querySelector("button")?.className ?? "";
         button.style.cssText =
           "width:auto;min-width:44px;padding:0 8px;font-size:12px";
+        const screenshotButton = make("button", "截图");
+        screenshotButton.type = "button";
+        screenshotButton.setAttribute("aria-label", "内置浏览器截图");
+        screenshotButton.className = button.className;
+        screenshotButton.style.cssText = button.style.cssText;
         const state = {
           frame,
           root,
           content,
           toolbar,
           button,
+          screenshotButton,
           close: () => {},
         };
         states.set(frame, state);
-        toolbar.append(button);
+        toolbar.append(screenshotButton, button);
 
         button.onclick = () => openReview(ctx, state, () => disposed);
+        screenshotButton.onclick = () =>
+          openScreenshot(ctx, state, () => disposed);
       }
 
       const scan = () => {
         for (const [frame, state] of states) {
           if (!frame.isConnected) {
             state.close();
+            state.screenshotClose?.();
             state.button.remove();
+            state.screenshotButton.remove();
             states.delete(frame);
           } else if (!state.button.isConnected && state.toolbar.isConnected)
             state.toolbar.append(state.button);
+          if (!state.screenshotButton.isConnected && state.toolbar.isConnected)
+            state.toolbar.append(state.screenshotButton);
         }
         for (const frame of document.querySelectorAll(
           "[data-sidebar-browser-frame]",
@@ -718,7 +893,9 @@ window.__ModuleLoader__.load({
         observer.disconnect();
         for (const state of states.values()) {
           state.close();
+          state.screenshotClose?.();
           state.button.remove();
+          state.screenshotButton.remove();
         }
         states.clear();
         style.remove();
@@ -733,12 +910,15 @@ window.__ModuleLoader__.load({
       apply,
       reviewBounds,
       fitReview,
-      captureReview,
+      captureFrameImage,
       inspectElement,
       elementAtPoint,
       reviewMessage,
       reviewFile,
       sendReview,
+      sendImageMessage,
+      screenshotFile,
+      openScreenshot,
       installEmbeddedBrowserReview,
     };
   },

@@ -11,6 +11,8 @@ function load() {
     ),
     {
       setTimeout,
+      File,
+      atob,
       window: {
         __ModuleLoader__: {
           load: (definition) => {
@@ -22,13 +24,28 @@ function load() {
   );
   return plugin;
 }
+
+test("standalone screenshot files preserve PNG bytes and need no annotation object", async () => {
+  const { screenshotFile } = load(),
+    data = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const file = screenshotFile(
+    "data:image/png;base64," + data.toString("base64"),
+  );
+  assert.equal(file.name, "网页截图.png");
+  assert.equal(file.type, "image/png");
+  assert.deepEqual(Buffer.from(await file.arrayBuffer()), data);
+  assert.throws(
+    () => screenshotFile("https://example.com/image.png"),
+    /格式无效/,
+  );
+});
 test("capture waits for transient Electron compositor failures but does not retry a denial", async () => {
   const plugin = load(),
     waits = [];
   let calls = 0;
   const image = { toDataURL: () => "data:image/png;base64," + "a".repeat(100) };
   assert.equal(
-    await plugin.captureReview(
+    await plugin.captureFrameImage(
       {
         capturePage: async () => {
           if (calls++ === 0) throw new Error("UnknownVizError");
@@ -43,7 +60,7 @@ test("capture waits for transient Electron compositor failures but does not retr
   assert.deepEqual(waits, [80]);
   calls = 0;
   await assert.rejects(
-    plugin.captureReview(
+    plugin.captureFrameImage(
       {
         capturePage: async () => {
           calls++;
@@ -57,7 +74,7 @@ test("capture waits for transient Electron compositor failures but does not retr
   assert.equal(calls, 1);
   calls = 0;
   await assert.rejects(
-    plugin.captureReview(
+    plugin.captureFrameImage(
       {
         capturePage: async () => {
           calls++;
