@@ -222,12 +222,13 @@ export class NestedSessions extends TypertRemoteService {
   async submit(request) {
     const input = parse("submit", request);
     this.assertAccess(input.sessionId);
-    this.assertActive(input.sessionId);
-    if (input.collaborate)
-      await this.policy({ sessionId: input.sessionId, enabled: true });
+    const sessionId = familyRoot(this.domain.global.get(), input.sessionId);
+    this.assertAccess(sessionId);
+    this.assertActive(sessionId);
+    if (input.collaborate) await this.policy({ sessionId, enabled: true });
     await this.ctx.sessionController.prompt(
       {
-        sessionId: input.sessionId,
+        sessionId,
         requestId: randomUUID(),
         mode: "queue",
         content: [
@@ -242,7 +243,7 @@ export class NestedSessions extends TypertRemoteService {
       },
       AbortSignal.timeout(30000),
     );
-    return { submitted: true };
+    return { submitted: true, sessionId };
   }
   async stopAll(request) {
     const input = parse("stopAll", request);
@@ -368,6 +369,11 @@ export class NestedSessions extends TypertRemoteService {
       );
     return this.serialize(async () => {
       this.assertActive(input.sessionId);
+      const root = familyRoot(this.domain.global.get(), input.sessionId);
+      if (root !== input.sessionId)
+        throw new Error(
+          `子会话不再创建下一层；请用 send_session_message 向主会话 ${root} 请求新的同级分工`,
+        );
       const parentAgent = await this.agent(input.sessionId);
       const selection = await resolveSessionModel(this.ctx, parentAgent, input);
       const permissions = this.ctx.permissionPresets.current(
@@ -724,7 +730,7 @@ function installTools(agent, service) {
     ],
     [
       "start_session",
-      "Delegate one independent task to a separately visible conversation. Choose task count and models yourself after analyzing the work and querying list_session_models. Prefer fresh context with a complete brief. Child results return to this session; use wait_for_sessions before the final synthesis.",
+      "Only the root coordinator can delegate independent tasks to visible child conversations. A child must request additional workers from the root using send_session_message, never create grandchildren. Choose task count and models after analyzing the work and querying list_session_models. Collect child results before final synthesis.",
       {
         title: { type: "string", required: true },
         prompt: { type: "string", required: true },
@@ -845,8 +851,11 @@ function installTools(agent, service) {
       text: () => {
         if (!service.automatic(agent.id))
           return "Automatic linked-session delegation is OFF for this task family. Do not call start_session. Work directly; existing task history remains available. Only a user action or /collaborate on may re-enable it.";
-        const link = service.domain.global.get().links[agent.id];
-        return `${service.explicitlyRequested(agent.id) ? "The user has explicitly enabled collaborative execution for this task. Analyze the work, then use start_session for separable work streams instead of doing every independent report in the parent. Choose worker count and models yourself; do not ask the user to configure them." : "Linked-session delegation is available on demand. First assess the request; keep simple or tightly coupled work local. When a request calls for separate independent investigations or work products, use visible linked sessions rather than requiring manual setup."} Choose the smallest sufficient number yourself. Query list_session_models before choosing provider/model, and give a short task/model rationale. Unknown prices or capabilities are not facts; using the current model is valid when alternatives have no demonstrated advantage. Use a complete fresh brief by default; fork only when completed history is needed. Give each child a concise deliverable with file evidence. Keep detailed subreports in their own conversations; the parent should produce a compact prioritized synthesis rather than copying every report again. Give parallel code writers separate existing worktrees (create_worktree, then cwd); never let them edit the same files concurrently. Read or wait_for_sessions to collect all required results before final synthesis; if a child failed, report it and recover deliberately. Do not ask the user to open a manager or manually create sessions. ${link ? `You are the child for "${link.title}"; focus on that brief and send an evidence-based result to parent ${link.parentId}. This brief is already one delegated subtask. Do it yourself; create a further subteam only when the parent or user explicitly asks for that coordination.` : "You own the overall task and final synthesis. Child completion notifications resume you automatically."}`;
+        const state = service.domain.global.get(),
+          link = state.links[agent.id];
+        if (link)
+          return `You are a worker for "${link.title}". Focus on this brief. The single coordinator is root session ${familyRoot(state, agent.id)}. Do not call start_session or create grandchildren, even if the task family has collaboration enabled. If more independent work is needed, send_session_message to that root with the proposed work and wait for its decision. Report your result to the assigning parent ${link.parentId}; completion is relayed automatically. You may read or message existing family sessions for coordination. A user /collaborate task from any worker is routed to the root.`;
+        return `${service.explicitlyRequested(agent.id) ? "The user has explicitly enabled collaborative execution for this task. Analyze the work, then use start_session for separable work streams instead of doing every independent report in the parent. Choose worker count and models yourself; do not ask the user to configure them." : "Linked-session delegation is available on demand. First assess the request; keep simple or tightly coupled work local. When a request calls for separate independent investigations or work products, use visible linked sessions rather than requiring manual setup."} Choose the smallest sufficient number yourself. Query list_session_models before choosing provider/model, and give a short task/model rationale. Unknown prices or capabilities are not facts; using the current model is valid when alternatives have no demonstrated advantage. Use a complete fresh brief by default; fork only when completed history is needed. Give each child a concise deliverable with file evidence. Keep detailed subreports in their own conversations; the parent should produce a compact prioritized synthesis rather than copying every report again. Give parallel code writers separate existing worktrees (create_worktree, then cwd); never let them edit the same files concurrently. Read or wait_for_sessions to collect all required results before final synthesis; if a child failed, report it and recover deliberately. Do not ask the user to open a manager or manually create sessions. You are the sole coordinator of this task family. Create all new workers as direct children and collect their actual results. Workers request more help from you rather than creating grandchildren. Child completion notifications resume you automatically.`;
       },
     }),
   );
@@ -902,9 +911,9 @@ export async function apply(ctx) {
         return {
           kind: "success",
           text: task
-            ? "任务已交给 Agent，分工数量与模型由它选择，可在分工进度中查看。"
+            ? "任务已交给主会话，分工数量与模型由它选择。子会话只执行分配的任务，需要更多分工时向主会话请求。可在协作进度查看。"
             : value === "on"
-              ? "本任务协作已开启。继续描述任务，Agent 自己选择子会话数量、分工和模型。"
+              ? "主会话协作已开启（尚未提交新任务）。请回主会话描述任务，或输入 /collaborate 任务内容。Agent 自己决定分工数量和模型。"
               : value === "auto"
                 ? "已恢复按需模式：简单任务直接处理，可独立推进的工作由 Agent 判断是否分工。"
                 : "自动分工已暂停，不再新建子会话；已有任务可在分工进度中单独停止或全部停止。",

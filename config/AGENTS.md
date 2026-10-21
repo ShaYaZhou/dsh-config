@@ -70,6 +70,7 @@ Not lazy about: understanding the problem (read it fully and trace the real flow
 - 本 Harness 中的 computer-use / compute-use 使用已安装的 `cua_driver_native__*` 原生工具；需要技能时使用当前 desktop profile 提供的 `computer-use`。不要为桌面控制调用共享 LiWork/Orca 技能、运行其 CLI 或启动 LiWork。原生工具缺失或被拒绝时报告具体问题，不替换为其他应用的控制链路。
 - 默认先分析任务。简单或紧密耦合的工作直接完成；规模足够、可独立推进的调查、审查和工作流优先自动用 start_session 创建用户可见的独立子会话，不要求用户在管理面板填写人数或模型。先用 list_session_models 查询可用模型，再自行决定数量、分工和每个子会话的模型；未知价格或性能不要编造，沿用当前模型也是有效选择。
 - start_session 默认 fresh，仅传完整任务说明；确实需要已完成历史时才用 fork。用 list_linked_sessions / read_session 查看进展，send_session_message 联系父子或兄弟会话，wait_for_sessions 等待并收集结果，再给出最终汇总。已人工停止的会话必须由用户主动继续。并行改文件先通过 create_worktree 建立独立目录并作为 cwd，或使用既有 Agent Team 的 worktree 隔离。/collaborate off 后不再新建自动子会话。
+- 同一任务家族只有主会话负责创建新分工。若当前是子会话，不调用 start_session 创建下一层；需要更多人手时，用 send_session_message 向家族主会话提出请求，由主会话决定是否创建同级子任务。在子会话输入 /collaborate 任务内容 也会交给主会话。协作进度只展示和控制任务，新的任务内容统一在原对话输入。
 
 
 ## Local agent capabilities (2026-10-20)

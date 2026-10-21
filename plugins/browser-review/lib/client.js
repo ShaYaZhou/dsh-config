@@ -250,13 +250,16 @@ window.__ModuleLoader__.load({
     const css = `
       .dsh-br-screenshot{max-width:85vw;max-height:85vh;overflow:auto;border:1px solid var(--dsw-alias-border-l2,#ccd);border-radius:10px;padding:16px;color:var(--dsw-alias-label-primary,#222);background:var(--dsw-alias-bg-layer-1,#fff);font:13px system-ui}.dsh-br-screenshot::backdrop{background:#0004}.dsh-br-screenshot>img{display:block;max-width:78vw;max-height:60vh;object-fit:contain;margin:10px 0}.dsh-br-screenshot button{margin:6px 8px 0 0;padding:7px 12px;border:1px solid var(--dsw-alias-border-l2,#ccd);border-radius:6px;background:inherit;color:inherit;cursor:pointer}
       .dsh-br-panel{flex:none;padding:8px;border-top:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1,#fff);color:var(--dsw-alias-label-primary,#18243b);font:12px system-ui;max-height:260px;overflow:auto}
-      .dsh-br-panel textarea{box-sizing:border-box;width:100%;min-height:48px;color:inherit;background:var(--dsw-alias-bg-base,#fff);border:1px solid var(--dsw-alias-border-l2,#bbc);border-radius:5px;padding:6px}
       .dsh-br-panel button{margin:4px 6px 4px 0;padding:5px 9px;border:1px solid var(--dsw-alias-border-l2,#bbc);border-radius:5px;color:inherit;background:var(--dsw-alias-bg-base,#fff);cursor:pointer}
-      .dsh-br-panel button[aria-pressed=true]{border-color:#2563eb;color:#2563eb}.dsh-br-panel button:disabled{opacity:.5;cursor:default}
+      .dsh-br-panel button:disabled{opacity:.5;cursor:default}
       .dsh-br-stage{position:absolute;inset:0;z-index:30;touch-action:none;user-select:none;overflow:hidden;background:var(--dsw-alias-bg-base,#eef1f5)}
       .dsh-br-surface{position:absolute;cursor:crosshair;overflow:hidden}.dsh-br-surface>img{position:absolute;width:100%;height:100%;inset:0;pointer-events:none}
-      .dsh-br-box{position:absolute;box-sizing:border-box;border:2px solid #2563eb;background:#2563eb12;pointer-events:none}.dsh-br-box>span{position:absolute;left:0;top:0;background:#2563eb;color:white;font:12px system-ui;padding:1px 5px}
-      .dsh-br-panel ol{margin:5px 0;padding-left:22px;white-space:pre-wrap}.dsh-br-status{white-space:pre-wrap;margin:4px 0}.dsh-br-preview{max-width:100%;max-height:100px;object-fit:contain}.dsh-br-element{color:var(--dsw-alias-label-secondary,#556);overflow-wrap:anywhere}
+      .dsh-br-box{position:absolute;box-sizing:border-box;border:2px solid #2563eb;background:#2563eb12;pointer-events:none}
+      .dsh-br-editor{position:absolute;z-index:40;box-sizing:border-box;padding:12px;border:1px solid #b9c8e5;border-radius:12px;background:var(--dsw-alias-bg-layer-1,#fff);color:var(--dsw-alias-label-primary,#172033);box-shadow:0 8px 28px #0003;font:13px/1.5 system-ui;user-select:text;touch-action:auto}
+      .dsh-br-editor textarea{display:block;box-sizing:border-box;width:100%;height:84px;resize:vertical;margin:8px 0;padding:8px;border:1px solid #bbc8dd;border-radius:7px;font:14px/1.5 system-ui;color:var(--dsw-alias-label-primary,#172033)!important;background:var(--dsw-alias-bg-layer-1,#fff)!important;-webkit-text-fill-color:currentColor;caret-color:currentColor;opacity:1}
+      .dsh-br-editor button{padding:5px 10px;margin-right:6px;border:1px solid #cbd5e1;border-radius:6px;background:inherit;color:inherit;cursor:pointer}.dsh-br-box>button{position:absolute;left:-2px;top:-2px;min-width:22px;height:22px;border:0;border-radius:4px;background:#2563eb;color:white;font:12px system-ui;pointer-events:auto;cursor:pointer}
+      .dsh-br-editor[hidden],.dsh-br-stage[hidden],.dsh-br-hover[hidden]{display:none!important}
+      .dsh-br-status{white-space:pre-wrap;margin:4px 0}.dsh-br-preview{max-width:100%;max-height:100px;object-fit:contain}.dsh-br-element{color:var(--dsw-alias-label-secondary,#556);overflow-wrap:anywhere}
     `;
 
     const make = (tag, text) => {
@@ -378,80 +381,58 @@ window.__ModuleLoader__.load({
 
     async function openReview(ctx, state, isDisposed) {
       const { frame, root, content, button } = state;
-
       if (state.panel) {
         state.setVisible?.(state.panel.hidden);
         return;
       }
       const target = ctx.sidebarRight.commandTarget(button);
       if (!target) return;
-      const panel = make("div");
-      panel.className = "dsh-br-panel";
-      state.panel = panel;
-      const hint = make(
-        "div",
-        "选择元素或框选区域并填写意见，可选择附带截图。只需要图片时使用工具栏“截图”。",
-      );
-      const elementMode = make("button", "元素吸附"),
-        manualMode = make("button", "手动框选"),
-        retry = make("button", "重试截图");
-      const textLabel = make("label", " 附带页面截图 "),
-        includeImage = make("input");
-      includeImage.type = "checkbox";
-      includeImage.checked = true;
-      textLabel.prepend(includeImage);
-      const editor = make("textarea"),
-        save = make("button", "保存选区"),
+      const panel = make("div"),
+        hint = make(
+          "div",
+          "点击吸附元素，按住拖动自由框选。意见自动保留，完成后直接发送。",
+        ),
+        retry = make("button", "重试截图"),
+        includeLabel = make("label", " 附带页面截图 "),
+        includeImage = make("input"),
         send = make("button", "发送批注（含截图）"),
         cancel = make("button", "关闭（保留草稿）"),
-        discard = make("button", "退出批注");
-      const detail = make("div"),
+        discard = make("button", "退出批注"),
         status = make("div"),
-        list = make("ol"),
         preview = make("img");
-      detail.className = "dsh-br-element";
+      panel.className = "dsh-br-panel";
+      state.panel = panel;
+      includeImage.type = "checkbox";
+      includeImage.checked = true;
+      includeLabel.prepend(includeImage);
       status.className = "dsh-br-status";
       status.setAttribute("role", "status");
       preview.className = "dsh-br-preview";
       preview.alt = "待发送编号截图";
       preview.hidden = true;
-      editor.setAttribute("aria-label", "批注意见");
-      editor.placeholder = "选好区域后，在这里填写批注意见";
-      save.disabled = send.disabled = true;
-      for (const control of [
-        elementMode,
-        manualMode,
-        retry,
-        save,
-        send,
-        cancel,
-        discard,
-      ])
+      send.disabled = true;
+      for (const control of [retry, send, cancel, discard])
         control.type = "button";
       panel.append(
         hint,
-        elementMode,
-        manualMode,
+        includeLabel,
         retry,
-        textLabel,
-        detail,
-        editor,
-        save,
         send,
         cancel,
         discard,
         status,
-        list,
         preview,
       );
       root.append(panel);
       let closed = false,
         resize,
         hoverTimer,
+        previewTimer,
         hitVersion = 0,
-        pending,
-        box,
+        previewVersion = 0,
+        selected,
         start,
+        dragging = false,
         previewUrl;
       let fit = () => {};
       const savedStyle = new Map(
@@ -463,36 +444,31 @@ window.__ModuleLoader__.load({
           ],
         ]),
       );
-      state.close = () => {
-        closed = true;
-        hitVersion++;
-        clearTimeout(hoverTimer);
-        resize?.disconnect();
+      const restoreFrame = () => {
         for (const [name, [value, priority]] of savedStyle)
           value
             ? frame.style.setProperty(name, value, priority)
             : frame.style.removeProperty(name);
+      };
+      state.close = () => {
+        closed = true;
+        hitVersion++;
+        clearTimeout(hoverTimer);
+        clearTimeout(previewTimer);
+        resize?.disconnect();
+        restoreFrame();
         if (previewUrl) URL.revokeObjectURL(previewUrl);
         state.stage?.remove();
         panel.remove();
-        state.stage = state.panel = undefined;
-        state.setVisible = undefined;
+        state.stage = state.panel = state.setVisible = undefined;
         button.textContent = "批注";
         button.setAttribute("aria-pressed", "false");
       };
-      cancel.onclick = () => {
-        state.setVisible?.(false);
-      };
+      cancel.onclick = () => state.setVisible?.(false);
       await new Promise(requestAnimationFrame);
-      if (isDisposed() || !frame.isConnected) {
-        state.close();
-        return;
-      }
+      if (isDisposed() || !frame.isConnected) return state.close();
       const rect = frame.getBoundingClientRect();
-      if (rect.width < 1 || rect.height < 1) {
-        state.close();
-        return;
-      }
+      if (rect.width < 1 || rect.height < 1) return state.close();
       const review = {
         sessionId: target.sessionId,
         url: typeof frame.getURL === "function" ? frame.getURL() : frame.src,
@@ -504,48 +480,55 @@ window.__ModuleLoader__.load({
       };
       discard.onclick = () => {
         if (
-          (!review.items.length && !editor.value.trim()) ||
+          !review.items.some((item) => item.text.trim()) ||
           window.confirm("未发送的批注将被丢弃，确定退出？")
         )
           state.close();
       };
-      // Keep the guest's CSS viewport stable while its frozen image is fitted to a resized panel.
-      frame.style.width = review.width + "px";
-      frame.style.height = review.height + "px";
-      frame.style.flex = "none";
-      frame.style.maxWidth = frame.style.maxHeight = "none";
       const stage = make("div"),
         surface = make("div"),
-        image = make("img");
+        image = make("img"),
+        popover = make("div"),
+        editor = make("textarea"),
+        detail = make("div"),
+        remove = make("button", "删除这条"),
+        done = make("button", "继续批注");
       stage.className = "dsh-br-stage";
       surface.className = "dsh-br-surface";
-      surface.setAttribute("aria-label", "框选批注区域");
+      surface.setAttribute("aria-label", "点击元素或拖动框选批注");
       image.alt = "冻结的浏览器页面";
       image.hidden = true;
       stage.style.background = "transparent";
+      popover.className = "dsh-br-editor";
+      popover.hidden = true;
+      popover.setAttribute("role", "group");
+      popover.setAttribute("aria-label", "选区批注编辑器");
+      detail.className = "dsh-br-element";
+      editor.setAttribute("aria-label", "批注意见");
+      editor.placeholder = "写下对这个区域的意见…";
+      editor.maxLength = 16000;
+      remove.type = done.type = "button";
+      popover.append(detail, editor, done, remove);
       surface.append(image);
-      stage.append(surface);
+      stage.append(surface, popover);
       state.stage = stage;
+      const freezeFrame = () => {
+        frame.style.width = review.width + "px";
+        frame.style.height = review.height + "px";
+        frame.style.flex = "none";
+        frame.style.maxWidth = frame.style.maxHeight = "none";
+      };
+      freezeFrame();
       state.setVisible = (visible) => {
         hitVersion++;
         clearTimeout(hoverTimer);
         panel.hidden = stage.hidden = !visible;
         button.setAttribute("aria-pressed", String(visible));
-        for (const [name, [value, priority]] of savedStyle) {
-          if (!visible) {
-            if (value) frame.style.setProperty(name, value, priority);
-            else frame.style.removeProperty(name);
-          }
-        }
         if (visible) {
-          frame.style.width = review.width + "px";
-          frame.style.height = review.height + "px";
-          frame.style.flex = "none";
-          frame.style.maxWidth = frame.style.maxHeight = "none";
+          freezeFrame();
           fit();
-          editor.scrollIntoView({ block: "nearest" });
-          editor.focus();
-        }
+          if (!popover.hidden) editor.focus({ preventScroll: true });
+        } else restoreFrame();
       };
       button.setAttribute("aria-pressed", "true");
       const active = () =>
@@ -553,24 +536,38 @@ window.__ModuleLoader__.load({
         !isDisposed() &&
         frame.isConnected &&
         ctx.sidebarRight.commandTarget(button)?.sessionId === review.sessionId;
+      const entries = () => review.items.filter((item) => item.text.trim());
       const updateSend = () => {
         send.disabled =
-          !review.items.length || (!review.image && includeImage.checked);
+          !entries().length || (!review.image && includeImage.checked);
         send.textContent = includeImage.checked
           ? "发送批注（含截图）"
           : "发送批注（仅文字）";
+        button.textContent = entries().length
+          ? "批注 " + entries().length
+          : "批注";
         preview.hidden = !includeImage.checked || !preview.src;
       };
       const updatePreview = async () => {
-        const revision = review.items.length,
-          next = await reviewFile(review);
-        if (!active() || revision !== review.items.length) return;
+        const version = ++previewVersion;
+        const file = await reviewFile({ ...review, items: entries() });
+        if (!active() || version !== previewVersion) return;
         if (previewUrl) URL.revokeObjectURL(previewUrl);
-        if (next) {
-          previewUrl = URL.createObjectURL(next);
-          preview.src = previewUrl;
-          preview.hidden = !includeImage.checked;
-        }
+        previewUrl = file ? URL.createObjectURL(file) : undefined;
+        if (previewUrl) preview.src = previewUrl;
+        else preview.removeAttribute("src");
+        updateSend();
+      };
+      const refreshPreview = () => {
+        clearTimeout(previewTimer);
+        previewVersion++;
+        previewTimer = setTimeout(
+          () =>
+            updatePreview().catch((error) => {
+              if (active()) status.textContent = error.message;
+            }),
+          250,
+        );
       };
       const capture = async () => {
         retry.disabled = true;
@@ -580,22 +577,19 @@ window.__ModuleLoader__.load({
           const url =
             typeof frame.getURL === "function" ? frame.getURL() : frame.src;
           if (url !== review.url)
-            throw new Error("页面已导航，请关闭后重新开始批注");
+            throw new Error("页面已导航，请退出后重新开始批注");
           review.image = data;
-          review.capturedAt = new Date().toISOString();
           image.src = data;
           image.hidden = false;
           stage.style.background = "";
-          review.allowTextOnly = !includeImage.checked;
           fit();
-          status.textContent = "截图已就绪；保存选区后可预览编号图片。";
+          status.textContent =
+            "点击元素或拖动框选；文字自动保留，无需逐条保存。";
           await updatePreview();
         } catch (error) {
           if (active())
             status.textContent =
-              "截图失败：" +
-              error.message +
-              "。可重试；也可取消勾选“附带页面截图”，只发送意见和元素信息。";
+              "截图失败：" + error.message + "。可重试或取消附图，仅发送文字。";
         } finally {
           if (active()) {
             retry.disabled = false;
@@ -603,43 +597,126 @@ window.__ModuleLoader__.load({
           }
         }
       };
+      retry.onclick = capture;
+      includeImage.onchange = updateSend;
       await capture();
-      if (!active()) {
-        state.close();
-        return;
-      }
+      if (!active()) return state.close();
       content.append(stage);
+      const boxes = new Map();
+      const placeBox = (node, box) => {
+        for (const [name, value] of Object.entries({
+          left: box.x / review.width,
+          top: box.y / review.height,
+          width: box.width / review.width,
+          height: box.height / review.height,
+        }))
+          node.style[name] = 100 * value + "%";
+      };
+      const hover = make("div");
+      hover.className = "dsh-br-box dsh-br-hover";
+      hover.hidden = true;
+      surface.append(hover);
+      const positionEditor = () => {
+        if (!selected || popover.hidden) return;
+        const area = stage.getBoundingClientRect(),
+          page = surface.getBoundingClientRect(),
+          b = selected.box;
+        popover.style.width =
+          Math.max(120, Math.min(300, area.width - 16)) + "px";
+        const x = page.left - area.left + (b.x / review.width) * page.width,
+          top = page.top - area.top + (b.y / review.height) * page.height,
+          below = top + (b.height / review.height) * page.height + 8,
+          height = popover.offsetHeight;
+        popover.style.left =
+          Math.max(8, Math.min(x, area.width - popover.offsetWidth - 8)) + "px";
+        popover.style.top =
+          Math.max(
+            8,
+            Math.min(
+              below + height <= area.height - 8 ? below : top - height - 8,
+              area.height - height - 8,
+            ),
+          ) + "px";
+      };
       fit = () => {
         const r = stage.getBoundingClientRect(),
-          layout = review.image
-            ? fitReview(r.width, r.height, review)
-            : { width: review.width, height: review.height, left: 0, top: 0 };
+          layout = fitReview(r.width, r.height, review);
         for (const name of ["width", "height", "left", "top"])
           surface.style[name] = layout[name] + "px";
+        positionEditor();
       };
       resize = new ResizeObserver(fit);
       resize.observe(stage);
       fit();
-      let mode = "manual";
-      elementMode.disabled = typeof frame.executeJavaScript !== "function";
-      const setMode = (next) => {
-        mode = next;
-        hitVersion++;
-        clearTimeout(hoverTimer);
-        pending = start = undefined;
-        box?.remove();
-        box = undefined;
-        save.disabled = true;
-        elementMode.setAttribute("aria-pressed", String(mode === "element"));
-        manualMode.setAttribute("aria-pressed", String(mode === "manual"));
+      const renumber = () => {
+        let number = 0;
+        for (const item of review.items) {
+          const box = boxes.get(item),
+            marker = box.querySelector("button");
+          marker.textContent = String(item.text.trim() ? ++number : number + 1);
+          marker.setAttribute("aria-label", "编辑批注 " + marker.textContent);
+          box.title = item.text;
+        }
       };
-      setMode(mode);
-      elementMode.onclick = () => setMode("element");
-      manualMode.onclick = () => setMode("manual");
-      retry.onclick = capture;
-      includeImage.onchange = () => {
-        review.allowTextOnly = !includeImage.checked;
+      const select = (item) => {
+        selected = item;
+        hover.hidden = true;
+        editor.value = item.text;
+        detail.textContent = item.element?.selector ?? "自定义区域";
+        popover.hidden = false;
+        positionEditor();
+        editor.focus({ preventScroll: true });
+      };
+      const removeEmpty = () => {
+        for (const item of review.items.filter((item) => !item.text.trim())) {
+          boxes.get(item)?.remove();
+          boxes.delete(item);
+          review.items.splice(review.items.indexOf(item), 1);
+        }
+      };
+      const add = (box, element) => {
+        removeEmpty();
+        const item = { box, text: "", ...(element ? { element } : {}) },
+          node = make("div"),
+          marker = make("button");
+        marker.type = "button";
+        marker.onclick = () => select(item);
+        node.className = "dsh-br-box";
+        placeBox(node, box);
+        node.append(marker);
+        surface.append(node);
+        boxes.set(item, node);
+        review.items.push(item);
+        renumber();
+        select(item);
+      };
+      editor.oninput = () => {
+        if (!selected) return;
+        selected.text = editor.value;
+        renumber();
         updateSend();
+        refreshPreview();
+      };
+      editor.onkeydown = (event) => {
+        event.stopPropagation();
+        if (event.key === "Escape") {
+          popover.hidden = true;
+          selected = undefined;
+        }
+      };
+      done.onclick = () => {
+        popover.hidden = true;
+        selected = undefined;
+      };
+      remove.onclick = () => {
+        boxes.get(selected)?.remove();
+        boxes.delete(selected);
+        review.items.splice(review.items.indexOf(selected), 1);
+        selected = undefined;
+        popover.hidden = true;
+        renumber();
+        updateSend();
+        refreshPreview();
       };
       const point = (event) => {
         const r = surface.getBoundingClientRect();
@@ -648,34 +725,16 @@ window.__ModuleLoader__.load({
           y: (event.clientY - r.top) / r.height,
         };
       };
-      const focusEditor = () => {
-        panel.hidden = false;
-        editor.scrollIntoView({ block: "nearest" });
-        editor.focus({ preventScroll: true });
-        status.textContent = "已选择区域，请填写意见，再保存选区。";
-      };
-      const showBox = (b) => {
-        box ??= make("div");
-        box.className = "dsh-br-box";
-        if (!box.isConnected) surface.append(box);
-        box.style.left = (100 * b.x) / review.width + "%";
-        box.style.top = (100 * b.y) / review.height + "%";
-        box.style.width = (100 * b.width) / review.width + "%";
-        box.style.height = (100 * b.height) / review.height + "%";
-      };
-      const hit = async (p, select) => {
+      const hit = async (p, choose) => {
         const version = ++hitVersion;
         try {
           const result = await elementAtPoint(frame, {
             x: p.x * review.width,
             y: p.y * review.height,
           });
-          if (!active() || version !== hitVersion || mode !== "element") return;
+          if (!active() || stage.hidden || version !== hitVersion) return;
           if (!result) {
-            if (!pending) {
-              box?.remove();
-              box = undefined;
-            }
+            hover.hidden = true;
             return;
           }
           const b = result.box,
@@ -688,129 +747,106 @@ window.__ModuleLoader__.load({
               review.width,
               review.height,
             );
-          showBox(bounded);
-          detail.textContent =
-            result.selector + (result.shadow ? "（Shadow DOM）" : "");
-          if (select) {
-            pending = {
-              box: bounded,
-              element: { ...result, box: undefined },
-            };
-            save.disabled = false;
-            focusEditor();
+          if (choose) add(bounded, { ...result, box: undefined });
+          else {
+            placeBox(hover, bounded);
+            hover.hidden = false;
           }
         } catch (error) {
-          if (active() && version === hitVersion) {
+          if (active() && version === hitVersion)
             status.textContent =
-              "元素检查失败：" + error.message + "；可改用手动框选。";
-          }
+              "元素吸附不可用：" + error.message + "。仍可按住鼠标拖动框选。";
         }
       };
       surface.onpointerdown = (event) => {
-        if (event.button !== 0 || mode !== "manual") return;
+        if (event.button !== 0 || event.target.closest("button")) return;
         event.preventDefault();
-        start = point(event);
-        save.disabled = true;
-        detail.textContent = "自定义区域";
-        pending = undefined;
-        box?.remove();
-        box = undefined;
+        hitVersion++;
+        clearTimeout(hoverTimer);
+        start = {
+          ...point(event),
+          clientX: event.clientX,
+          clientY: event.clientY,
+        };
+        dragging = false;
         surface.setPointerCapture(event.pointerId);
       };
       surface.onpointermove = (event) => {
-        if (mode === "manual" && start)
-          showBox(
-            reviewBounds(start, point(event), review.width, review.height),
-          );
-        else if (mode === "element" && !pending) {
+        if (start) {
+          if (
+            Math.hypot(
+              event.clientX - start.clientX,
+              event.clientY - start.clientY,
+            ) >= 5
+          )
+            dragging = true;
+          if (dragging) {
+            placeBox(
+              hover,
+              reviewBounds(start, point(event), review.width, review.height),
+            );
+            hover.hidden = false;
+          }
+        } else if (!selected && typeof frame.executeJavaScript === "function") {
           clearTimeout(hoverTimer);
           const p = point(event);
           hoverTimer = setTimeout(() => hit(p, false), 60);
         }
       };
       surface.onpointerup = (event) => {
-        if (mode === "element") {
-          clearTimeout(hoverTimer);
-          pending = undefined;
-          hit(point(event), true);
-          return;
-        }
         if (!start) return;
-        const b = reviewBounds(
-          start,
-          point(event),
-          review.width,
-          review.height,
-        );
+        const origin = start;
         start = undefined;
-        if (b.width < 4 || b.height < 4) {
-          box?.remove();
-          box = undefined;
-          pending = undefined;
-          return;
-        }
-        pending = { box: b };
-        save.disabled = false;
-        focusEditor();
+        if (
+          dragging ||
+          Math.hypot(
+            event.clientX - origin.clientX,
+            event.clientY - origin.clientY,
+          ) >= 5
+        ) {
+          const b = reviewBounds(
+            origin,
+            point(event),
+            review.width,
+            review.height,
+          );
+          hover.hidden = true;
+          if (b.width >= 4 && b.height >= 4) add(b);
+        } else hit(point(event), true);
+        dragging = false;
       };
       surface.onpointercancel = () => {
-        start = pending = undefined;
-        box?.remove();
-        box = undefined;
-        save.disabled = true;
-      };
-      save.onclick = async () => {
-        const text = editor.value.trim();
-        if (!pending || !text) {
-          status.textContent = "先选择元素或区域并填写意见。";
-          return;
-        }
-        review.items.push({ ...pending, text });
-        box.append(make("span", String(review.items.length)));
-        box.title = text;
-        pending = box = undefined;
-        editor.value = "";
-        save.disabled = true;
-        detail.textContent = "";
-        button.textContent = "批注 " + review.items.length;
-        list.append(make("li", text));
-        updateSend();
-        try {
-          await updatePreview();
-          status.textContent = review.image
-            ? "已生成编号截图附件，可在下方预览。"
-            : "已保存文字批注，截图尚不可用。";
-        } catch (error) {
-          status.textContent = error.message;
-        }
+        start = undefined;
+        dragging = false;
+        hover.hidden = true;
       };
       send.onclick = async () => {
         send.disabled = true;
         try {
-          if (pending || editor.value.trim())
-            throw new Error("先保存当前选区与意见，批注已保留");
-          if (!review.items.length) throw new Error("先保存批注");
+          if (!entries().length) throw new Error("先在选区旁填写意见");
           if (!review.image && includeImage.checked)
             throw new Error("截图尚不可用，请重试截图");
           const submission = {
             ...review,
             image: includeImage.checked ? review.image : undefined,
             allowTextOnly: !includeImage.checked,
-            items: review.items.map((item) => ({
+            items: entries().map((item) => ({
               ...item,
+              text: item.text.trim(),
               box: { ...item.box },
             })),
           };
-          panel.inert = true;
+          panel.inert = popover.inert = true;
           surface.style.pointerEvents = "none";
           hitVersion++;
           clearTimeout(hoverTimer);
+          clearTimeout(previewTimer);
           const file = await reviewFile(submission);
           await sendReview(ctx, submission, file);
           state.close();
         } catch (error) {
           if (active()) {
-            panel.inert = false;
+            panel.inert = popover.inert = false;
             surface.style.pointerEvents = "";
             status.textContent = error.message;
             updateSend();

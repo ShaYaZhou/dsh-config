@@ -125,6 +125,7 @@ function fixture() {
         return { sessionId };
       },
       rename: async () => {},
+      prompt: async (request) => deliveries.push(request),
       cancel: ({ sessionId }) => {
         agents.get(sessionId).status = "idle";
       },
@@ -183,6 +184,45 @@ function fixture() {
     },
   };
 }
+
+nativeTest(
+  "one coordinator owns delegation and child collaboration requests route to the root",
+  async () => {
+    const f = fixture();
+    const child = await f.service.start({
+      sessionId: "root",
+      title: "Worker",
+      context: "fresh",
+    });
+    const before = f.records.size;
+    await assert.rejects(
+      f.service.start({
+        sessionId: child.sessionId,
+        title: "Grandchild",
+        context: "fresh",
+      }),
+      /send_session_message/,
+    );
+    assert.equal(f.records.size, before);
+    const submitted = await f.service.submit({
+      sessionId: child.sessionId,
+      message: "需要另一份独立报告",
+      collaborate: true,
+    });
+    assert.equal(submitted.sessionId, "root");
+    assert.equal(f.deliveries.at(-1).sessionId, "root");
+    assert(f.deliveries.at(-1).content[0].text.includes("需要另一份独立报告"));
+    f.deny("root");
+    await assert.rejects(
+      f.service.submit({
+        sessionId: child.sessionId,
+        message: "denied",
+        collaborate: true,
+      }),
+      /denied|forbidden|access/i,
+    );
+  },
+);
 
 nativeTest(
   "agent-chosen child models are session-local and inherit the parent permission",
@@ -374,12 +414,12 @@ nativeTest(
       context: "fresh",
     });
     const fork = await f.service.start({
-      sessionId: fresh.sessionId,
+      sessionId: "root",
       title: "B",
       context: "fork",
     });
     assert.equal(fresh.parentId, "root");
-    assert.equal(fork.parentId, fresh.sessionId);
+    assert.equal(fork.parentId, "root");
     assert.equal((await f.service.list({ sessionId: "root" })).links.length, 2);
     f.records.get(fork.sessionId).events.push({
       seq: 1,

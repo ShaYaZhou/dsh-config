@@ -48,9 +48,11 @@
         if (!value) throw new Error(message || "Assertion failed");
       },
       wait = async (predicate) => {
-        for (let i = 0; i < 150 && !predicate(); i++)
+        for (let i = 0; i < 150; i++) {
+          if (await predicate()) return;
           await new Promise((resolve) => setTimeout(resolve, 30));
-        assert(predicate(), "Wait failed");
+        }
+        throw new Error("Wait failed");
       };
     try {
       const frame = document.querySelector("webview");
@@ -118,60 +120,190 @@
       );
       const surface = document.querySelector(".dsh-br-surface"),
         image = surface.querySelector("img"),
-        viewport = await frame.executeJavaScript(
-          "({width:innerWidth,height:innerHeight})",
-        );
-      const editor = document.querySelector('[aria-label="批注意见"]'),
+        editor = document.querySelector('[aria-label="批注意见"]'),
         buttons = () =>
           Array.from(document.querySelectorAll(".dsh-br-panel button")),
-        save = () => buttons().find((b) => b.textContent === "保存选区");
+        toggle = document.querySelector('[aria-label="内置浏览器批注"]');
       assert(
-        buttons()
-          .find((b) => b.textContent === "手动框选")
-          .getAttribute("aria-pressed") === "true",
-        "Free rectangle must be the default",
+        !buttons().some((button) =>
+          /保存选区|手动框选|元素吸附/.test(button.textContent),
+        ),
+        "Gestures must not require mode switches or save buttons",
       );
-      const area = surface.getBoundingClientRect(),
-        x = Math.round(area.left + area.width * 0.15),
-        y = Math.round(area.top + area.height * 0.35);
+      const viewport = await frame.executeJavaScript(
+          "({width:innerWidth,height:innerHeight})",
+        ),
+        element = await frame.executeJavaScript(
+          'document.querySelector("#review-target").getBoundingClientRect().toJSON()',
+        ),
+        rect = surface.getBoundingClientRect(),
+        x = Math.round(
+          rect.left +
+            ((element.x + element.width / 2) * rect.width) / viewport.width,
+        ),
+        y = Math.round(
+          rect.top +
+            ((element.y + element.height / 2) * rect.height) / viewport.height,
+        );
       await window.fixture.input([
         { type: "mouseMove", x, y },
         { type: "mouseDown", x, y, button: "left", clickCount: 1 },
-        { type: "mouseMove", x: x + 180, y: y + 80, buttons: ["left"] },
+        { type: "mouseUp", x, y, button: "left", clickCount: 1 },
+      ]);
+      await wait(
+        () =>
+          !document.querySelector(".dsh-br-editor").hidden &&
+          document
+            .querySelector(".dsh-br-element")
+            .textContent.includes("#review-target"),
+      );
+      assert(
+        document.activeElement === editor,
+        "Click snapping did not focus the nearby editor",
+      );
+      const visibleEditor = () => {
+        const b = editor.getBoundingClientRect(),
+          page = document
+            .querySelector(".dsh-br-stage")
+            .getBoundingClientRect(),
+          style = getComputedStyle(editor);
+        assert(
+          b.height > 40 &&
+            b.top >= page.top &&
+            b.bottom <= page.bottom &&
+            b.left >= page.left &&
+            b.right <= page.right,
+          "Floating comment editor outside the browser viewport",
+        );
+        assert(
+          style.color !== style.backgroundColor &&
+            style.opacity === "1" &&
+            style.webkitTextFillColor === style.color,
+          "Comment text is not visibly contrasted",
+        );
+      };
+      visibleEditor();
+      await window.fixture.type("点击吸附：保留圆角，改成蓝色");
+      assert(
+        editor.value.includes("保留圆角"),
+        "Native typing did not appear after click selection",
+      );
+      assert(
+        !buttons().find((button) => button.textContent === "发送批注（含截图）")
+          .disabled,
+        "Typed annotation must be sendable without saving",
+      );
+      document.querySelector(".dsh-br-editor button").click();
+      assert(
+        document.querySelector(".dsh-br-editor").hidden,
+        "Continue should dismiss the editor without losing the note",
+      );
+      const area = surface.getBoundingClientRect(),
+        dragX = Math.round(area.left + area.width * 0.15),
+        dragY = Math.round(area.top + area.height * 0.6);
+      await window.fixture.input([
+        { type: "mouseMove", x: dragX, y: dragY },
+        {
+          type: "mouseDown",
+          x: dragX,
+          y: dragY,
+          button: "left",
+          clickCount: 1,
+        },
+        { type: "mouseMove", x: dragX + 180, y: dragY + 80, buttons: ["left"] },
         {
           type: "mouseUp",
-          x: x + 180,
-          y: y + 80,
+          x: dragX + 180,
+          y: dragY + 80,
           button: "left",
           clickCount: 1,
         },
       ]);
-      await wait(() => !save().disabled);
-      assert(
-        document.activeElement === editor,
-        "Selected region must focus the comment editor",
+      await wait(
+        () =>
+          !document.querySelector(".dsh-br-editor").hidden &&
+          document.querySelector(".dsh-br-element").textContent ===
+            "自定义区域",
       );
-      const editorBox = editor.getBoundingClientRect();
-      assert(
-        editorBox.height > 30 &&
-          editorBox.top >= 0 &&
-          editorBox.bottom <= innerHeight,
-        "Comment editor must be visible",
-      );
-      await window.fixture.type("自定义范围：这是一条真实输入的批注");
-      assert(editor.value.includes("真实输入"), "Native text insertion failed");
-      const drawn = document
-        .querySelector(".dsh-br-box")
+      const drawn = Array.from(
+        document.querySelectorAll(".dsh-br-box:not(.dsh-br-hover)"),
+      )
+        .at(-1)
         .getBoundingClientRect();
       assert(
         Math.abs(drawn.width - 180) < 3 && Math.abs(drawn.height - 80) < 3,
-        "Custom rectangle snapped unexpectedly",
+        "Dragging snapped instead of drawing a free rectangle",
       );
-      save().click();
+      visibleEditor();
+      await window.fixture.type("自由框选：真实输入，直接发送，无需保存");
+      assert(
+        editor.value.includes("无需保存"),
+        "Native text entry is not visible in free rectangle mode",
+      );
+      document.querySelector(".dsh-br-editor button").click();
+      await window.fixture.input([
+        { type: "mouseMove", x, y },
+        { type: "mouseDown", x, y, button: "left", clickCount: 1 },
+        { type: "mouseUp", x, y, button: "left", clickCount: 1 },
+      ]);
+      await wait(
+        () =>
+          !document.querySelector(".dsh-br-editor").hidden &&
+          editor.value === "",
+      );
+      Array.from(document.querySelectorAll(".dsh-br-editor button"))
+        .find((button) => button.textContent === "删除这条")
+        .click();
+      assert(
+        document.querySelectorAll(".dsh-br-box>button").length === 2,
+        "Deleting an empty draft removed a written annotation",
+      );
+      const marker = document
+          .querySelectorAll(".dsh-br-box>button")[1]
+          .getBoundingClientRect(),
+        markerX = Math.round(marker.left + marker.width / 2),
+        markerY = Math.round(marker.top + marker.height / 2);
+      await window.fixture.input([
+        { type: "mouseMove", x: markerX, y: markerY },
+        {
+          type: "mouseDown",
+          x: markerX,
+          y: markerY,
+          button: "left",
+          clickCount: 1,
+        },
+        {
+          type: "mouseUp",
+          x: markerX,
+          y: markerY,
+          button: "left",
+          clickCount: 1,
+        },
+      ]);
+      await wait(
+        () =>
+          editor.value.includes("无需保存") &&
+          !document.querySelector(".dsh-br-editor").hidden,
+      );
+      await window.fixture.resize({ width: 480, height: 600 });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      visibleEditor();
+      document.documentElement.style.setProperty(
+        "--dsw-alias-bg-layer-1",
+        "#172033",
+      );
+      document.documentElement.style.setProperty(
+        "--dsw-alias-label-primary",
+        "#f1f5f9",
+      );
+      visibleEditor();
+      document.documentElement.style.removeProperty("--dsw-alias-bg-layer-1");
+      document.documentElement.style.removeProperty(
+        "--dsw-alias-label-primary",
+      );
       await wait(() =>
         document.querySelector(".dsh-br-preview").src.startsWith("blob:"),
       );
-      const toggle = document.querySelector('[aria-label="内置浏览器批注"]');
       toggle.click();
       assert(
         document.querySelector(".dsh-br-stage").getBoundingClientRect()
@@ -184,13 +316,11 @@
       );
       toggle.click();
       assert(
-        document
-          .querySelector(".dsh-br-panel li")
-          .textContent.includes("真实输入"),
-        "Closing lost unsent annotations",
+        editor.value.includes("无需保存"),
+        "Closing lost the active comment draft",
       );
       buttons()
-        .find((b) => b.textContent === "关闭（保留草稿）")
+        .find((button) => button.textContent === "关闭（保留草稿）")
         .click();
       assert(
         document.querySelector(".dsh-br-stage").hidden,
@@ -198,58 +328,7 @@
       );
       toggle.click();
       await new Promise(requestAnimationFrame);
-      buttons()
-        .find((b) => b.textContent === "元素吸附")
-        .click();
-      const element = await frame.executeJavaScript(
-          'document.querySelector("#review-target").getBoundingClientRect().toJSON()',
-        ),
-        rect = surface.getBoundingClientRect();
-      const point = {
-        x:
-          rect.left +
-          ((element.x + element.width / 2) * rect.width) / viewport.width,
-        y:
-          rect.top +
-          ((element.y + element.height / 2) * rect.height) / viewport.height,
-      };
-      surface.dispatchEvent(
-        new PointerEvent("pointermove", {
-          bubbles: true,
-          clientX: point.x,
-          clientY: point.y,
-        }),
-      );
-      await wait(() =>
-        document
-          .querySelector(".dsh-br-element")
-          .textContent.includes("#review-target"),
-      );
-      surface.dispatchEvent(
-        new PointerEvent("pointerup", {
-          bubbles: true,
-          button: 0,
-          clientX: point.x,
-          clientY: point.y,
-        }),
-      );
-      await wait(
-        () =>
-          !Array.from(document.querySelectorAll(".dsh-br-panel button")).find(
-            (b) => b.textContent === "保存选区",
-          ).disabled,
-      );
-      await window.fixture.type("元素吸附：保留圆角，改成蓝色");
-      assert(
-        editor.value.includes("保留圆角"),
-        "Element selection did not focus the editor",
-      );
-      Array.from(document.querySelectorAll(".dsh-br-panel button"))
-        .find((b) => b.textContent === "保存选区")
-        .click();
-      await wait(() =>
-        document.querySelector(".dsh-br-preview").src.startsWith("blob:"),
-      );
+      visibleEditor();
       const includeImage = document.querySelector(
         ".dsh-br-panel input[type=checkbox]",
       );
@@ -259,12 +338,18 @@
         "Annotation image should be optional",
       );
       assert(
-        Array.from(document.querySelectorAll(".dsh-br-panel button")).some(
-          (button) => button.textContent === "发送批注（仅文字）",
-        ),
-        "Missing annotation-only send action",
+        buttons().some((button) => button.textContent === "发送批注（仅文字）"),
+        "Missing text-only action",
       );
       includeImage.click();
+      await wait(async () => {
+        const current = await frame.executeJavaScript(
+          "({width:innerWidth,height:innerHeight})",
+        );
+        return (
+          current.width === viewport.width && current.height === viewport.height
+        );
+      });
       const priorViewport = await frame.executeJavaScript(
         "({width:innerWidth,height:innerHeight})",
       );
@@ -278,16 +363,18 @@
         Math.abs(
           after.width / after.height - image.naturalWidth / image.naturalHeight,
         ) < 0.01,
-        "Image stretched after resize",
+        "Image stretched on resize",
       );
       assert(
         afterViewport.width === priorViewport.width &&
           afterViewport.height === priorViewport.height,
-        "CSS viewport changed during frozen review",
+        "Guest viewport changed while annotating",
       );
+      visibleEditor();
       await window.fixture.proof();
-      Array.from(document.querySelectorAll(".dsh-br-panel button"))
-        .find((b) => b.textContent === "发送批注（含截图）")
+      await window.fixture.type("；最后输入也必须提交");
+      buttons()
+        .find((button) => button.textContent === "发送批注（含截图）")
         .click();
       await wait(() => deliveries.length === 1);
       assert(deliveries[0][0] === session, "Wrong session");
@@ -296,24 +383,23 @@
         "Wrong attachments",
       );
       assert(
-        deliveries[0][1].includes("button#review-target"),
-        "Missing CSS selector",
+        deliveries[0][1].includes("button#review-target") &&
+          deliveries[0][1].includes("border-radius"),
+        "Missing snapped element CSS evidence",
       );
       assert(
-        deliveries[0][1].includes("border-radius"),
-        "Missing computed style",
+        deliveries[0][1].includes("保留圆角") &&
+          deliveries[0][1].includes("自由框选") &&
+          deliveries[0][1].includes("最后输入"),
+        "Send dropped a current unsaved comment",
       );
-      assert(file.type === "image/png" && file.size > 3000, "Missing image");
-      assert(frame.style.width === "", "Guest width was not restored");
+      assert(file.type === "image/png" && file.size > 3000, "Missing PNG");
+      assert(frame.style.width === "", "Send did not restore viewport");
       assert(
         !document.querySelector(".dsh-br-stage"),
-        "Sending left annotation overlays behind",
+        "Send left annotation overlays behind",
       );
-      assert(
-        deliveries[0][1].includes("自定义范围") &&
-          deliveries[0][1].includes("保留圆角"),
-        "Missing typed comments",
-      );
+
       const png = await new Promise((resolve) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
@@ -324,6 +410,11 @@
         independentScreenshot: true,
         trustedCustomRectangle: true,
         nativeCommentInput: true,
+        clickSnapsDragSelects: true,
+        nearbyVisibleEditor: true,
+        narrowPanelAndDarkTextVisible: true,
+        noSaveStep: true,
+        editByNumberAndDelete: true,
         closeHidesOverlays: true,
         unsentDraftPreserved: true,
         screenshotDidNotOpenAnnotation: true,

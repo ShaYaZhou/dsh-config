@@ -4,7 +4,7 @@ window.__ModuleLoader__.load({
     const React = require("react"),
       h = React.createElement;
     const inject = ["slots", "sessions", "uiWorkspace", "connection"];
-    function familyTree(links, rows) {
+    function familyTree(links, rows, focusedId) {
       const byId = new Map(rows.map((row) => [row.id, row])),
         parents = new Map();
       for (const link of links)
@@ -24,6 +24,7 @@ window.__ModuleLoader__.load({
       }
       const members = new Set([...parents.keys(), ...parents.values()]),
         children = new Map();
+      if (byId.has(focusedId)) members.add(focusedId);
       for (const [id, parent] of parents) {
         if (!children.has(parent)) children.set(parent, []);
         children.get(parent).push(id);
@@ -33,11 +34,17 @@ window.__ModuleLoader__.load({
           (a, b) => (byId.get(b).updatedAt ?? 0) - (byId.get(a).updatedAt ?? 0),
         );
       for (const ids of children.values()) sort(ids);
+      const roots = sort([...members].filter((id) => !parents.has(id))),
+        focusedRoot = rootFor(parents, focusedId);
+      if (roots.includes(focusedRoot)) {
+        roots.splice(roots.indexOf(focusedRoot), 1);
+        roots.unshift(focusedRoot);
+      }
       return {
         byId,
         parents,
         children,
-        roots: sort([...members].filter((id) => !parents.has(id))),
+        roots,
       };
     }
     function rootFor(parents, id) {
@@ -61,10 +68,10 @@ window.__ModuleLoader__.load({
     const css = `
 .dsh-nested{font:14px/1.6 system-ui;color:var(--dsw-alias-label-primary,#222);text-align:left;box-sizing:border-box;min-width:0}
 .dsh-nested *{box-sizing:border-box}
-.dsh-nested button,.dsh-nested textarea{font:inherit;color:inherit;border:1px solid var(--dsw-alias-border-l2,#dce0e7);border-radius:8px;background:var(--dsw-alias-bg-layer-1,#fff);padding:7px 12px}
+.dsh-nested button{font:inherit;color:inherit;border:1px solid var(--dsw-alias-border-l2,#dce0e7);border-radius:8px;background:var(--dsw-alias-bg-layer-1,#fff);padding:7px 12px}
 .dsh-nested button{cursor:pointer;transition:background .15s}
 .dsh-nested button:hover:not(:disabled){background:var(--dsw-alias-bg-layer-2,#f1f4f8)}
-.dsh-nested button:focus-visible,.dsh-nested textarea:focus-visible{outline:2px solid #356ae6;outline-offset:2px}
+.dsh-nested button:focus-visible{outline:2px solid #356ae6;outline-offset:2px}
 .dsh-nested button:disabled{opacity:.45;cursor:default}
 .dsh-nested p{margin:8px 0 16px;overflow-wrap:anywhere}
 .dsh-nested small{font-size:12px;color:var(--dsw-alias-label-secondary,#697386)}
@@ -86,8 +93,6 @@ window.__ModuleLoader__.load({
 .dsh-nested-card .dsh-nested-actions{margin:12px 0 0}
 .dsh-nested-card .dsh-nested-actions button{font-size:12px;padding:4px 10px}
 .dsh-nested-primary{background:#356ae6!important;color:#fff!important;border-color:#356ae6!important}
-.dsh-nested textarea{width:100%;min-height:92px;resize:vertical;display:block;margin-top:10px}
-.dsh-nested-compose{margin:26px 0 20px;padding-top:22px;border-top:1px solid var(--dsw-alias-border-l2,#dce0e7)}
 .dsh-nested-error{color:#b22;white-space:pre-wrap}
 .dsh-nested details{font-size:12px;color:var(--dsw-alias-label-secondary,#697386)}
 .dsh-nested summary{cursor:pointer}
@@ -126,7 +131,6 @@ window.__ModuleLoader__.load({
       const [error, setError] = React.useState(""),
         [loadError, setLoadError] = React.useState(""),
         [busy, setBusy] = React.useState(false);
-      const [task, setTask] = React.useState("");
       const current =
         sessionId ??
         Object.values(list.byId).find(
@@ -136,6 +140,7 @@ window.__ModuleLoader__.load({
       const tree = familyTree(
         links,
         Object.values(list.byId).filter((row) => row.origin !== "subagent"),
+        current,
       );
       const root = rootFor(tree.parents, current),
         currentLinks = links.filter(
@@ -296,7 +301,7 @@ window.__ModuleLoader__.load({
         h(
           "p",
           { className: "dsh-nested-intro" },
-          "描述目标，Agent 决定分工、数量和模型。每个子任务都有独立对话，结果汇总回主会话。",
+          "在任意对话输入 /collaborate 任务内容 即可发起，无需先来这里开启。主会话决定分工、数量和模型；这里查看进度和结果。",
         ),
         root &&
           h(
@@ -318,11 +323,15 @@ window.__ModuleLoader__.load({
               disabled: busy || !root,
               "aria-pressed": requested,
               onClick: () =>
-                run(() =>
-                  call(ctx, "policy", { sessionId: root, enabled: !requested }),
-                ),
+                run(async () => {
+                  await call(ctx, "policy", {
+                    sessionId: root,
+                    enabled: !requested,
+                  });
+                  if (!requested) ctx.uiWorkspace.openSession(root);
+                }),
             },
-            requested ? "暂停新分工" : "开启本任务协作",
+            requested ? "暂停新分工" : "开启协作并回主会话",
           ),
           h(
             "button",
@@ -344,6 +353,11 @@ window.__ModuleLoader__.load({
         h(
           "p",
           { className: "dsh-nested-intro" },
+          "开启按钮只切换模式，不会提交任务。回主会话描述任务即可；子会话需要更多人手时请求主会话创建同级任务，不再逐层分派。",
+        ),
+        h(
+          "p",
+          { className: "dsh-nested-intro" },
           links.length
             ? (all ? "共展示 " + links.length + " 个子任务；" : "") +
                 "当前任务 " +
@@ -354,55 +368,6 @@ window.__ModuleLoader__.load({
             : "还没有子任务。适合并行的任务会自动出现在这里，简单问题仍由主会话直接完成。",
         ),
         h("ul", { "aria-label": "父子任务进度" }, roots.map(row)),
-        h(
-          "form",
-          {
-            className: "dsh-nested-compose",
-            onSubmit: (event) => {
-              event.preventDefault();
-              run(async () => {
-                await call(ctx, "submit", {
-                  sessionId: root,
-                  message: task,
-                  collaborate: true,
-                });
-                setTask("");
-                ctx.uiWorkspace.openSession(root);
-              });
-            },
-          },
-          h(
-            "p",
-            null,
-            h(
-              "label",
-              { htmlFor: "nested-task-" + (sessionId ?? "all") },
-              "交给 Agent 的任务",
-            ),
-          ),
-          h("textarea", {
-            id: "nested-task-" + (sessionId ?? "all"),
-            value: task,
-            maxLength: 16000,
-            required: true,
-            placeholder: "描述目标即可，不需要填写人数、模型或子任务配置",
-            onChange: (event) => setTask(event.target.value),
-            disabled: busy || !root,
-          }),
-          h(
-            "div",
-            { className: "dsh-nested-actions" },
-            h(
-              "button",
-              {
-                type: "submit",
-                className: "dsh-nested-primary",
-                disabled: busy || !root || !task.trim(),
-              },
-              busy ? "正在提交…" : "交给 Agent 协作",
-            ),
-          ),
-        ),
         (error || loadError) &&
           h(
             "p",
@@ -416,7 +381,7 @@ window.__ModuleLoader__.load({
           h(
             "p",
             null,
-            "默认按需判断，较小任务可能直接完成。明确需要协作时输入 /collaborate 任务内容，或点击开启本任务协作；数量和模型仍由 Agent 自选。/collaborate off 暂停新分工，/collaborate auto 恢复按需模式。各子任务都能单独打开并补充要求。",
+            "主会话负责分工与最终汇总，子会话负责独立交付。/collaborate 任务内容 立即把任务交给主会话；在子会话输入也会送到所属主会话。/collaborate on 只开启模式；off 暂停新分工；auto 恢复按需判断。已有深层历史仍按真实关系展示，新分工只创建主会话的直接子任务。",
           ),
         ),
       );

@@ -71,24 +71,24 @@
     {
       "id": "nested-sessions",
       "package": "@local/dsh-nested-sessions",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
         "changes": [
-          "Agent-led automatic task allocation with configured model selection, inherited permissions, result collection and progress UI."
+          "Single root coordinator chooses child tasks and models; child collaboration requests route to root; progress view uses the original conversation composer."
         ]
       }
     },
     {
       "id": "browser-review",
       "package": "@local/dsh-browser-review",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
         "changes": [
-          "Independent screenshot preview/send workflow and optional screenshot attachments for element/region annotations."
+          "Click-to-snap and drag-to-select in one gesture flow, nearby auto-saved comment editor, independent screenshot capture."
         ]
       }
     }
