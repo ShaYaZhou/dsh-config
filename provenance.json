@@ -71,12 +71,12 @@
     {
       "id": "nested-sessions",
       "package": "@local/dsh-nested-sessions",
-      "version": "1.1.1",
+      "version": "1.2.0",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
         "changes": [
-          "Single root coordinator chooses child tasks and models; child collaboration requests route to root; progress view uses the original conversation composer."
+          "Root-led collaboration with native workspace sidebar indentation, accessible child ownership and reversible folding; no session record rewrites."
         ]
       }
     },

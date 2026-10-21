@@ -67,4 +67,42 @@ test("nested tree preserves sibling ordering, descendants and orphan history wit
   );
   assert.deepEqual([...childFocus.roots], ["parent"]);
   assert.equal(childFocus.parents.get("grandchild"), "a");
+  const visible = plugin.sidebarRows(
+    ["a", "unrelated", "parent", "grandchild"],
+    [
+      { sessionId: "a", parentId: "parent" },
+      { sessionId: "grandchild", parentId: "a" },
+    ],
+    new Set(["parent"]),
+  );
+  assert.deepEqual(
+    Array.from(visible, (row) => [row.id, row.depth, row.hidden]),
+    [
+      ["parent", 0, false],
+      ["a", 1, true],
+      ["grandchild", 2, true],
+      ["unrelated", 0, false],
+    ],
+  );
+  const orphan = plugin.sidebarRows(
+    ["a", "unrelated"],
+    [{ sessionId: "a", parentId: "missing" }],
+  );
+  assert.deepEqual(
+    Array.from(orphan, (row) => [row.id, row.depth, row.hidden]),
+    [
+      ["a", 0, false],
+      ["unrelated", 0, false],
+    ],
+  );
+  const linked = [{ sessionId: "a", parentId: "parent" }];
+  assert.equal(
+    plugin.hasPartialFamily(["a"], linked, new Set(["a", "parent"])),
+    true,
+  );
+  assert.equal(
+    plugin.hasPartialFamily(["a", "parent"], linked, new Set(["a", "parent"])),
+    false,
+  );
+  assert.equal(plugin.hasPartialFamily(["a"], linked, new Set(["a"])), false);
 });

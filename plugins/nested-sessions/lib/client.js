@@ -3,7 +3,13 @@ window.__ModuleLoader__.load({
   factory: (require) => {
     const React = require("react"),
       h = React.createElement;
-    const inject = ["slots", "sessions", "uiWorkspace", "connection"];
+    const inject = [
+      "slots",
+      "sessions",
+      "workspaces",
+      "uiWorkspace",
+      "connection",
+    ];
     function familyTree(links, rows, focusedId) {
       const byId = new Map(rows.map((row) => [row.id, row])),
         parents = new Map();
@@ -54,6 +60,310 @@ window.__ModuleLoader__.load({
         id = parents.get(id);
       }
       return id;
+    }
+    function sidebarRows(ids, links, collapsed = new Set()) {
+      const tree = familyTree(
+          links,
+          ids.map((id, index) => ({ id, updatedAt: ids.length - index })),
+        ),
+        earliest = new Map();
+      ids.forEach((id, index) => {
+        const root = rootFor(tree.parents, id);
+        earliest.set(root, Math.min(earliest.get(root) ?? Infinity, index));
+      });
+      const roots = ids
+          .filter((id) => !tree.parents.has(id))
+          .sort((a, b) => earliest.get(a) - earliest.get(b)),
+        result = [];
+      const visit = (id, depth, hidden) => {
+        const children = tree.children.get(id) ?? [];
+        result.push({
+          id,
+          parentId: tree.parents.get(id),
+          depth,
+          hidden,
+          children,
+        });
+        for (const child of children)
+          visit(child, depth + 1, hidden || collapsed.has(id));
+      };
+      for (const root of roots) visit(root, 0, false);
+      return result;
+    }
+    function hasPartialFamily(ids, links, eligible) {
+      const visible = new Set(ids);
+      return links.some(
+        (link) =>
+          eligible.has(link.sessionId) &&
+          eligible.has(link.parentId) &&
+          visible.has(link.sessionId) !== visible.has(link.parentId),
+      );
+    }
+
+    // Native 0.2.1-rc.2 has no row-order slot; adapt only its semantic row markers, never move React-owned nodes.
+    function installSidebarTree(ctx) {
+      const selector = '[data-row-key^="session:"]',
+        collapsed = new Set(),
+        saved = new Map(),
+        containers = new Map();
+      let disposed = false,
+        links = [],
+        frame,
+        lastSelected;
+      const preserve = (element, properties, attributes = []) => {
+        if (saved.has(element)) return;
+        saved.set(element, {
+          styles: properties.map((name) => [
+            name,
+            element.style.getPropertyValue(name),
+            element.style.getPropertyPriority(name),
+          ]),
+          attrs: attributes.map((name) => [name, element.getAttribute(name)]),
+        });
+      };
+      const restore = (element) => {
+        const state = saved.get(element);
+        if (!state) return;
+        for (const [name, value, priority] of state.styles)
+          value
+            ? element.style.setProperty(name, value, priority)
+            : element.style.removeProperty(name);
+        for (const [name, value] of state.attrs)
+          value === null
+            ? element.removeAttribute(name)
+            : element.setAttribute(name, value);
+        element
+          .querySelectorAll(":scope > [data-dsh-family-control]")
+          .forEach((node) => node.remove());
+        saved.delete(element);
+      };
+      const paint = () => {
+        frame = undefined;
+        if (disposed) return;
+        const groups = new Map(),
+          live = new Set();
+        for (const row of document.querySelectorAll(selector)) {
+          const wrapper = row.parentElement,
+            container = wrapper?.parentElement;
+          if (
+            !container ||
+            wrapper.children.length !== 1 ||
+            !container.closest('[role="tree"]')
+          )
+            continue;
+          if (!groups.has(container)) groups.set(container, []);
+          groups
+            .get(container)
+            .push({ id: row.dataset.rowKey.slice(8), row, wrapper });
+        }
+        const selected = document
+          .querySelector(selector + '[aria-selected="true"]')
+          ?.dataset.rowKey.slice(8);
+        if (selected !== lastSelected) {
+          const parents = new Map(
+              links.map((link) => [link.sessionId, link.parentId]),
+            ),
+            seen = new Set();
+          let at = selected;
+          while (at && !seen.has(at)) {
+            seen.add(at);
+            collapsed.delete(at);
+            at = parents.get(at);
+          }
+          lastSelected = selected;
+        }
+        const workspaceState = ctx.workspaces.list.getSnapshot(),
+          unavailable = new Set([
+            ...workspaceState.pinnedSessionIds,
+            ...workspaceState.archivedSessionIds,
+          ]),
+          visibleLinks = links.filter(
+            (link) =>
+              !unavailable.has(link.sessionId) &&
+              !unavailable.has(link.parentId),
+          );
+        for (const [container, rows] of groups) {
+          const overflow = Array.from(container.children).find((node) =>
+            node.dataset.rowKey?.startsWith("overflow:"),
+          );
+          if (overflow && overflow.getAttribute("aria-expanded") !== "true") {
+            const workspace = workspaceState.items.find(
+                (item) => item.workspaceId === overflow.dataset.rowKey.slice(9),
+              ),
+              accounted = new Set(
+                workspaceState.items.flatMap((item) => item.sessionIds),
+              ),
+              members =
+                workspace?.sessionIds ??
+                (overflow.dataset.rowKey === "overflow:"
+                  ? ctx.sessions.list
+                      .getSnapshot()
+                      .ids.filter((id) => !accounted.has(id))
+                  : []),
+              eligible = new Set(members.filter((id) => !unavailable.has(id)));
+            if (
+              hasPartialFamily(
+                rows.map((item) => item.id),
+                visibleLinks,
+                eligible,
+              )
+            ) {
+              overflow.click();
+              continue;
+            }
+          }
+          const layout = sidebarRows(
+            rows.map((item) => item.id),
+            visibleLinks,
+            collapsed,
+          );
+          if (!layout.some((item) => item.depth > 0)) continue;
+          live.add(container);
+          if (!containers.has(container))
+            containers.set(container, [
+              container.style.display,
+              container.style.flexDirection,
+            ]);
+          container.style.display = "flex";
+          container.style.flexDirection = "column";
+          const byId = new Map(rows.map((item) => [item.id, item]));
+          for (const child of container.children) {
+            preserve(child, ["order", "display"]);
+            live.add(child);
+            child.style.order = child.dataset.rowKey?.startsWith("overflow:")
+              ? "100000"
+              : "0";
+          }
+          for (const [index, item] of layout.entries()) {
+            const { row, wrapper } = byId.get(item.id);
+            preserve(
+              row,
+              ["padding-inline-start", "position"],
+              ["id", "aria-level", "aria-expanded"],
+            );
+            live.add(row);
+            wrapper.style.order = String(index + 1);
+            const original =
+              saved
+                .get(wrapper)
+                ?.styles.find((entry) => entry[0] === "display")?.[1] ?? "";
+            wrapper.style.display = item.hidden ? "none" : original;
+            row.style.paddingInlineStart =
+              8 +
+              item.depth * 16 +
+              (item.parentId || item.children.length ? 18 : 0) +
+              "px";
+            row.style.position = "relative";
+            row.id = "dsh-linked-" + item.id;
+            row.setAttribute("aria-level", String(item.depth + 2));
+            let toggle = row.querySelector(
+                ":scope > button[data-dsh-family-control]",
+              ),
+              group = row.querySelector(
+                ':scope > [role="group"][data-dsh-family-control]',
+              );
+            if (item.children.length) {
+              if (!toggle) {
+                toggle = document.createElement("button");
+                toggle.type = "button";
+                toggle.dataset.dshFamilyControl = "true";
+                toggle.style.cssText =
+                  "position:absolute;left:7px;top:50%;transform:translateY(-50%);width:18px;height:22px;border:0;background:transparent;color:inherit;cursor:pointer;padding:0;font:13px system-ui";
+                toggle.onpointerdown = (event) => event.stopPropagation();
+                toggle.onkeydown = (event) => event.stopPropagation();
+                toggle.onclick = (event) => {
+                  event.stopPropagation();
+                  collapsed.has(item.id)
+                    ? collapsed.delete(item.id)
+                    : collapsed.add(item.id);
+                  schedule();
+                };
+                row.append(toggle);
+              }
+              toggle.style.left = 7 + item.depth * 16 + "px";
+              const expanded = !collapsed.has(item.id),
+                title =
+                  ctx.sessions.list.getSnapshot().byId[item.id]?.title ??
+                  "主会话";
+              const text = expanded ? "▾" : "▸";
+              if (toggle.textContent !== text) toggle.textContent = text;
+              toggle.setAttribute(
+                "aria-label",
+                (expanded ? "折叠" : "展开") + "子会话：" + title,
+              );
+              toggle.setAttribute("aria-expanded", String(expanded));
+              row.setAttribute("aria-expanded", String(expanded));
+              if (!group) {
+                group = document.createElement("span");
+                group.dataset.dshFamilyControl = "true";
+                group.setAttribute("role", "group");
+                group.style.display = "contents";
+                row.append(group);
+              }
+              group.setAttribute(
+                "aria-owns",
+                item.children.map((id) => "dsh-linked-" + id).join(" "),
+              );
+            } else {
+              toggle?.remove();
+              group?.remove();
+              const old = saved
+                .get(row)
+                .attrs.find((entry) => entry[0] === "aria-expanded")[1];
+              old === null
+                ? row.removeAttribute("aria-expanded")
+                : row.setAttribute("aria-expanded", old);
+            }
+          }
+        }
+        for (const element of [...saved.keys()])
+          if (!live.has(element)) restore(element);
+        for (const [container, [display, direction]] of containers)
+          if (!live.has(container)) {
+            container.style.display = display;
+            container.style.flexDirection = direction;
+            containers.delete(container);
+          }
+      };
+      const schedule = () => {
+        if (!disposed && frame === undefined)
+          frame = requestAnimationFrame(paint);
+      };
+      const refresh = async () => {
+        try {
+          const result = await call(ctx, "list", { all: true });
+          if (!disposed) {
+            links = result.links;
+            schedule();
+          }
+        } catch (error) {
+          if (!disposed) console.warn("nested sidebar:", error.message);
+        }
+      };
+      const observer = new MutationObserver(schedule);
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["aria-selected"],
+      });
+      const unsubscribe = ctx.sessions.list.subscribe(schedule),
+        unsubscribeWorkspaces = ctx.workspaces.list.subscribe(schedule),
+        timer = setInterval(refresh, 2000);
+      refresh();
+      return () => {
+        disposed = true;
+        observer.disconnect();
+        unsubscribe();
+        unsubscribeWorkspaces();
+        clearInterval(timer);
+        cancelAnimationFrame(frame);
+        for (const element of [...saved.keys()]) restore(element);
+        for (const [container, [display, direction]] of containers) {
+          container.style.display = display;
+          container.style.flexDirection = direction;
+        }
+      };
     }
     const labels = {
       idle: "尚未开始",
@@ -388,6 +698,7 @@ window.__ModuleLoader__.load({
     }
 
     function apply(ctx) {
+      ctx.effect(() => installSidebarTree(ctx));
       ctx.effect(() => {
         const style = document.createElement("style");
         style.textContent = css;
@@ -519,6 +830,6 @@ window.__ModuleLoader__.load({
         }),
       );
     }
-    return { inject, apply, familyTree };
+    return { inject, apply, familyTree, sidebarRows, hasPartialFamily };
   },
 });
