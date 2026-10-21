@@ -365,6 +365,24 @@ window.__ModuleLoader__.load({
         }
       };
     }
+    function progressStatus(item, link, statuses) {
+      if (link?.stoppedByUser || link?.status === "stopped") return "stopped";
+      const state = statuses.get(item.id);
+      if (
+        ["approval", "plan-review", "question"].includes(state?.pendingInteraction?.kind)
+      )
+        return state.pendingInteraction.kind;
+      if (state?.running ?? item.running) return "running";
+      if (link) return link.status;
+      return state?.completionUnread ? "unread" : "idle";
+    }
+    function attentionGroup(status) {
+      if (
+        ["approval", "plan-review", "question", "error", "blocked", "paused"].includes(status)
+      ) return "needs-input";
+      if (["running", "queued"].includes(status)) return "working";
+      if (status === "completed") return "completed";
+    }
     const labels = {
       idle: "尚未开始",
       queued: "排队中",
@@ -374,6 +392,10 @@ window.__ModuleLoader__.load({
       blocked: "等待输入",
       paused: "等待继续",
       stopped: "已停止",
+      approval: "等待审批",
+      "plan-review": "等待确认方案",
+      question: "等待回答",
+      unread: "有新进展",
     };
     const css = `
 .dsh-nested{font:14px/1.6 system-ui;color:var(--dsw-alias-label-primary,#222);text-align:left;box-sizing:border-box;min-width:0}
@@ -399,6 +421,8 @@ window.__ModuleLoader__.load({
 .dsh-nested-status{font-size:12px;white-space:nowrap;color:var(--dsw-alias-label-secondary,#697386)}
 .dsh-nested-status[data-status=completed]{color:#15803d}
 .dsh-nested-status[data-status=running],.dsh-nested-status[data-status=queued]{color:#2563eb}
+.dsh-nested-status[data-attention=needs-input]{color:var(--dsw-alias-label-primary,#222);font-weight:600}
+.dsh-nested-attention{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12px;margin:12px 0}
 .dsh-nested-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0}
 .dsh-nested-card .dsh-nested-actions{margin:12px 0 0}
 .dsh-nested-card .dsh-nested-actions button{font-size:12px;padding:4px 10px}
@@ -490,9 +514,13 @@ window.__ModuleLoader__.load({
           setBusy(false);
         }
       };
-      const running = currentLinks.filter((link) =>
-        ["queued", "running"].includes(link.status),
-      ).length;
+      const counts = { "needs-input": 0, working: 0, completed: 0 };
+      for (const link of currentLinks) {
+        const item = tree.byId.get(link.sessionId);
+        if (!item) continue;
+        const group = attentionGroup(progressStatus(item, link, statuses));
+        if (group) counts[group]++;
+      }
       const cancelable = currentLinks.some((link) =>
         ["idle", "queued", "running", "paused", "blocked"].includes(
           link.status,
@@ -511,10 +539,7 @@ window.__ModuleLoader__.load({
         if (!item) return null;
         const childIds = tree.children.get(id) ?? [],
           link = links.find((link) => link.sessionId === id);
-        const state = statuses[id] ?? statuses.byId?.[id] ?? {},
-          status =
-            link?.status ??
-            (state.running || item.running ? "running" : "idle");
+        const status = progressStatus(item, link, statuses);
         return h(
           "li",
           { key: id },
@@ -548,8 +573,14 @@ window.__ModuleLoader__.load({
               ),
               h(
                 "span",
-                { className: "dsh-nested-status", "data-status": status },
-                link ? (labels[status] ?? status) : "主会话",
+                {
+                  className: "dsh-nested-status",
+                  "data-status": status,
+                  "data-attention": attentionGroup(status),
+                },
+                link
+                  ? (labels[status] ?? status)
+                  : "主会话" + (status !== "idle" ? " · " + labels[status] : ""),
               ),
             ),
             link &&
@@ -568,7 +599,7 @@ window.__ModuleLoader__.load({
                   { disabled: busy, onClick: () => showResult(id) },
                   "查看结果",
                 ),
-                ["queued", "running", "paused", "blocked"].includes(status) &&
+                ["queued", "running", "paused", "blocked", "approval", "plan-review", "question"].includes(status) &&
                   h(
                     "button",
                     {
@@ -663,10 +694,18 @@ window.__ModuleLoader__.load({
             ? "当前任务 " +
                 currentLinks.length +
                 " 个子任务，" +
-                running +
+                counts.working +
                 " 个处理中。"
             : "还没有子任务。适合并行的任务会自动出现在这里，简单问题仍由主会话直接完成。",
         ),
+        currentLinks.length > 0 &&
+          h(
+            "div",
+            { className: "dsh-nested-attention", "aria-label": "子任务状态分类", role: "status" },
+            h("span", null, "需要介入 " + counts["needs-input"]),
+            h("span", null, "进行中 " + counts.working),
+            h("span", null, "已完成 " + counts.completed),
+          ),
         h("ul", { "aria-label": "父子任务进度" }, roots.map(row)),
         (error || loadError) &&
           h(
@@ -816,6 +855,6 @@ window.__ModuleLoader__.load({
         ),
       );
     }
-    return { inject, apply, familyTree, sidebarRows, hasPartialFamily };
+    return { inject, apply, familyTree, sidebarRows, hasPartialFamily, progressStatus, attentionGroup };
   },
 });

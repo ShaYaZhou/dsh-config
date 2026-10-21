@@ -3,6 +3,29 @@ import vm from "node:vm";
 import test from "node:test";
 import assert from "node:assert/strict";
 
+test("native attention state uses the Map and pending interaction takes priority over running", () => {
+  let plugin;
+  vm.runInNewContext(fs.readFileSync(new URL("../plugins/nested-sessions/lib/client.js", import.meta.url), "utf8"), {
+    window: {__ModuleLoader__: {load: entry => { plugin = entry.factory(() => ({})); }}},
+  });
+  const item = {id: "child", running: false}, link = {status: "running"};
+  for (const kind of ["question", "approval", "plan-review"]) {
+    const states = new Map([[item.id, {running: true, pendingInteraction: {kind}}]]);
+    assert.equal(plugin.progressStatus(item, link, states), kind);
+    assert.equal(plugin.attentionGroup(kind), "needs-input");
+  }
+  const running = new Map([[item.id, {running: true}]]);
+  assert.equal(plugin.progressStatus(item, {status: "completed"}, running), "running");
+  assert.equal(plugin.progressStatus(item, {status: "stopped", stoppedByUser: true}, running), "stopped");
+  assert.equal(plugin.progressStatus(item, null, new Map([[item.id, {completionUnread:true}]])), "unread");
+  assert.equal(plugin.attentionGroup("unread"), undefined);
+  assert.equal(plugin.progressStatus(item, {status:"blocked"}, new Map([[item.id, {completionUnread:true}]])), "blocked");
+  assert.equal(plugin.attentionGroup("queued"), "working");
+  assert.equal(plugin.attentionGroup("completed"), "completed");
+  assert.equal(plugin.attentionGroup("stopped"), undefined);
+  assert.equal(plugin.progressStatus(item, null, new Map()), "idle");
+});
+
 test("nested tree preserves sibling ordering, descendants and orphan history without cycling", () => {
   let plugin;
   vm.runInNewContext(

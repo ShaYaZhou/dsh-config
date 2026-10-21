@@ -83,7 +83,8 @@
       "localChanges": {
         "unpublishedLocalBuild": true,
         "changes": [
-          "Linked task roles for independent implementation/review; native sidebar hierarchy and conversation-level progress, with the redundant global panel removed."
+          "Linked task roles for independent implementation/review; native sidebar hierarchy and conversation-level progress, with the redundant global panel removed.",
+          "Native status Map drives pending-interaction precedence and attention counts; stopped tasks retain their lifecycle state."
         ]
       }
     },
