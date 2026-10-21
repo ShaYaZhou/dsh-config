@@ -9,12 +9,12 @@
 
 ## 3. Execution and control
 - [x] 3.1 Verify concurrent isolated worktrees, explicit ignored-file inclusion, integration and rollback (R2).
-- [ ] 3.2 Verify bounded terminal reports, safe message/read/stop/archive/resume and attributed receipt (R3).
+- [x] 3.2 Verify bounded terminal reports, safe message/read/stop/archive/resume and attributed receipt (R3).
 - [ ] 3.3 Implement and verify explicit recent-local-conversation access without weakening family tools (R3).
 
 ## 4. Desktop usability
 - [ ] 4.1 Implement and verify attention states including pending questions/permissions, tasks and recap (R4).
-- [ ] 4.2 Verify parent archive/detach preserves discoverable child history (R4).
+- [x] 4.2 Verify parent archive/detach preserves discoverable child history (R4).
 - [ ] 4.3 Implement and verify background completion notification and session side-by-side viewing (R4, R5).
 - [ ] 4.4 Implement and verify recent folders, named local multi-repository environments and portable bindings (R5).
 - [ ] 4.5 Implement and verify follow-up Do it here/Start/Start all and disableable composer suggestions (R6).

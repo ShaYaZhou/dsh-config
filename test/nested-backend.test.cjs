@@ -72,9 +72,15 @@ function fixture() {
         agent.status = "idle";
         agent.cancelled = { cause, options };
         agent.queued = [];
+        if (agent.inbox) {
+          agent.inbox.nextTurn.length = 0;
+          agent.inbox.nextStep.length = 0;
+        }
       },
-      steer: (message) => deliveries.push({ sessionId, message }),
-      followup: (message) => deliveries.push({ sessionId, message }),
+      steer: (message) =>
+        deliveries.push({ sessionId, message, boundary: "step" }),
+      followup: (message) =>
+        deliveries.push({ sessionId, message, boundary: "turn" }),
     };
     agents.set(sessionId, agent);
     return agent;
@@ -485,6 +491,7 @@ nativeTest(
     });
     assert.equal(f.deliveries[0].message.source.kind, "agent-message");
     assert.equal(f.deliveries[0].message.source.senderSessionId, "root");
+    assert.equal(f.deliveries[0].boundary, "turn");
     await assert.rejects(
       f.service.send({
         sessionId: "root",
@@ -515,6 +522,74 @@ nativeTest(
       targetSessionId: child.sessionId,
       message: "User resumed",
     });
+  },
+);
+
+nativeTest(
+  "native human enqueue resumes before request preparation and a late abort cannot undo it",
+  async () => {
+    const f = fixture(),
+      agent = f.agents.get("root");
+    agent.inbox = { nextTurn: [], nextStep: [] };
+    await f.service.stop({ sessionId: "root" });
+    await f.service.observe(agent.session, {
+      type: "agent/inbox/spliced",
+      data: {
+        target: "next-turn",
+        inserted: [{ source: { kind: "agent-message" } }],
+      },
+    });
+    assert.equal(f.domain.state.stopped.root, true);
+    const human = {
+      source: { kind: "user" },
+      content: [{ type: "text", text: "Resume" }],
+    };
+    agent.inbox.nextTurn.push(human);
+    await f.service.observe(agent.session, {
+      type: "agent/inbox/spliced",
+      data: { target: "next-turn", inserted: [human] },
+    });
+    assert.equal(f.domain.state.stopped.root, undefined);
+    await f.service.observe(agent.session, {
+      type: "turn/end",
+      data: { reason: { kind: "aborted", reason: { kind: "user" } } },
+    });
+    assert.equal(f.domain.state.stopped.root, undefined);
+    agent.inbox.nextTurn = [];
+    await f.service.observe(agent.session, {
+      type: "turn/end",
+      data: { reason: { kind: "aborted", reason: { kind: "user" } } },
+    });
+    assert.equal(f.domain.state.stopped.root, true);
+  },
+);
+
+nativeTest(
+  "cancel wins over stale human enqueue while a later human action can resume",
+  async () => {
+    const f = fixture(),
+      agent = f.agents.get("root");
+    agent.inbox = { nextTurn: [], nextStep: [] };
+    const human = { source: { kind: "user" } };
+    const enqueue = {
+      type: "agent/inbox/spliced",
+      data: { target: "next-turn", inserted: [human] },
+    };
+    const stopping = f.service.stop({ sessionId: "root" });
+    agent.inbox.nextTurn.push(human);
+    const observed = f.service.observe(agent.session, enqueue);
+    await Promise.all([stopping, observed]);
+    assert.equal(f.service.isStopped("root"), true);
+    assert.equal(agent.inbox.nextTurn.length, 0);
+    const cancel = new AbortController();
+    f.service.trackTurn(agent, cancel.signal);
+    const staleResume = f.service.observe(agent.session, enqueue);
+    cancel.abort({ kind: "user" });
+    await staleResume;
+    assert.equal(f.service.isStopped("root"), true);
+    agent.inbox.nextTurn.push(human);
+    await f.service.observe(agent.session, enqueue);
+    assert.equal(f.service.isStopped("root"), false);
   },
 );
 
@@ -603,6 +678,83 @@ nativeTest(
       }),
       /not accessible/,
     );
+  },
+);
+
+nativeTest(
+  "a native stop or archive during asynchronous resolution wins before delivery",
+  async () => {
+    const f = fixture(),
+      child = await f.service.start({
+        sessionId: "root",
+        title: "Worker",
+        context: "fresh",
+      });
+    const resolve = f.ctx.sessionController.resolveAgent;
+    f.ctx.sessionController.resolveAgent = async (id) => {
+      const found = await resolve(id);
+      f.service.markStopped(id);
+      return found;
+    };
+    await assert.rejects(
+      f.service.send({
+        sessionId: "root",
+        targetSessionId: child.sessionId,
+        message: "Too late",
+      }),
+      /user stopped/i,
+    );
+    assert.equal(f.deliveries.length, 0);
+    for (const mode of ["stop", "archive"]) {
+      const h = fixture(),
+        receiver = await h.service.start({
+          sessionId: "root",
+          title: "Receiver",
+          context: "fresh",
+        });
+      const resolveTarget = h.ctx.sessionController.resolveAgent;
+      h.ctx.sessionController.resolveAgent = async (id) => {
+        const found = await resolveTarget(id);
+        if (mode === "stop") h.service.markStopped("root");
+        else h.ctx.workspaceRegistry.archivedSessionIds.push("root");
+        return found;
+      };
+      await assert.rejects(
+        h.service.send({
+          sessionId: "root",
+          targetSessionId: receiver.sessionId,
+          message: "Cancelled sender",
+        }),
+        /stopped|Archived/i,
+      );
+      assert.equal(h.deliveries.length, 0);
+    }
+    for (const mode of ["stop", "archive"]) {
+      const g = fixture(),
+        worker = await g.service.start({
+          sessionId: "root",
+          title: "Worker",
+          context: "fresh",
+        });
+      const inspect = g.ctx.sessionController.inspect;
+      g.ctx.sessionController.inspect = async (id) => {
+        const value = await inspect(id);
+        if (id === worker.sessionId) {
+          if (mode === "stop") g.service.markStopped("root");
+          else g.ctx.workspaceRegistry.archivedSessionIds.push("root");
+        }
+        return value;
+      };
+      await g.service.observe(
+        { id: worker.sessionId },
+        {
+          type: "turn/end",
+          seq: 2,
+          data: { turn: 1, reason: { kind: "completed" } },
+        },
+      );
+      assert.equal(g.deliveries.length, 0);
+    }
   },
 );
 

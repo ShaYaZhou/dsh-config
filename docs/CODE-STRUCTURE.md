@@ -1,5 +1,7 @@
 # 自写改动的职责与依赖回查
 
+会话停止与通信竞争控制集中在 `nested-sessions` 后端，复用原生 `agent/pre-step` 的取消信号、`agent/inbox/spliced` 用户输入事件及既有串行写入队列。瞬时取消版本只存在内存；持久关系 schema 不变。显式消息走 `followup`，终态汇总走 `steer`，前端不复制消息队列。`test-session-lifecycle.cjs` 仅提供隔离合成数据的原生/代理验收，共用现有 home/output lease，不增加产品服务。
+
 自然语言完整交付由 `skills/dsh-spec-delivery` 编排官方 CLI 和已有 linked-session 工具；不另建任务引擎、不修改官方分阶段技能。`role-policy` 仅调整该角色可使用的局部只读/通信工具，家族授权仍由 nested-sessions 服务校验。测试目录保护与同 home lease 集中于 `scripts/test-home.cjs`，命令入口和直接脚本共同调用；`test-output-lock.cjs` 提供结果单写者保护。
 
 `test-worktree-delivery.cjs` 仅负责隔离合成项目的原生/代理验收，不提供产品 Git 操作服务。产品继续使用原生 worktree 和工作目录服务；主会话的准备、审阅和整合指引由既有协作提示与交付技能维护。恢复验收仅支持首次 revert 之前，回滚标记防止意外重放。

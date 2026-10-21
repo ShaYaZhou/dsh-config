@@ -85,7 +85,8 @@
         "changes": [
           "Linked task roles for independent implementation/review; native sidebar hierarchy and conversation-level progress, with the redundant global panel removed.",
           "Native status Map drives pending-interaction precedence and attention counts; stopped tasks retain their lifecycle state.",
-          "Parallel writer guidance pins the delivery checkout/base, returns before each native worktree allocation, and requires reviewed integration before acceptance."
+          "Parallel writer guidance pins the delivery checkout/base, returns before each native worktree allocation, and requires reviewed integration before acceptance.",
+          "Explicit messages queue at the next turn; native cancellation and user ingress fence stopped-state races, with sender/recipient checks after async resolution and bounded terminal-report guards."
         ]
       }
     },

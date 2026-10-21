@@ -139,6 +139,53 @@ export class NestedSessions extends TypertRemoteService {
     this.tail = Promise.resolve();
     this.disposed = false;
     this.modelDisposers = new Map();
+    this.stopVersions = new Map();
+    this.liveStops = new Set();
+    this.turnSignals = new Map();
+  }
+  markStopped(sessionId) {
+    this.stopVersions.set(
+      sessionId,
+      (this.stopVersions.get(sessionId) ?? 0) + 1,
+    );
+    this.liveStops.add(sessionId);
+  }
+  isStopped(sessionId, state = this.domain.global.get()) {
+    return state.stopped[sessionId] === true || this.liveStops.has(sessionId);
+  }
+  canReport(link, state = this.domain.global.get()) {
+    const archived = this.ctx.workspaceRegistry.archivedSessionIds;
+    return (
+      !this.isStopped(link.sessionId, state) &&
+      !this.isStopped(link.parentId, state) &&
+      !archived.includes(link.sessionId) &&
+      !archived.includes(link.parentId)
+    );
+  }
+  trackTurn(agent, signal) {
+    const previous = this.turnSignals.get(agent.id);
+    if (previous?.signal === signal) return;
+    previous?.dispose();
+    const aborted = () => {
+      if (signal.reason?.kind !== "user") return;
+      this.markStopped(agent.id);
+      void this.serialize(async () => {
+        const state = this.domain.global.get();
+        if (!state.stopped[agent.id])
+          await this.domain.global.set({
+            ...state,
+            stopped: { ...state.stopped, [agent.id]: true },
+          });
+      }).catch((error) =>
+        this.ctx.logger.warn(`nested-sessions stop: ${String(error)}`),
+      );
+    };
+    this.turnSignals.set(agent.id, {
+      signal,
+      dispose: () => signal.removeEventListener("abort", aborted),
+    });
+    if (signal.aborted) aborted();
+    else signal.addEventListener("abort", aborted, { once: true });
   }
   serialize(action) {
     const pending = this.tail.then(action);
@@ -175,7 +222,7 @@ export class NestedSessions extends TypertRemoteService {
     this.modelDisposers.set(agent, installSessionModel(agent, selection));
   }
   status(sessionId, state = this.domain.global.get()) {
-    if (state.stopped[sessionId]) return "stopped";
+    if (this.isStopped(sessionId, state)) return "stopped";
     const agent = this.ctx.agents.get(sessionId),
       link = state.links[sessionId];
     if (agent?.status === "running") return "running";
@@ -311,6 +358,15 @@ export class NestedSessions extends TypertRemoteService {
         { reason: "archived" },
       );
   }
+  assertMessaging(sessionId, role = "target") {
+    this.assertActive(sessionId);
+    if (this.isStopped(sessionId))
+      throw new RemoteError(
+        "session/agent-busy",
+        `The user stopped the ${role}; open it and send a user message before sending agent messages`,
+        { reason: "user-stopped" },
+      );
+  }
   async agent(sessionId) {
     this.assertActive(sessionId);
     const found = await this.ctx.sessionController.resolveAgent(sessionId);
@@ -354,7 +410,7 @@ export class NestedSessions extends TypertRemoteService {
               }
             : {}),
           status: this.status(link.sessionId, state),
-          stoppedByUser: state.stopped[link.sessionId] === true,
+          stoppedByUser: this.isStopped(link.sessionId, state),
         })),
     };
   }
@@ -477,16 +533,12 @@ export class NestedSessions extends TypertRemoteService {
       );
     return this.serialize(async () => {
       this.assertFamily(input.sessionId, input.targetSessionId);
-      this.assertActive(input.sessionId);
-      if (this.domain.global.get().stopped[input.targetSessionId])
-        throw new RemoteError(
-          "session/agent-busy",
-          "The user stopped the target; open it and send a user message before sending agent messages",
-          { reason: "user-stopped" },
-        );
+      this.assertMessaging(input.targetSessionId);
+      this.assertMessaging(input.sessionId, "sender");
       const target = await this.agent(input.targetSessionId);
-      this.assertActive(input.targetSessionId);
-      target.steer(
+      this.assertMessaging(input.targetSessionId);
+      this.assertMessaging(input.sessionId, "sender");
+      target.followup(
         createUserMessage({
           content: [
             {
@@ -529,7 +581,7 @@ export class NestedSessions extends TypertRemoteService {
     );
     const state = this.domain.global.get(),
       link = state.links[input.sessionId],
-      stopped = state.stopped[input.sessionId] === true;
+      stopped = this.isStopped(input.sessionId, state);
     const latestResult = limited(
         messageText(
           observation.events.findLast(
@@ -563,10 +615,9 @@ export class NestedSessions extends TypertRemoteService {
         stopped: { ...state.stopped, [input.sessionId]: true },
       });
       const agent = this.ctx.agents.get(input.sessionId);
-      if (agent) {
-        agent.cancel({ kind: "user" }, { keepInbox: false });
-        await this.ctx.sessions.flush(agent.session);
-      }
+      agent?.cancel({ kind: "user" }, { keepInbox: false });
+      this.markStopped(input.sessionId);
+      if (agent) await this.ctx.sessions.flush(agent.session);
     });
     return { stopped: true };
   }
@@ -590,18 +641,32 @@ export class NestedSessions extends TypertRemoteService {
         });
       });
     const human =
-      event.type === "user/message" && event.data.source?.kind === "user";
+      (event.type === "user/message" && event.data.source?.kind === "user") ||
+      (event.type === "agent/inbox/spliced" &&
+        ["next-turn", "next-step"].includes(event.data.target) &&
+        event.data.inserted.some((message) => message.source?.kind === "user"));
+    const inbox = this.ctx.agents.get(session.id)?.inbox;
+    const pendingHuman = [
+      ...(inbox?.nextTurn ?? []),
+      ...(inbox?.nextStep ?? []),
+    ].some((message) => message.source?.kind === "user");
     const userStop =
       event.type === "turn/end" &&
       event.data.reason?.kind === "aborted" &&
-      event.data.reason.reason?.kind === "user";
+      event.data.reason.reason?.kind === "user" &&
+      !pendingHuman;
+    const stopVersion = this.stopVersions.get(session.id);
     if (human || userStop)
       await this.serialize(async () => {
         const state = this.domain.global.get();
-        if ((human && state.stopped[session.id]) || userStop) {
+        const resumed =
+          human && stopVersion === this.stopVersions.get(session.id);
+        if ((resumed && this.isStopped(session.id, state)) || userStop) {
           const stopped = { ...state.stopped };
-          if (human) delete stopped[session.id];
-          else stopped[session.id] = true;
+          if (resumed) {
+            delete stopped[session.id];
+            this.liveStops.delete(session.id);
+          } else stopped[session.id] = true;
           await this.domain.global.set({ ...state, stopped });
         }
       });
@@ -622,11 +687,8 @@ export class NestedSessions extends TypertRemoteService {
       await this.domain.global.set(state);
       if (
         !link?.wakeParent ||
-        state.stopped[session.id] ||
-        state.stopped[link.parentId] ||
-        (link.lastReportedSeq ?? -1) >= event.seq ||
-        this.ctx.workspaceRegistry.archivedSessionIds.includes(link.parentId) ||
-        this.ctx.workspaceRegistry.archivedSessionIds.includes(session.id)
+        !this.canReport(link, state) ||
+        (link.lastReportedSeq ?? -1) >= event.seq
       )
         return;
       const marker = `[Nested result ${session.id}:${event.seq}]`;
@@ -641,6 +703,7 @@ export class NestedSessions extends TypertRemoteService {
         const childHistory = await this.ctx.sessionController.inspect(
           session.id,
         );
+        if (!this.canReport(link)) return;
         const last = childHistory.events
           .filter(
             (row) =>
@@ -650,6 +713,7 @@ export class NestedSessions extends TypertRemoteService {
           )
           .at(-1);
         const parent = await this.agent(link.parentId);
+        if (!this.canReport(link)) return;
         const status =
           outcome.kind === "completed"
             ? "completed"
@@ -851,6 +915,22 @@ function installTools(agent, service) {
         }),
       ),
   );
+  disposers.push(
+    agent.ctx.on(
+      "agent/pre-step",
+      ({ signal }, next) => {
+        service.trackTurn(agent, signal);
+        return next();
+      },
+      { prepend: true },
+    ),
+  );
+  disposers.push(() => {
+    service.turnSignals.get(agent.id)?.dispose();
+    service.turnSignals.delete(agent.id);
+    service.stopVersions.delete(agent.id);
+    service.liveStops.delete(agent.id);
+  });
   disposers.push(
     agent.ctx.systemPrompt.context({
       name: "automatic-linked-sessions",
