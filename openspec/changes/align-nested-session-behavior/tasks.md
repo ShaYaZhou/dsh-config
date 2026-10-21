@@ -23,7 +23,9 @@
 ## 5. Maintenance and release
 - [x] 5.1 Implement idle eligibility/off switch/race tests using native maintenance admission (R8).
 - [x] 5.2 Verify actual summary, durable history and resume through proxy (R8).
-- [ ] 5.3 Run complete regression, native UI and deployment drift checks; back up and deploy verified changes.
+- [x] 5.3 Run complete regression, native UI and deployment drift checks; back up and deploy verified changes.
 - [x] 5.3a Align sidebar lineage for linked children with a different worktree cwd; retain native workspace ownership and history.
-- [ ] 5.4 Record evidence and limitations, inspect diff for secrets/absolute paths, commit and push.
+- [x] 5.4 Record evidence and limitations, inspect diff for secrets/absolute paths, commit and push.
 - [ ] 5.5 Configure and test user-owned remote environments when endpoints are provided (R9; user deferred configuration).
+
+Final local requirement audit: `docs/NESTED-ACCEPTANCE.md`. Task 5.5 is conditional on user-supplied endpoints and explicitly deferred; it is not reported as implemented or remotely verified.
