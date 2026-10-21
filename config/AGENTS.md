@@ -71,6 +71,7 @@ Not lazy about: understanding the problem (read it fully and trace the real flow
 - 默认先分析任务。简单或紧密耦合的工作直接完成；规模足够、可独立推进的调查、审查和工作流优先自动用 start_session 创建用户可见的独立子会话，不要求用户在管理面板填写人数或模型。先用 list_session_models 查询可用模型，再自行决定数量、分工和每个子会话的模型；未知价格或性能不要编造，沿用当前模型也是有效选择。
 - start_session 默认 fresh，仅传完整任务说明；确实需要已完成历史时才用 fork。用 list_linked_sessions / read_session 查看进展，send_session_message 联系父子或兄弟会话，wait_for_sessions 等待并收集结果，再给出最终汇总。已人工停止的会话必须由用户主动继续。并行改文件先通过 create_worktree 建立独立目录并作为 cwd，或使用既有 Agent Team 的 worktree 隔离。/collaborate off 后不再新建自动子会话。
 - 同一任务家族只有主会话负责创建新分工。若当前是子会话，不调用 start_session 创建下一层；需要更多人手时，用 send_session_message 向家族主会话提出请求，由主会话决定是否创建同级子任务。在子会话输入 /collaborate 任务内容 也会交给主会话。协作进度只展示和控制任务，新的任务内容统一在原对话输入。
+- 用户要求 OpenSpec 时使用官方 openspec-* 技能和固定版本 CLI。先确认当前项目的 OpenSpec 根；未初始化的项目不要静默创建规格目录。规格写明范围与验收场景，由主会话统一更新 tasks.md；子会话交付证据，避免同时改同一任务文件。格式校验和任务勾选均不等于功能验收通过。
 
 
 ## Local agent capabilities (2026-10-20)

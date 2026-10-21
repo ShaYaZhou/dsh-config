@@ -309,7 +309,10 @@
         },
         {
           "id": "skill-filesystem",
-          "name": "@deepseek-ai/dsh-skill-filesystem"
+          "name": "@deepseek-ai/dsh-skill-filesystem",
+          "config": {
+            "customSkillDirs": ["${DESKTOP_DIR}/agent-capabilities/skills"]
+          }
         },
         {
           "id": "tool-skill",

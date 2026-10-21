@@ -93,5 +93,17 @@
       }
     }
   ],
-  "flavor": "tuned"
+  "flavor": "tuned",
+  "integrations": {
+    "openspec": {
+      "package": "@fission-ai/openspec",
+      "version": "1.14.3",
+      "upstream": "https://github.com/Fission-AI/OpenSpec",
+      "tool": "dsh",
+      "profile": "core",
+      "skillsSource": ".dsh/skills",
+      "license": "MIT",
+      "localChanges": false
+    }
+  }
 }

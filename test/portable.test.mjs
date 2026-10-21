@@ -31,6 +31,23 @@ test('only explicit expression nodes emit JS tags; scalar strings retain their t
  assert.throws(()=>parseArgs(['install','--settings']),/Missing/);
 });
 
+test('official OpenSpec skills deploy portably and native cleanup removes only managed skill files',()=>{
+ const plan=renderPlan(path.join(os.tmpdir(),'spec portable home'),settings),base='profiles/desktop/agent-capabilities/skills/';
+ const source=JSON.parse(fs.readFileSync(path.join(repository,'provenance.json'),'utf8')).integrations.openspec;
+ const names=['explore','propose','apply-change','update-change','sync-specs','archive-change'].map(id=>'openspec-'+id);
+ for(const name of names){
+  const target=base+name+'/SKILL.md',text=plan.get(target);
+  assert.equal(text,fs.readFileSync(path.join(repository,'.dsh/skills',name,'SKILL.md'),'utf8'));
+  assert(text.includes('generatedBy: "'+source.version+'"'));
+  assert(!/(?<![a-zA-Z])[A-Za-z]:[\\/]/.test(text));
+  assert.deepEqual(staleModulePaths({files:{[target]:'old','skills/user/SKILL.md':'keep'}},new Map()),[target]);
+ }
+ const native=renderPlan(path.join(os.tmpdir(),'spec clean home'),settings,{}, {clean:true});
+ assert(![...native.keys()].some(name=>name.includes('openspec-')));
+ assert(!plan.get('profiles/headless/cordis.patch.yml').includes('agent-capabilities/skills'));
+ assert(plan.get('profiles/desktop/cordis.patch.yml').includes('customSkillDirs'));
+});
+
 test('desktop configuration does not register the retired liangshen preset',()=>{
  const rendered=renderPlan(path.join(os.tmpdir(),'legacy-session-home'),settings).get('profiles/desktop/cordis.patch.yml');
  const patch=JSON.parse(rendered.replace(/!!js ("(?:[^"\\]|\\.)*")/g,'{"$js":$1}'));

@@ -9,13 +9,14 @@ async function main(){
  const {runProfile}=await import(pathToFileURL(path.join(native,'dsh/lib/profile-boot.js')));
  const {loadLayeredEnv}=await import(pathToFileURL(path.join(native,'dsh-app-boot/lib/index.js')));
  const temporary=path.join(__dirname,'../.local/smoke');fs.mkdirSync(temporary,{recursive:true});
+ const skillWorkspace=path.join(process.env.DSH_HOME,'portable-smoke-workspace');fs.mkdirSync(skillWorkspace,{recursive:true});
  const overlay=path.join(temporary,'smoke.patch.yml');
  // The desktop main process normally supplies telemetry metadata; this direct launcher has none.
  fs.writeFileSync(overlay,JSON.stringify([{id:'desktop-product-telemetry',disabled:true},{id:'product-analytics',disabled:true}]));
  const {ctx,shutdown}=await runProfile({environment:loadLayeredEnv('dsh'),profile:'desktop',patchFiles:[overlay],args:['--port','0','--no-open']});
  try{
   const controller=ctx.get('sessionController');assert(controller);
-  const created=await controller.create({cwd:temporary});const resolved=await controller.resolveAgent(created.sessionId);assert(!resolved.error);const agent=resolved.agent;
+  const created=await controller.create({cwd:skillWorkspace});const resolved=await controller.resolveAgent(created.sessionId);assert(!resolved.error);const agent=resolved.agent;
   const tools=agent.ctx.tools.schemas(agent);
   const tuned=process.env.DSH_SMOKE_FLAVOR!=='native';
   assert(tools.some(t=>t.name==='read'));assert(tools.some(t=>t.name==='write'));assert(tools.some(t=>['pwsh','bash'].includes(t.name)));
@@ -25,7 +26,11 @@ async function main(){
    for(const name of ['start_session','list_session_models','wait_for_sessions','list_linked_sessions','send_session_message','read_session','stop_session'])assert(tools.some(t=>t.name===name),'Missing nested session tool: '+name);
    assert(ctx.get('clientModules').graph().entries.some(row=>row.id==='@local/dsh-nested-sessions'));
    assert(ctx.get('clientModules').graph().entries.some(row=>row.id==='@local/dsh-browser-review'));
-   const computerSkill=await ctx.skills.get('computer-use',{scope:agent,cwd:temporary});assert(computerSkill?.path.replaceAll('\\','/').endsWith('/agent-capabilities/skills/computer-use/SKILL.md'),'computer-use must resolve to the desktop profile, not a shared foreign skill: '+JSON.stringify({path:computerSkill?.path,source:computerSkill?.source}));
+   const computerSkill=await ctx.skills.get('computer-use',{scope:agent,cwd:skillWorkspace});assert(computerSkill?.path.replaceAll('\\','/').endsWith('/agent-capabilities/skills/computer-use/SKILL.md'),'computer-use must resolve to the desktop profile, not a shared foreign skill: '+JSON.stringify({path:computerSkill?.path,source:computerSkill?.source}));
+   for(const suffix of ['explore','propose','apply-change','update-change','sync-specs','archive-change']){
+    const skill=await ctx.skills.get('openspec-'+suffix,{scope:agent,cwd:skillWorkspace});
+    assert(skill?.path.replaceAll('\\','/').includes('/agent-capabilities/skills/openspec-'),'Missing managed OpenSpec skill: '+suffix);
+   }
   }
   else {assert(!presets.some(p=>p.id==='reviewer'));assert(!ctx.commands.list().some(c=>c.name==='btw'));}
   const signal=AbortSignal.timeout(120000);

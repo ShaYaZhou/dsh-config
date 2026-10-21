@@ -84,9 +84,15 @@ export function renderPlan(home,settings,artifacts={}, {clean=false}={}){
  for(const name of moduleNames){
   files.set('profiles/desktop/agent-capabilities/'+name,fs.readFileSync(path.join(repository,'modules',name),'utf8'));
  }
- if(!clean)files.set('profiles/desktop/agent-capabilities/skills/computer-use/SKILL.md',fs.readFileSync(path.join(repository,'skills/computer-use/SKILL.md'),'utf8'));
+ if(!clean)for(const [target,source]of Object.entries(desktopSkillSources()))files.set(target,fs.readFileSync(path.join(repository,source),'utf8'));
  files.set('profiles/desktop/agent-capabilities/manifest.json',json({managedBy:'deepseek-harness-config',flavor:clean?'native':provenance.flavor,runtime:provenance.runtime,modules:Object.fromEntries(moduleNames.map(name=>[name,digest(path.join(repository,'modules',name))])),artifacts}));
  return files;
+}
+function desktopSkillSources(){
+ const base='profiles/desktop/agent-capabilities/skills/';
+ const sources={[base+'computer-use/SKILL.md']:'skills/computer-use/SKILL.md'};
+ for(const entry of fs.readdirSync(path.join(repository,'.dsh/skills'),{withFileTypes:true}))if(entry.isDirectory()&&/^openspec-[a-z0-9-]+$/.test(entry.name))sources[base+entry.name+'/SKILL.md']='.dsh/skills/'+entry.name+'/SKILL.md';
+ return sources;
 }
 function execute(command,args,options={}){
  const result=spawnSync(command,args,{encoding:'utf8',...options});
@@ -154,7 +160,7 @@ function backup(home,files){
  write(path.join(folder,'backup.json'),json(records));return folder;
 }
 export function staleModulePaths(previous,next){
- return Object.keys(previous?.files??{}).filter(relative=>(/^profiles\/desktop\/agent-capabilities\/[a-z0-9-]+\.mjs$/.test(relative)||relative==='profiles/desktop/agent-capabilities/skills/computer-use/SKILL.md')&&!next.has(relative));
+ return Object.keys(previous?.files??{}).filter(relative=>(/^profiles\/desktop\/agent-capabilities\/[a-z0-9-]+\.mjs$/.test(relative)||/^profiles\/desktop\/agent-capabilities\/skills\/(?:computer-use|openspec-[a-z0-9-]+)\/SKILL\.md$/.test(relative))&&!next.has(relative));
 }
 export function install(home,settings,{dryRun=false,refreshLock=false,clean=false}={}){
  const preview=renderPlan(home,settings,{}, {clean});
@@ -182,6 +188,7 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
   for(const profile of ['desktop','headless'])native(command,home,profile,['install',...(!refreshLock&&files.has('profiles/'+profile+'/pnpm-lock.yaml')?['--frozen-lockfile']:[])]);
   const tracked={};for(const relative of files.keys())tracked[relative]=digest(path.join(home,relative));
   const sources={};
+  if(!clean)Object.assign(sources,desktopSkillSources());
   if(!clean&&fs.existsSync(path.join(repository,'modules')))for(const name of fs.readdirSync(path.join(repository,'modules')).filter(x=>x.endsWith('.mjs')))sources['profiles/desktop/agent-capabilities/'+name]='modules/'+name;
   for(const plugin of clean?[]:provenance.plugins){
    const library=path.join(repository,'plugins',plugin.id,'lib');
