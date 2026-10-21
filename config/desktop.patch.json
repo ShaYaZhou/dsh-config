@@ -74,12 +74,8 @@
                 "image"
               ],
               "reasoningEfforts": {
-                "off": null,
-                "minimal": "minimal",
                 "low": "low",
-                "medium": "medium",
                 "high": "high",
-                "xhigh": "xhigh",
                 "max": "max"
               }
             },
