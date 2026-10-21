@@ -192,6 +192,86 @@ function fixture() {
 }
 
 nativeTest(
+  "new turns invalidate completion records even while serialized reporting is held",
+  async () => {
+    const f = fixture();
+    await f.service.observe(
+      { id: "root" },
+      { type: "turn/end", seq: 12, data: { reason: { kind: "completed" } } },
+    );
+    let release;
+    f.service.tail = new Promise((resolve) => {
+      release = resolve;
+    });
+    const started = f.service.observe(
+      { id: "root" },
+      { type: "turn/start", seq: 13, data: {} },
+    );
+    try {
+      assert.equal((await f.service.list({ all: true })).completions.length, 0);
+    } finally {
+      release();
+      await started;
+    }
+    const g = fixture();
+    g.service.tail = new Promise((resolve) => {
+      release = resolve;
+    });
+    const oldEnd = g.service.observe(
+      { id: "root" },
+      { type: "turn/end", seq: 12, data: { reason: { kind: "completed" } } },
+    );
+    const newStart = g.service.observe(
+      { id: "root" },
+      { type: "turn/start", seq: 13, data: {} },
+    );
+    release();
+    await Promise.all([oldEnd, newStart]);
+    assert.equal((await g.service.list({ all: true })).completions.length, 0);
+  },
+);
+
+nativeTest(
+  "completion records are ephemeral, owner-visible and respect stop/archive guards",
+  async () => {
+    const f = fixture();
+    const complete = (id) =>
+      f.service.observe(
+        { id },
+        { type: "turn/end", seq: 12, data: { reason: { kind: "completed" } } },
+      );
+    await complete("root");
+    assert.equal(
+      (await f.service.list({ all: true })).completions[0].notificationEligible,
+      true,
+    );
+    assert.equal(
+      (await f.service.list({ sessionId: "root" })).completions.length,
+      0,
+    );
+    f.deny("root");
+    assert.equal((await f.service.list({ all: true })).completions.length, 0);
+    f.deny(undefined);
+    await f.service.stop({ sessionId: "root" });
+    assert.equal(
+      (await f.service.list({ all: true })).completions[0].notificationEligible,
+      false,
+    );
+    f.ctx.workspaceRegistry.archivedSessionIds.push("root");
+    assert.equal(
+      (await f.service.list({ all: true })).completions[0].notificationEligible,
+      false,
+    );
+    await f.service.observe(
+      { id: "root" },
+      { type: "turn/start", data: {}, seq: 13 },
+    );
+    assert.equal((await f.service.list({ all: true })).completions.length, 0);
+    assert.equal(f.deliveries.length, 0);
+  },
+);
+
+nativeTest(
   "task recap reads bounded exact native projections without waking an agent",
   async () => {
     const f = fixture();

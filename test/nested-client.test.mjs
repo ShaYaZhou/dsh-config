@@ -3,6 +3,182 @@ import vm from "node:vm";
 import test from "node:test";
 import assert from "node:assert/strict";
 
+test("a list change invalidates an in-flight completion response before it can notify", async () => {
+  let plugin,
+    lastNotices = [],
+    emitted,
+    posted = 0,
+    warned = 0;
+  const effects = [],
+    registrations = [],
+    requests = [];
+  const React = {
+    createElement: (type, props, ...children) => ({ type, props, children }),
+    useState: (initial) => {
+      let value = typeof initial === "function" ? initial() : initial;
+      return [
+        value,
+        (next) => {
+          value = typeof next === "function" ? next(value) : next;
+          if (Array.isArray(value)) lastNotices = value;
+        },
+      ];
+    },
+    useRef: (value) => ({ current: value }),
+    useEffect: (callback) => effects.push(callback),
+  };
+  vm.runInNewContext(
+    fs.readFileSync(
+      new URL("../plugins/nested-sessions/lib/client.js", import.meta.url),
+      "utf8",
+    ),
+    {
+      window: {
+        __ModuleLoader__: {
+          load: (entry) => {
+            plugin = entry.factory(() => React);
+          },
+        },
+      },
+      localStorage: { getItem: () => null },
+      Notification: class {
+        static permission = "granted";
+        constructor() {
+          posted++;
+        }
+        close() {}
+      },
+      AbortSignal,
+      setInterval: () => 1,
+      clearInterval: () => {},
+      console: { warn: () => warned++ },
+    },
+  );
+  const ctx = {
+    effect: () => {},
+    slots: {
+      inject: (_, fn) => fn(),
+      register: (options, component) => {
+        registrations.push({ options, component });
+        return () => {};
+      },
+    },
+    sessions: {
+      list: {
+        getSnapshot: () => ({ byId: {} }),
+        subscribe: (fn) => {
+          emitted = fn;
+          return () => {};
+        },
+      },
+    },
+    connection: {
+      rpc: { call: () => new Promise((resolve) => requests.push(resolve)) },
+    },
+  };
+  plugin.apply(ctx);
+  const element = registrations
+    .find((item) => item.options.name === "shell.overlay")
+    .component();
+  element.type(element.props);
+  const cleanup = effects.at(-1)();
+  const settle = () => new Promise((resolve) => setImmediate(resolve));
+  requests.shift()({ ok: true, value: {} });
+  await settle();
+  assert.equal(warned, 0, "an older running backend remains compatible until normal restart");
+  emitted();
+  const stale = requests.shift();
+  emitted();
+  stale({
+    ok: true,
+    value: {
+      completions: [
+        {
+          sessionId: "child",
+          status: "completed",
+          outcomeSeq: 1,
+          notificationEligible: true,
+        },
+      ],
+    },
+  });
+  await settle();
+  assert.equal(
+    posted,
+    0,
+    "a stale completion must never reach the operating system",
+  );
+  assert.equal(lastNotices.length, 0);
+  assert.equal(
+    requests.length,
+    1,
+    "the invalidated response must trigger an immediate fresh read",
+  );
+  requests.shift()({ ok: true, value: { completions: [] } });
+  await settle();
+  cleanup();
+});
+
+test("completion notices skip history, current work, duplicates and ineligible outcomes", () => {
+  let plugin;
+  vm.runInNewContext(
+    fs.readFileSync(
+      new URL("../plugins/nested-sessions/lib/client.js", import.meta.url),
+      "utf8",
+    ),
+    {
+      window: {
+        __ModuleLoader__: {
+          load: (entry) => {
+            plugin = entry.factory(() => ({}));
+          },
+        },
+      },
+    },
+  );
+  const done = (id, seq, extra = {}) => ({
+    sessionId: id,
+    outcomeSeq: seq,
+    status: "completed",
+    notificationEligible: true,
+    ...extra,
+  });
+  let value = plugin.completionUpdates(null, [done("old", 1)], "current");
+  assert.equal(value.notifications.length, 0);
+  value = plugin.completionUpdates(
+    value.seen,
+    [
+      done("old", 1),
+      done("new", 2),
+      done("current", 2),
+      done("stopped", 2, { notificationEligible: false }),
+      done("failed", 2, { status: "error" }),
+    ],
+    "current",
+  );
+  assert.deepEqual(
+    Array.from(value.notifications, (item) => item.sessionId),
+    ["new"],
+  );
+  assert.equal(
+    plugin.completionUpdates(value.seen, [done("new", 2)], "current")
+      .notifications.length,
+    0,
+  );
+  assert.equal(
+    plugin.completionUpdates(value.seen, [done("new", 3)], "current")
+      .notifications.length,
+    1,
+  );
+  const hidden = plugin.completionUpdates(value.seen, [], "current");
+  assert.equal(
+    plugin.completionUpdates(hidden.seen, [done("new", 2)], "current")
+      .notifications.length,
+    0,
+    "restoring access must not repeat a previously seen completion",
+  );
+});
+
 test("split addresses accept one ordinary native session identity only", () => {
   let plugin;
   vm.runInNewContext(
@@ -216,6 +392,12 @@ test("nested tree preserves sibling ordering, descendants and orphan history wit
   });
   assert.deepEqual(
     registrations.map((row) => row.name),
-    ["sidebar.right.pane.tab", "nested.split.conversation", "conversation.session.header.actions", "main"],
+    [
+      "shell.overlay",
+      "sidebar.right.pane.tab",
+      "nested.split.conversation",
+      "conversation.session.header.actions",
+      "main",
+    ],
   );
 });

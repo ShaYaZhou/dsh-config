@@ -88,7 +88,8 @@
           "Parallel writer guidance pins the delivery checkout/base, returns before each native worktree allocation, and requires reviewed integration before acceptance.",
           "Explicit messages queue at the next turn; native cancellation and user ingress fence stopped-state races, with sender/recipient checks after async resolution and bounded terminal-report guards.",
           "On-demand task and recent-turn recap reads exact native projections without activating agents or duplicating task storage; remains accessible while the native question card replaces the todo dock.",
-          "Side-by-side linked conversations reuse native retained session references, SessionProvider and embedded Conversation factory in a native right-sidebar tab; independent drafts and native permissions remain scoped to each session."
+          "Side-by-side linked conversations reuse native retained session references, SessionProvider and embedded Conversation factory in a native right-sidebar tab; independent drafts and native permissions remain scoped to each session.",
+          "Background completion notices use ephemeral actual-turn records, existing access/stop/archive checks, an additive native overlay and already-authorized Web Notifications; local mute preference, initial-history suppression and per-turn deduplication preserve user control."
         ]
       }
     },

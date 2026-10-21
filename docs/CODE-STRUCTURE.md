@@ -1,5 +1,7 @@
 # 自写改动的职责与依赖回查
 
+后台完成通知复用真实 `turn/end` 与现有权限/停止/归档检查，完成序号仅保存在服务内存并在下一回合开始清除；不新增持久会话字段。全局 UI 请求只返回其 RemoteAccess 允许的记录，家族工具读取不包含该记录集。前端以原生会话列表订阅加轮询兜底发现结果，使用可叠加 `shell.overlay` 和已授权 Web Notification；偏好监听、订阅、轮询与系统通知均随卸载清理。通知不调用 Agent prompt/steer/followup。
+
 并排会话集中在嵌套前端 `installSplitView`：只注册自己的资源地址/右侧标签类型，使用原生 `sessions.retain/release`、`SessionProvider` 和内嵌 `conversation.content` Factory。渲染前检查引用与目标身份一致，切换/卸载释放引用；不复制对话渲染器、输入草稿或会话存储，不用 DOM 搬运主面板。
 
 任务与回顾只读原生 `sessionController.projections` 的精确 `todos` / `turnOutline`，不使用迁移提示作为当前进展、不另建任务或摘要存储。`progress` RPC 在读取前后复核 RemoteAccess；前端按需挂载读取组件，单次轮询、卸载清理并忽略迟到结果，不激活 Agent。

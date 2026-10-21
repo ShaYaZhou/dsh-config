@@ -143,6 +143,8 @@ export class NestedSessions extends TypertRemoteService {
     this.stopVersions = new Map();
     this.liveStops = new Set();
     this.turnSignals = new Map();
+    this.outcomes = new Map();
+    this.turnStarts = new Map();
   }
   markStopped(sessionId) {
     this.stopVersions.set(
@@ -387,6 +389,23 @@ export class NestedSessions extends TypertRemoteService {
       requested: input.sessionId
         ? this.explicitlyRequested(input.sessionId)
         : false,
+      completions: (!(input.all && !input.sessionId)
+        ? []
+        : [...this.outcomes.values()]
+      )
+        .filter((item) =>
+          this.ctx.remoteAccess.allows({ kind: "session", id: item.sessionId }),
+        )
+        .map((item) => ({
+          ...item,
+          notificationEligible:
+            !this.isStopped(item.sessionId, state) &&
+            !this.ctx.workspaceRegistry.archivedSessionIds.includes(
+              item.sessionId,
+            ) &&
+            (!state.links[item.sessionId] ||
+              this.canReport(state.links[item.sessionId], state)),
+        })),
       links: Object.values(state.links)
         .filter(
           (link) =>
@@ -644,6 +663,10 @@ export class NestedSessions extends TypertRemoteService {
   }
   async observe(session, event) {
     if (this.disposed) return;
+    if (event.type === "turn/start") {
+      this.turnStarts.set(session.id, event.seq);
+      this.outcomes.delete(session.id);
+    }
     if (["turn/start", "model/selection"].includes(event.type))
       await this.serialize(async () => {
         const state = this.domain.global.get(),
@@ -701,8 +724,14 @@ export class NestedSessions extends TypertRemoteService {
         link = Object.hasOwn(state.links, session.id)
           ? state.links[session.id]
           : undefined;
-      if (!link) return;
       const outcome = outcomeOf(event.data.reason);
+      if (!(this.turnStarts.get(session.id) > event.seq))
+        this.outcomes.set(session.id, {
+          sessionId: session.id,
+          outcomeSeq: event.seq,
+          status: outcome.kind,
+        });
+      if (!link) return;
       link = { ...link, status: outcome.kind, lastOutcome: outcome.kind };
       state = { ...state, links: { ...state.links, [session.id]: link } };
       await this.domain.global.set(state);

@@ -13,6 +13,197 @@ window.__ModuleLoader__.load({
       "sidebarRightTabs",
     ];
     const splitPrefix = "dsh-resource://linked-session/";
+    const notificationKey = "dsh.nested.completion-notifications";
+    const notificationEvent = "dsh-nested-notification-preference";
+    function useNotificationPreference() {
+      const [enabled, setEnabled] = React.useState(
+        () => localStorage.getItem(notificationKey) !== "off",
+      );
+      React.useEffect(() => {
+        const update = () =>
+          setEnabled(localStorage.getItem(notificationKey) !== "off");
+        window.addEventListener("storage", update);
+        window.addEventListener(notificationEvent, update);
+        return () => {
+          window.removeEventListener("storage", update);
+          window.removeEventListener(notificationEvent, update);
+        };
+      }, []);
+      return enabled;
+    }
+    function completionUpdates(seen, links, currentId) {
+      const next = new Map(seen ?? []);
+      for (const link of links)
+        if (Number.isInteger(link.outcomeSeq))
+          next.set(
+            link.sessionId,
+            Math.max(next.get(link.sessionId) ?? -1, link.outcomeSeq),
+          );
+      return {
+        seen: next,
+        notifications:
+          seen === null
+            ? []
+            : links.filter(
+                (link) =>
+                  link.status === "completed" &&
+                  link.notificationEligible &&
+                  Number.isInteger(link.outcomeSeq) &&
+                  (seen.get(link.sessionId) ?? -1) < link.outcomeSeq &&
+                  link.sessionId !== currentId,
+              ),
+      };
+    }
+    function CompletionNotices({ ctx }) {
+      const enabled = useNotificationPreference(),
+        [notices, setNotices] = React.useState([]);
+      const nativeNotices = React.useRef(new Map());
+      const dismiss = (id) => {
+        nativeNotices.current.get(id)?.close();
+        nativeNotices.current.delete(id);
+        setNotices((old) => old.filter((item) => item.id !== id));
+      };
+      React.useEffect(() => {
+        setNotices([]);
+        if (!enabled) return;
+        let disposed = false,
+          pending = false,
+          dirty = false,
+          seen = null;
+        const native = nativeNotices.current;
+        const close = (id) => {
+          native.get(id)?.close();
+          native.delete(id);
+        };
+        const update = async () => {
+          if (pending) return;
+          pending = true;
+          dirty = false;
+          try {
+            const { completions: links = [] } = await call(ctx, "list", {
+              all: true,
+            });
+            if (disposed || dirty) return;
+            const current = Object.values(
+              ctx.sessions.list.getSnapshot().byId,
+            ).find((row) => (row.retainedBy?.mainView ?? 0) > 0)?.id;
+            const changes = completionUpdates(seen, links, current);
+            seen = changes.seen;
+            const eligible = new Set(
+              links
+                .filter(
+                  (link) =>
+                    link.notificationEligible && link.status === "completed",
+                )
+                .map((link) => link.sessionId + ":" + link.outcomeSeq),
+            );
+            for (const id of native.keys()) if (!eligible.has(id)) close(id);
+            setNotices((old) =>
+              [
+                ...old.filter((item) => eligible.has(item.id)),
+                ...changes.notifications.map((link) => ({
+                  id: link.sessionId + ":" + link.outcomeSeq,
+                  sessionId: link.sessionId,
+                  title:
+                    ctx.sessions.list.getSnapshot().byId[link.sessionId]
+                      ?.title || "任务",
+                })),
+              ].slice(-3),
+            );
+            for (const link of changes.notifications.slice(-3)) {
+              const id = link.sessionId + ":" + link.outcomeSeq;
+              if (
+                typeof Notification !== "undefined" &&
+                Notification.permission === "granted"
+              ) {
+                try {
+                  const notice = new Notification("DeepSeek Harness", {
+                    body: "一个后台任务已完成。点击查看结果。",
+                    tag: id,
+                  });
+                  native.set(id, notice);
+                  notice.onclick = () => {
+                    window.focus();
+                    ctx.uiWorkspace.openSession(link.sessionId);
+                    dismiss(id);
+                  };
+                  notice.onclose = () => {
+                    if (native.get(id) === notice) native.delete(id);
+                  };
+                } catch (error) {
+                  console.warn("DSH completion notification:", error.message);
+                }
+              }
+            }
+          } catch (error) {
+            if (!disposed)
+              console.warn("DSH completion notices:", error.message);
+          } finally {
+            pending = false;
+            if (!disposed && dirty) void update();
+          }
+        };
+        update();
+        const unsubscribe = ctx.sessions.list.subscribe(() => {
+          dirty = true;
+          void update();
+        });
+        const timer = setInterval(update, 2000);
+        return () => {
+          disposed = true;
+          clearInterval(timer);
+          unsubscribe();
+          for (const id of native.keys()) close(id);
+        };
+      }, [ctx, enabled]);
+      return h(
+        "div",
+        {
+          "aria-label": "后台完成通知",
+          "aria-live": "polite",
+          style: {
+            position: "fixed",
+            right: 20,
+            bottom: 20,
+            width: "min(360px, calc(100vw - 40px))",
+            display: "grid",
+            gap: 8,
+          },
+        },
+        notices.map((item) =>
+          h(
+            "div",
+            {
+              key: item.id,
+              role: "status",
+              className: "dsh-nested dsh-nested-card",
+              style: {
+                pointerEvents: "auto",
+                margin: 0,
+                boxShadow: "0 4px 24px #0002",
+              },
+            },
+            h("strong", null, "后台任务已完成"),
+            h("p", null, item.title),
+            h(
+              "button",
+              {
+                onClick: () => {
+                  ctx.uiWorkspace.openSession(item.sessionId);
+                  dismiss(item.id);
+                },
+              },
+              "查看结果",
+            ),
+            h(
+              "button",
+              { "aria-label": "关闭完成通知", onClick: () => dismiss(item.id) },
+              "关闭",
+            ),
+          ),
+        ),
+      );
+    }
     const splitSessionId = (address) =>
       /^dsh-resource:\/\/linked-session\/([A-Za-z0-9_.-]{1,200})$/.exec(
         address,
@@ -614,6 +805,7 @@ window.__ModuleLoader__.load({
       );
     }
     function Progress({ ctx, sessionId, useSessions, useSessionStatus }) {
+      const notificationsEnabled = useNotificationPreference();
       const list = useSessions((state) => state),
         statuses = useSessionStatus((state) => state);
       const [links, setLinks] = React.useState([]),
@@ -917,6 +1109,21 @@ window.__ModuleLoader__.load({
             h("span", null, "已完成 " + counts.completed),
           ),
         h("ul", { "aria-label": "父子任务进度" }, roots.map(row)),
+        h(
+          "button",
+          {
+            "aria-pressed": notificationsEnabled,
+            onClick: () =>
+              run(async () => {
+                localStorage.setItem(
+                  notificationKey,
+                  notificationsEnabled ? "off" : "on",
+                );
+                window.dispatchEvent(new Event(notificationEvent));
+              }),
+          },
+          "后台完成通知：" + (notificationsEnabled ? "开启" : "关闭"),
+        ),
         (error || loadError) &&
           h(
             "p",
@@ -937,6 +1144,12 @@ window.__ModuleLoader__.load({
     }
 
     function apply(ctx) {
+      ctx.slots.inject("shell.overlay", () =>
+        ctx.slots.register(
+          { name: "shell.overlay", id: "nested-completion-notices", order: 80 },
+          () => h(CompletionNotices, { ctx }),
+        ),
+      );
       installSplitView(ctx);
       ctx.effect(() => installSidebarTree(ctx));
       ctx.effect(() => {
@@ -1075,6 +1288,7 @@ window.__ModuleLoader__.load({
       progressStatus,
       attentionGroup,
       splitSessionId,
+      completionUpdates,
     };
   },
 });
