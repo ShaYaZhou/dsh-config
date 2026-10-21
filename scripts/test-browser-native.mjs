@@ -25,17 +25,38 @@ assert(
   "Set DSH_APP_DIR to the installed Harness directory",
 );
 fs.mkdirSync(runtime, { recursive: true });
+assert.equal(
+  fs.realpathSync(runtime).toLowerCase(),
+  path
+    .join(fs.realpathSync(repository), ".local/browser-native-test/runtime")
+    .toLowerCase(),
+  "Native fixture runtime must remain inside its repository output",
+);
+assert.notEqual(
+  fs.realpathSync(source).toLowerCase(),
+  fs.realpathSync(runtime).toLowerCase(),
+  "Native fixture source must differ from runtime",
+);
 for (const entry of fs.readdirSync(source, { withFileTypes: true }))
   if (entry.isFile() && !entry.name.startsWith("Uninstall")) {
     const target = path.join(runtime, entry.name);
+    const executable = entry.name.toLowerCase().endsWith(".exe");
     if (fs.existsSync(target)) {
-      const original = fs.statSync(path.join(source, entry.name)), linked = fs.statSync(target);
-      if (original.dev === linked.dev && original.ino === linked.ino) continue;
+      const original = fs.statSync(path.join(source, entry.name)),
+        linked = fs.statSync(target);
+      if (
+        !executable &&
+        original.dev === linked.dev &&
+        original.ino === linked.ino
+      )
+        continue;
       fs.unlinkSync(target);
     }
     if (!fs.existsSync(target)) {
       try {
-        fs.linkSync(path.join(source, entry.name), target);
+        // Windows shortcut tracking can retarget installed links to an executable hardlink.
+        if (executable) fs.copyFileSync(path.join(source, entry.name), target);
+        else fs.linkSync(path.join(source, entry.name), target);
       } catch (error) {
         if (error.code !== "EXDEV") throw error;
         fs.copyFileSync(path.join(source, entry.name), target);

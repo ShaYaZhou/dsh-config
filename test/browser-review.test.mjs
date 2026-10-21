@@ -2,6 +2,63 @@ import fs from "node:fs";
 import vm from "node:vm";
 import test from "node:test";
 import assert from "node:assert/strict";
+import path from "node:path";
+import os from "node:os";
+
+test("native fixture executables break prior hardlink identity without changing installed bytes", () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "dsh-runtime-copy-"));
+  const source = path.join(base, "installed"),
+    runtime = path.join(base, ".local/browser-native-test/runtime");
+  fs.mkdirSync(source);
+  fs.mkdirSync(runtime, { recursive: true });
+  const original = path.join(source, "Harness.exe"),
+    copied = path.join(runtime, "Harness.exe");
+  fs.writeFileSync(original, "synthetic executable bytes");
+  fs.linkSync(original, copied);
+  const script = fs.readFileSync(
+    new URL("../scripts/test-browser-native.mjs", import.meta.url),
+    "utf8",
+  );
+  const start = script.indexOf("fs.mkdirSync(runtime, { recursive: true });");
+  const end = script.indexOf('fs.mkdirSync(path.join(runtime, "locales")');
+  assert(start >= 0 && end > start);
+  try {
+    vm.runInNewContext(script.slice(start, end), {
+      fs,
+      path,
+      source,
+      runtime,
+      repository: base,
+      assert,
+    });
+    assert.equal(
+      fs.readFileSync(copied, "utf8"),
+      fs.readFileSync(original, "utf8"),
+    );
+    assert.notEqual(fs.statSync(copied).ino, fs.statSync(original).ino);
+    fs.writeFileSync(copied, "changed only in the fixture");
+    assert.equal(
+      fs.readFileSync(original, "utf8"),
+      "synthetic executable bytes",
+    );
+    assert.throws(
+      () =>
+        vm.runInNewContext(script.slice(start, end), {
+          fs,
+          path,
+          source: runtime,
+          runtime,
+          repository: base,
+          assert,
+        }),
+      /source must differ/,
+    );
+  } finally {
+    assert.equal(path.dirname(base), path.resolve(os.tmpdir()));
+    assert(path.basename(base).startsWith("dsh-runtime-copy-"));
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+});
 function load() {
   let plugin;
   vm.runInNewContext(
