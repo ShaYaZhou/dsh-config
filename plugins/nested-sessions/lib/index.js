@@ -5,6 +5,7 @@ import {
   TypertRemoteService,
 } from "@deepseek-ai/dsh-typert-protocol";
 import { openNestedStore } from "./state-store.js";
+import { ATTENTION_STATUSES, attentionAfterEvent } from "./attention-state.js";
 import { createUserMessage } from "@deepseek-ai/dsh-llm";
 import { defineTool } from "@deepseek-ai/dsh-tools";
 import { randomUUID } from "node:crypto";
@@ -30,6 +31,7 @@ export const inject = [
   "permissionPresets",
   "commands",
   "systemPrompt",
+  "sessionProjections",
 ];
 const id = z
   .string()
@@ -77,6 +79,7 @@ const schemas = {
   }),
   stop: z.strictObject({ sessionId: id }),
   progress: z.strictObject({ sessionId: id }),
+  attention: z.strictObject({ sessionIds: z.array(id).min(1).max(20) }),
   localAccess: z.strictObject({ sessionId: id, enabled: z.boolean() }),
   recent: z.strictObject({
     sessionId: id,
@@ -536,6 +539,41 @@ export class NestedSessions extends TypertRemoteService {
         .map(({ turn, response }) => ({ turn, response })),
     };
   }
+  async attention(request) {
+    const { sessionIds } = parse("attention", request);
+    const ids = [...new Set(sessionIds)];
+    for (const sessionId of ids) this.assertAccess(sessionId);
+    const timeout = AbortSignal.timeout(30000);
+    const signal = this.ctx.invocation?.signal
+        ? AbortSignal.any([timeout, this.ctx.invocation.signal])
+        : timeout,
+      rows = [];
+    for (const sessionId of ids) {
+      signal.throwIfAborted();
+      if (this.disposed) throw new Error("Session status reader was unloaded");
+      this.assertAccess(sessionId);
+      let status = "unavailable";
+      try {
+        const snapshot = await this.ctx.sessionController.projections(
+          { sessionId },
+          signal,
+        );
+        if (
+          snapshot?.kind === "sequenced" &&
+          ATTENTION_STATUSES.includes(snapshot.values?.nestedAttention)
+        )
+          status = snapshot.values.nestedAttention;
+      } catch (error) {
+        if (signal.aborted) throw error;
+      }
+      signal.throwIfAborted();
+      this.assertAccess(sessionId);
+      if (this.disposed) throw new Error("Session status reader was unloaded");
+      rows.push({ sessionId, status });
+    }
+    for (const sessionId of ids) this.assertAccess(sessionId);
+    return { rows };
+  }
   async start(request) {
     const input = parse("start", request);
     this.assertAccess(input.sessionId);
@@ -893,9 +931,11 @@ export class NestedSessions extends TypertRemoteService {
 for (const method of Object.keys(schemas)) {
   const resources = {
     session: (request) =>
-      ["send", "localRead"].includes(method)
-        ? [request?.sessionId, request?.targetSessionId]
-        : request?.sessionId,
+      method === "attention"
+        ? request?.sessionIds
+        : ["send", "localRead"].includes(method)
+          ? [request?.sessionId, request?.targetSessionId]
+          : request?.sessionId,
   };
   Remote({ resources })(NestedSessions.prototype[method], {
     kind: "method",
@@ -1106,6 +1146,15 @@ function installTools(agent, service) {
 }
 
 export async function apply(ctx) {
+  const attentionSchema = z.enum(ATTENTION_STATUSES);
+  ctx.sessionProjections.register({
+    key: "nestedAttention",
+    stateVersion: 1,
+    stateSchema: attentionSchema,
+    init: () => "idle",
+    apply: attentionAfterEvent,
+    wire: { viewSchema: attentionSchema, view: (state) => state },
+  });
   const domain = await openNestedStore(ctx);
   const service = new NestedSessions(ctx, domain);
   const installed = new Map();

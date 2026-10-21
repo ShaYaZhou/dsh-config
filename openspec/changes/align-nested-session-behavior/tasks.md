@@ -13,7 +13,7 @@
 - [x] 3.3 Implement and verify explicit recent-local-conversation access without weakening family tools (R3).
 
 ## 4. Desktop usability
-- [ ] 4.1 Implement and verify attention states including pending questions/permissions, tasks and recap (R4).
+- [x] 4.1 Implement and verify attention states including pending questions/permissions, tasks and recap (R4).
 - [x] 4.2 Verify parent archive/detach preserves discoverable child history (R4).
 - [x] 4.3 Implement and verify background completion notification and session side-by-side viewing (R4, R5).
 - [ ] 4.4 Implement and verify recent folders, named local multi-repository environments and portable bindings (R5).

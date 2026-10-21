@@ -677,7 +677,281 @@ window.__ModuleLoader__.load({
       "plan-review": "等待确认方案",
       question: "等待回答",
       unread: "有新进展",
+      unavailable: "状态暂不可用",
     };
+    function attentionRows(list, statuses, archived, cached = {}) {
+      const hidden = new Set(archived);
+      return list.ids.flatMap((id) => {
+        const item = list.byId[id];
+        if (!item || item.blank || item.origin === "subagent" || hidden.has(id))
+          return [];
+        const saved = cached[id],
+          live = statuses.get(id),
+          running = live?.running ?? item.running;
+        const status =
+          saved?.updatedAt === item.updatedAt && saved.running === running
+            ? saved.status
+            : "unavailable";
+        const resolved = ["approval", "plan-review", "question"].includes(
+          live?.pendingInteraction?.kind,
+        )
+          ? live.pendingInteraction.kind
+          : running
+            ? "running"
+            : status;
+        return [
+          {
+            id,
+            title: item.title || item.displayTitle || "未命名会话",
+            status: resolved,
+            group: attentionGroup(resolved) ?? "other",
+          },
+        ];
+      });
+    }
+    function GlobalAttention({ ctx, useSessions, useSessionStatus, useWorkspaces, wide }) {
+      const list = useSessions((value) => value),
+        statuses = useSessionStatus((value) => value);
+      const workspaces = useWorkspaces((value) => value);
+      const [open, setOpen] = React.useState(false),
+        [cached, setCached] = React.useState({});
+      const [error, setError] = React.useState(""),
+        [loading, setLoading] = React.useState(false);
+      const [revision, setRevision] = React.useState(0),
+        [limits, setLimits] = React.useState({});
+      const root = React.useRef(null),
+        toggle = React.useRef(null);
+      const latestStatuses = React.useRef(statuses);
+      latestStatuses.current = statuses;
+      const closePanel = () => {
+        setOpen(false);
+        setCached({});
+      };
+      const rows = attentionRows(
+        list,
+        statuses,
+        workspaces.archivedSessionIds,
+        cached,
+      );
+      const pending = rows.filter((row) => row.group === "needs-input").length;
+      React.useEffect(() => {
+        if (!open) return;
+        const close = (event) => {
+          if (event.key === "Escape") {
+            closePanel();
+            toggle.current?.focus();
+          } else if (
+            event.type === "pointerdown" &&
+            !root.current?.contains(event.target)
+          )
+            closePanel();
+        };
+        document.addEventListener("keydown", close);
+        document.addEventListener("pointerdown", close);
+        return () => {
+          document.removeEventListener("keydown", close);
+          document.removeEventListener("pointerdown", close);
+        };
+      }, [open]);
+      React.useEffect(() => {
+        if (!open) return;
+        let disposed = false;
+        const controller = new AbortController();
+        const hidden = new Set(workspaces.archivedSessionIds);
+        const candidates = list.ids
+          .map((id) => list.byId[id])
+          .filter(
+            (row) =>
+              row &&
+              !row.blank &&
+              row.origin !== "subagent" &&
+              !hidden.has(row.id) &&
+              (cached[row.id]?.updatedAt !== row.updatedAt ||
+                cached[row.id]?.running !==
+                  (statuses.get(row.id)?.running ?? row.running) ||
+                cached[row.id]?.revision !== revision),
+          );
+        setLoading(true);
+        setError("");
+        void (async () => {
+          for (let offset = 0; offset < candidates.length; offset += 20) {
+            const batch = candidates.slice(offset, offset + 20);
+            const value = await call(
+              ctx,
+              "attention",
+              { sessionIds: batch.map((row) => row.id) },
+              controller.signal,
+            );
+            if (disposed) return;
+            const stamps = new Map(
+              batch.map((row) => [
+                row.id,
+                {
+                  updatedAt: row.updatedAt,
+                  running: statuses.get(row.id)?.running ?? row.running,
+                },
+              ]),
+            );
+            setCached((old) => {
+              const next = { ...old },
+                current = ctx.sessions.list.getSnapshot().byId;
+              for (const row of value.rows)
+                if (
+                  stamps.has(row.sessionId) &&
+                  current[row.sessionId]?.updatedAt ===
+                    stamps.get(row.sessionId).updatedAt &&
+                  (latestStatuses.current.get(row.sessionId)?.running ??
+                    current[row.sessionId]?.running) ===
+                    stamps.get(row.sessionId).running
+                )
+                  next[row.sessionId] = {
+                    ...stamps.get(row.sessionId),
+                    status: row.status,
+                    revision,
+                  };
+              for (const id of Object.keys(next))
+                if (!current[id] || hidden.has(id)) delete next[id];
+              return next;
+            });
+          }
+        })()
+          .catch((issue) => {
+            if (!disposed) setError(issue.message);
+          })
+          .finally(() => {
+            if (!disposed) setLoading(false);
+          });
+        return () => {
+          disposed = true;
+          controller.abort();
+        };
+      }, [open, list.byId, statuses, workspaces.archivedSessionIds, revision]);
+      const groups = [
+        ["needs-input", "需要介入"],
+        ["working", "进行中"],
+        ["completed", "已完成"],
+        ["other", "其他会话"],
+      ];
+      return h(
+        "div",
+        { ref: root, className: "dsh-nested dsh-global-attention" },
+        h(
+          "button",
+          {
+            ref: toggle,
+            type: "button",
+            "aria-label":
+              "会话状态" + (pending ? `，${pending} 个需要介入` : ""),
+            "aria-expanded": open,
+            "aria-haspopup": "dialog",
+            onClick: () => {
+              if (open) closePanel();
+              else {
+                setCached({});
+                setOpen(true);
+              }
+            },
+          },
+          wide ? "会话状态" : "◉",
+          pending ? ` · ${pending}` : "",
+        ),
+        open &&
+          h(
+            "section",
+            {
+              role: "dialog",
+              "aria-label": "全部会话状态",
+              className: "dsh-attention-popover",
+            },
+            h(
+              "div",
+              { className: "dsh-nested-row" },
+              h("h3", { style: { flex: 1 } }, "全部会话状态"),
+              h(
+                "button",
+                {
+                  type: "button",
+                  onClick: () => setRevision((value) => value + 1),
+                  disabled: loading,
+                },
+                "刷新",
+              ),
+              h(
+                "button",
+                {
+                  type: "button",
+                  "aria-label": "关闭会话状态",
+                  onClick: () => {
+                    closePanel();
+                    toggle.current?.focus();
+                  },
+                },
+                "×",
+              ),
+            ),
+            h(
+              "small",
+              { role: "status" },
+              loading
+                ? "正在读取原生状态，不调用模型…"
+                : "只查看状态；点击名称打开原会话。",
+            ),
+            error &&
+              h("p", { role: "alert", className: "dsh-nested-error" }, error),
+            ...groups.map(([key, label]) => {
+              const items = rows.filter((row) => row.group === key),
+                limit = limits[key] ?? 20;
+              return h(
+                "details",
+                {
+                  key,
+                  open: key === "needs-input" || key === "working",
+                  className: "dsh-attention-group",
+                },
+                h("summary", null, `${label} ${items.length}`),
+                h(
+                  "ul",
+                  null,
+                  ...items.slice(0, limit).map((row) =>
+                    h(
+                      "li",
+                      { key: row.id },
+                      h(
+                        "button",
+                        {
+                          type: "button",
+                          onClick: () => {
+                            ctx.uiWorkspace.openSession(row.id);
+                            closePanel();
+                          },
+                        },
+                        h("span", null, row.title),
+                        h("small", null, labels[row.status] ?? row.status),
+                      ),
+                    ),
+                  ),
+                ),
+                items.length > limit &&
+                  h(
+                    "button",
+                    {
+                      type: "button",
+                      onClick: () =>
+                        setLimits((old) => ({ ...old, [key]: limit + 20 })),
+                    },
+                    "再显示 20 个",
+                  ),
+                !items.length && h("small", null, "暂无"),
+              );
+            }),
+            h(
+              "small",
+              null,
+              "停止、未开始或状态不可读的历史列入其他，不视为完成。",
+            ),
+          ),
+      );
+    }
     const css = `
 .dsh-nested{font:14px/1.6 system-ui;color:var(--dsw-alias-label-primary,#222);text-align:left;box-sizing:border-box;min-width:0}
 .dsh-nested *{box-sizing:border-box}
@@ -713,15 +987,27 @@ window.__ModuleLoader__.load({
 .dsh-nested summary{cursor:pointer}
 .dsh-nested-popup{position:absolute;top:calc(100% + 10px);left:0;width:min(470px,calc(100vw - 30px));max-height:75vh;overflow:auto;z-index:100;padding:22px;border:1px solid var(--dsw-alias-border-l2,#dce0e7);border-radius:14px;background:var(--dsw-alias-bg-layer-1,#fff);box-shadow:0 12px 40px #0002}
 .dsh-nested-popup h2{font-size:18px}
+.dsh-global-attention>button{font-size:12px;padding:6px 10px}
+.dsh-attention-popover{position:fixed;left:12px;bottom:82px;width:min(360px,calc(100vw - 24px));max-height:70vh;overflow:auto;z-index:150;padding:16px;border:1px solid var(--dsw-alias-border-l2,#dce0e7);border-radius:12px;background:var(--dsw-alias-bg-layer-1,#fff);box-shadow:0 12px 40px #0002}
+.dsh-attention-group{margin:12px 0;color:inherit!important}
+.dsh-attention-group summary{font-size:13px;font-weight:600;padding:4px 0}
+.dsh-attention-group li>button{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;border:0;background:transparent;padding:7px 4px}
+.dsh-attention-group li>button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dsh-attention-group li>button small{white-space:nowrap}
 @media(max-width:620px){.dsh-nested-heading{align-items:flex-start;flex-direction:column;gap:8px}.dsh-nested ul ul{margin-left:8px;padding-left:10px}.dsh-nested-card{padding:12px}}
 `;
 
-    async function call(ctx, method, request) {
+    async function call(
+      ctx,
+      method,
+      request,
+      signal = AbortSignal.timeout(30000),
+    ) {
       const result = await ctx.connection.rpc.call(
         "/api",
         "nestedSessions/" + method,
         { args: { request } },
-        AbortSignal.timeout(30000),
+        signal,
       );
       if (!result.ok)
         throw new Error(result.error?.message ?? "操作未完成，请重试");
@@ -1171,6 +1457,12 @@ window.__ModuleLoader__.load({
     }
 
     function apply(ctx) {
+      ctx.slots.inject("sidebar.footer.action", () =>
+        ctx.slots.register(
+          { name: "sidebar.footer.action", id: "nested-attention", order: 80 },
+          (props) => h(GlobalAttention, { ...props, ctx }),
+        ),
+      );
       ctx.slots.inject("shell.overlay", () =>
         ctx.slots.register(
           { name: "shell.overlay", id: "nested-completion-notices", order: 80 },
@@ -1314,6 +1606,7 @@ window.__ModuleLoader__.load({
       hasPartialFamily,
       progressStatus,
       attentionGroup,
+      attentionRows,
       splitSessionId,
       completionUpdates,
     };

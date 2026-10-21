@@ -1,5 +1,9 @@
 # 自写改动的职责与依赖回查
 
+全局状态复用原生 Session Projection：`attention-state.js` 只折叠 turn/start 与真实 turn/end 原因，不新增会话日志或私有历史状态文件；原生 checkpoint 负责缓存，撤销插件即不再提供该投影。UI-only `attention` RPC 每次最多 20 个已有身份，只返回 id/status，逐项读取前后复核 RemoteAccess，沿用原生 projections 冷读及 RPC 取消信号。模型没有新的跨历史工具或授权入口。
+
+状态弹层使用原生 `sidebar.footer.action` 槽位、useSessions/useSessionStatus/useWorkspaces hooks 和 uiWorkspace.openSession；不替换原会话树、不借用其他插件 DOM。关闭时不读，重开清缓存；打开期间用运行状态与用户消息时间共同校验迟到结果。Native updatedAt 不是回合版本，不能据它长期缓存完成状态。状态逻辑和用户协作/任务管理分开，保留会话内原控制。
+
 旁问快捷键复用 BTW 自己的 SelectionAsk 和 store.ask，通过原生 shortcuts 服务注册；按可见会话与输入焦点选取弹窗，不操作主输入框状态。后端的空工具白名单不覆盖子作用域自身工具，因此在该子 Agent 的原生 `system-prompt/assemble` 返回值中清空 tools，执行 guard 继续兜底；不改变主会话工具注册或全局配置。验收脚本复用现有隔离 home/output lease，不提供产品运行服务。
 
 跨工作区历史读取是独立于家族控制的只读接口：精确调用者的授权/版本只在服务内存保存，UI 与原生命令负责用户授权，模型没有授权工具。roster 使用原生非激活 list，正文复用既有 bounded read/inspect；异步返回前再次验证调用者版本与目标 RemoteAccess。role-policy 只放行新只读局部工具的公开名称，未改变 native restrict 的全局工具集。扩展既有生命周期验收，不新增执行/存储引擎。

@@ -139,6 +139,11 @@ function fixture() {
   };
   let source =
     fs.readFileSync(
+      path.join(__dirname, "../plugins/nested-sessions/lib/attention-state.js"),
+      "utf8",
+    ) +
+    "\n" +
+    fs.readFileSync(
       path.join(__dirname, "../plugins/nested-sessions/lib/model-routing.js"),
       "utf8",
     ) +
@@ -190,6 +195,100 @@ function fixture() {
     },
   };
 }
+
+nativeTest(
+  "global attention reads bounded native metadata without activating agents and rechecks access",
+  async () => {
+    const f = fixture(),
+      calls = [];
+    f.ctx.sessionController.resolveAgent = () => {
+      throw Error("must not activate");
+    };
+    f.ctx.sessionController.projections = async ({ sessionId }) => {
+      calls.push(sessionId);
+      return {
+        kind: "sequenced",
+        values: {
+          nestedAttention: "completed",
+          title: "PRIVATE",
+          turnOutline: ["PRIVATE"],
+        },
+      };
+    };
+    assert.equal(
+      JSON.stringify(
+        await f.service.attention({
+          sessionIds: ["root", "root", "unrelated"],
+        }),
+      ),
+      JSON.stringify({
+        rows: [
+          { sessionId: "root", status: "completed" },
+          { sessionId: "unrelated", status: "completed" },
+        ],
+      }),
+    );
+    assert.deepEqual(calls, ["root", "unrelated"]);
+    await assert.rejects(
+      f.service.attention({ sessionIds: Array(21).fill("root") }),
+    );
+    await assert.rejects(f.service.attention({ sessionIds: ["../unsafe"] }));
+    f.deny("unrelated");
+    calls.length = 0;
+    await assert.rejects(
+      f.service.attention({ sessionIds: ["root", "unrelated"] }),
+    );
+    assert.equal(calls.length, 0);
+    f.deny(undefined);
+    f.ctx.sessionController.projections = async () => {
+      f.deny("root");
+      return { kind: "sequenced", values: { nestedAttention: "completed" } };
+    };
+    await assert.rejects(f.service.attention({ sessionIds: ["root"] }));
+  },
+);
+
+nativeTest(
+  "unknown, migrated and failed attention reads never imply successful completion",
+  async () => {
+    const f = fixture();
+    for (const value of [
+      null,
+      { kind: "migration-required", values: { nestedAttention: "completed" } },
+      { kind: "sequenced", values: { nestedAttention: "future" } },
+    ]) {
+      f.ctx.sessionController.projections = async () => value;
+      assert.equal(
+        (await f.service.attention({ sessionIds: ["root"] })).rows[0].status,
+        "unavailable",
+      );
+    }
+    f.ctx.sessionController.projections = async () => {
+      throw Error("reader unavailable");
+    };
+    assert.equal(
+      (await f.service.attention({ sessionIds: ["root"] })).rows[0].status,
+      "unavailable",
+    );
+  },
+);
+
+nativeTest(
+  "closing a status RPC cancels native reads and rejects a late projection",
+  async () => {
+    const f = fixture(),
+      controller = new AbortController();
+    let received;
+    f.ctx.invocation = { signal: controller.signal };
+    f.ctx.sessionController.projections = async (_request, signal) => {
+      received = signal;
+      controller.abort();
+      return { kind: "sequenced", values: { nestedAttention: "completed" } };
+    };
+    await assert.rejects(f.service.attention({ sessionIds: ["root"] }));
+    assert(received.aborted);
+  },
+);
 
 nativeTest(
   "new turns invalidate completion records even while serialized reporting is held",

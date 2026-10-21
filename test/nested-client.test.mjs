@@ -3,6 +3,264 @@ import vm from "node:vm";
 import test from "node:test";
 import assert from "node:assert/strict";
 
+test("the retired panel redirects to an existing conversation without recreating a navigation entry", () => {
+  let plugin;
+  const registrations = [],
+    opened = [];
+  const React = {
+    createElement: (type, props, ...children) => ({ type, props, children }),
+    useEffect: (callback) => callback(),
+  };
+  vm.runInNewContext(
+    fs.readFileSync(
+      new URL("../plugins/nested-sessions/lib/client.js", import.meta.url),
+      "utf8",
+    ),
+    {
+      window: {
+        __ModuleLoader__: {
+          load: (entry) => {
+            plugin = entry.factory(() => React);
+          },
+        },
+      },
+    },
+  );
+  plugin.apply({
+    effect() {},
+    slots: {
+      inject: (_key, callback) => callback(),
+      register: (options, component) =>
+        registrations.push({ options, component }),
+    },
+    workspaces: {
+      list: { getSnapshot: () => ({ archivedSessionIds: ["archived"] }) },
+    },
+    uiWorkspace: { openSession: (id) => opened.push(id) },
+  });
+  const restored = registrations.find(
+    (row) =>
+      row.options.name === "main" && row.options.key === "nested-sessions",
+  ).component;
+  assert(
+    !registrations.some((row) => row.options.name === "sidebar.panellist"),
+  );
+  restored({
+    useSessions: (select) =>
+      select({
+        ids: ["archived", "fallback", "active"],
+        byId: { active: { id: "active", retainedBy: { mainView: 1 } } },
+      }),
+  });
+  assert.deepEqual(opened, ["active"]);
+  opened.length = 0;
+  restored({
+    useSessions: (select) =>
+      select({ ids: ["archived", "fallback"], byId: {} }),
+  });
+  assert.deepEqual(opened, ["fallback"]);
+  opened.length = 0;
+  const empty = restored({
+    useSessions: (select) => select({ ids: ["archived"], byId: {} }),
+  });
+  assert.equal(opened.length, 0);
+  assert.equal(empty.children[0], "请从左侧选择会话。");
+});
+
+test("global attention uses only catalog rows, excludes hidden history and does not infer success", () => {
+  let plugin;
+  vm.runInNewContext(
+    fs.readFileSync(
+      new URL("../plugins/nested-sessions/lib/client.js", import.meta.url),
+      "utf8",
+    ),
+    {
+      window: {
+        __ModuleLoader__: {
+          load: (entry) => {
+            plugin = entry.factory(() => ({}));
+          },
+        },
+      },
+    },
+  );
+  const ids = [
+    "question",
+    "working",
+    "done",
+    "error",
+    "stopped",
+    "unread",
+    "changed",
+    "blank",
+    "subagent",
+    "archived",
+  ];
+  const list = {
+    ids,
+    byId: Object.fromEntries(
+      ids.map((id) => [
+        id,
+        {
+          id,
+          title: id,
+          updatedAt: 1,
+          blank: id === "blank",
+          origin: id === "subagent" ? "subagent" : undefined,
+        },
+      ]),
+    ),
+  };
+  list.byId.notInCatalog = { id: "notInCatalog", updatedAt: 1 };
+  const cached = Object.fromEntries(
+    ids.map((id) => [id, { updatedAt: 1, status: "completed" }]),
+  );
+  cached.error.status = "error";
+  cached.stopped.status = "stopped";
+  delete cached.unread;
+  cached.changed.updatedAt = 0;
+  const statuses = new Map([
+    ["question", { running: true, pendingInteraction: { kind: "approval" } }],
+    ["working", { running: true }],
+    ["unread", { completionUnread: true }],
+  ]);
+  const rows = plugin.attentionRows(list, statuses, ["archived"], cached);
+  assert.equal(
+    JSON.stringify(rows.map((row) => [row.id, row.group])),
+    JSON.stringify([
+      ["question", "needs-input"],
+      ["working", "working"],
+      ["done", "completed"],
+      ["error", "needs-input"],
+      ["stopped", "other"],
+      ["unread", "other"],
+      ["changed", "other"],
+    ]),
+  );
+  assert.equal(rows.find((row) => row.id === "changed").status, "unavailable");
+  const ended = {
+    ids: ["one"],
+    byId: { one: { id: "one", title: "one", updatedAt: 100, running: false } },
+  };
+  const old = { one: { updatedAt: 100, running: true, status: "running" } };
+  assert.equal(
+    plugin.attentionRows(
+      ended,
+      new Map([["one", { running: false }]]),
+      [],
+      old,
+    )[0].status,
+    "unavailable",
+    "Finishing without a new user prompt must invalidate running metadata",
+  );
+});
+
+test("global attention makes no closed-panel reads and discards a reply after closing", async () => {
+  const source = fs.readFileSync(
+    new URL("../plugins/nested-sessions/lib/client.js", import.meta.url),
+    "utf8",
+  );
+  async function mount(open, cache = {}) {
+    let plugin,
+      stateIndex = 0,
+      writes = 0,
+      request,
+      release;
+    const effects = [],
+      registrations = [];
+    const React = {
+      createElement: (type, props, ...children) => ({ type, props, children }),
+      useState: (initial) => {
+        const index = stateIndex++;
+        return [
+          index === 0 ? open : index === 1 ? cache : initial,
+          () => {
+            if (index === 1) writes++;
+          },
+        ];
+      },
+      useEffect: (fn) => effects.push(fn),
+      useRef: (value) => ({ current: value }),
+    };
+    vm.runInNewContext(source, {
+      window: {
+        __ModuleLoader__: {
+          load: (entry) => {
+            plugin = entry.factory(() => React);
+          },
+        },
+      },
+      document: { addEventListener() {}, removeEventListener() {} },
+      AbortController,
+      AbortSignal,
+    });
+    const list = {
+      ids: ["one"],
+      byId: { one: { id: "one", title: "one", updatedAt: 1, running: false } },
+    };
+    const ctx = {
+      effect() {},
+      workspaces: {
+        list: {
+          subscribe() {},
+          getSnapshot: () => ({ archivedSessionIds: [] }),
+        },
+      },
+      sessions: { list: { getSnapshot: () => list } },
+      slots: {
+        inject: (_name, fn) => fn(),
+        register: (options, component) => {
+          registrations.push({ options, component });
+        },
+      },
+      connection: {
+        rpc: {
+          call: (_path, _method, _args, signal) => {
+            request = { signal };
+            return new Promise((resolve) => {
+              release = resolve;
+            });
+          },
+        },
+      },
+    };
+    plugin.apply(ctx);
+    const element = registrations
+      .find((row) => row.options.name === "sidebar.footer.action")
+      .component({
+        useSessions: (fn) => fn(list),
+        useWorkspaces: (fn) => fn({ archivedSessionIds: [] }),
+        useSessionStatus: (fn) => fn(new Map([["one", { running: false }]])),
+      });
+    const rendered = element.type(element.props);
+    const cleanups = effects.map((fn) => fn());
+    if (!open) {
+      assert.equal(request, undefined);
+      rendered.children[0].props.onClick();
+      assert.equal(
+        writes,
+        1,
+        "Opening must invalidate terminal states changed during a closed-panel turn",
+      );
+      return;
+    }
+    assert(request);
+    for (const cleanup of cleanups) cleanup?.();
+    assert(request.signal.aborted);
+    release({
+      ok: true,
+      value: { rows: [{ sessionId: "one", status: "completed" }] },
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(writes, 0, "A closed view accepted a late status result");
+  }
+  await mount(false);
+  await mount(true);
+  await mount(true, {
+    one: { updatedAt: 1, running: true, status: "running", revision: 0 },
+  });
+});
+
 test("a list change invalidates an in-flight completion response before it can notify", async () => {
   let plugin,
     lastNotices = [],
@@ -85,7 +343,11 @@ test("a list change invalidates an in-flight completion response before it can n
   const settle = () => new Promise((resolve) => setImmediate(resolve));
   requests.shift()({ ok: true, value: {} });
   await settle();
-  assert.equal(warned, 0, "an older running backend remains compatible until normal restart");
+  assert.equal(
+    warned,
+    0,
+    "an older running backend remains compatible until normal restart",
+  );
   emitted();
   const stale = requests.shift();
   emitted();
@@ -393,6 +655,7 @@ test("nested tree preserves sibling ordering, descendants and orphan history wit
   assert.deepEqual(
     registrations.map((row) => row.name),
     [
+      "sidebar.footer.action",
       "shell.overlay",
       "sidebar.right.pane.tab",
       "nested.split.conversation",
