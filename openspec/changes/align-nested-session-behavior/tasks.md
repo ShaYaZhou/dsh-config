@@ -10,7 +10,7 @@
 ## 3. Execution and control
 - [x] 3.1 Verify concurrent isolated worktrees, explicit ignored-file inclusion, integration and rollback (R2).
 - [x] 3.2 Verify bounded terminal reports, safe message/read/stop/archive/resume and attributed receipt (R3).
-- [ ] 3.3 Implement and verify explicit recent-local-conversation access without weakening family tools (R3).
+- [x] 3.3 Implement and verify explicit recent-local-conversation access without weakening family tools (R3).
 
 ## 4. Desktop usability
 - [ ] 4.1 Implement and verify attention states including pending questions/permissions, tasks and recap (R4).

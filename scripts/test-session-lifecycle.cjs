@@ -355,6 +355,133 @@ async function main() {
     );
     assert(!(await service.read({ sessionId: parent.id })).stoppedByUser);
     assert.equal(ctx.permissionPresets.current(parent.session), "read-only");
+    phase("explicit-local-history");
+    const otherCwd = path.join(output, "other-project-" + Date.now());
+    fs.mkdirSync(otherCwd, { recursive: true });
+    fs.writeFileSync(
+      path.join(otherCwd, "AGENTS.md"),
+      "Synthetic history source. Do not use tools, edit files or store memory.",
+    );
+    const otherWorkspace = await ctx.workspaceRegistry.create(
+      otherCwd,
+      "Cross-workspace history source",
+    );
+    const createdSource = await ctx.sessionController.create({
+      workspaceId: otherWorkspace.id,
+    });
+    const source = (
+      await ctx.sessionController.resolveAgent(createdSource.sessionId)
+    ).agent;
+    const sourceTitle = "Local history source " + Date.now();
+    const historyToken = "HISTORY-" + randomUUID().slice(0, 8);
+    await ctx.sessionController.rename({
+      sessionId: source.id,
+      title: sourceTitle,
+    });
+    ctx.permissionPresets.set(source.session, "read-only");
+    await prompt(
+      source,
+      "Reply exactly " +
+        historyToken +
+        ". Do not use tools, delegate or save memory.",
+    );
+    await idle(source);
+    const archived = await ctx.sessionController.fork({ sessionId: source.id });
+    await ctx.workspaceRegistry.archiveSession(archived.sessionId);
+    const sourceHash = digest(source.session.snapshotEvents());
+    await assert.rejects(
+      service.recent({ sessionId: parent.id }),
+      /local-history/,
+    );
+    await service.localAccess({ sessionId: parent.id, enabled: true });
+    await assert.rejects(
+      service.recent({ sessionId: ids.child }),
+      /local-history/,
+    );
+    const recent = await service.recent({ sessionId: parent.id, limit: 20 });
+    assert(recent.sessions.some((row) => row.sessionId === source.id));
+    assert(
+      !recent.sessions.some((row) => row.sessionId === archived.sessionId),
+    );
+    const historyCalls = [];
+    const stopHistoryCapture = ctx.on("tools/execute", async (exec, next) => {
+      if (exec.agent?.id === parent.id)
+        historyCalls.push({ name: exec.name, arguments: exec.arguments });
+      return next();
+    });
+    await prompt(
+      parent,
+      `Use only list_recent_sessions and read_local_session (or run_code wrapping those tools). Find the conversation titled "${sourceTitle}" in another workspace and read its verification token. Return LOCAL_HISTORY_PROXY_OK followed by that token. Do not use files, shell, native session search, delegate, or send messages.`,
+    );
+    await idle(parent);
+    stopHistoryCapture();
+    assert(historyCalls.some((call) => call.name === "list_recent_sessions"));
+    assert(
+      historyCalls.some(
+        (call) =>
+          call.name === "read_local_session" &&
+          call.arguments.session_id === source.id,
+      ),
+    );
+    assert(
+      historyCalls.every((call) =>
+        ["run_code", "list_recent_sessions", "read_local_session"].includes(
+          call.name,
+        ),
+      ),
+    );
+    const historyReply = (await service.read({ sessionId: parent.id }))
+      .latestResult;
+    assert(
+      historyReply.includes("LOCAL_HISTORY_PROXY_OK") &&
+        historyReply.includes(historyToken),
+    );
+    assert.equal(
+      digest(source.session.snapshotEvents()),
+      sourceHash,
+      "History read modified the source conversation",
+    );
+    assert.equal(source.status, "idle");
+    await assert.rejects(
+      service.send({
+        sessionId: parent.id,
+        targetSessionId: source.id,
+        message: "No control grant",
+      }),
+      /family|linked/i,
+    );
+    await ctx.sessions.flush(source.session);
+    await ctx.sessions.flush(parent.session);
+    await runtime.shutdown.shutdown(0);
+    runtime = undefined;
+    await open();
+    await assert.rejects(
+      service.recent({ sessionId: ids.parent }),
+      /local-history/,
+    );
+    assert(
+      !ctx.agents.get(source.id),
+      "Source unexpectedly resumed at restart",
+    );
+    await service.localAccess({ sessionId: ids.parent, enabled: true });
+    assert(
+      (
+        await service.recent({ sessionId: ids.parent, limit: 20 })
+      ).sessions.some((row) => row.sessionId === source.id),
+    );
+    assert(
+      (
+        await service.localRead({
+          sessionId: ids.parent,
+          targetSessionId: source.id,
+        })
+      ).latestResult.includes(historyToken),
+    );
+    assert(
+      !ctx.agents.get(source.id),
+      "Local history read activated the cold source Agent",
+    );
+    await service.localAccess({ sessionId: ids.parent, enabled: false });
     await service.detach({ sessionId: ids.child });
     assert(
       !(await service.list({ sessionId: ids.parent })).links.some(
@@ -386,6 +513,12 @@ async function main() {
       humanResumeThroughProxy: true,
       readOnlyPermissionRetained: true,
       detachRetainsHistory: true,
+      localHistorySource: source.id,
+      localHistoryExplicitPerCaller: true,
+      localHistoryReadThroughProxy: true,
+      localHistoryNoControlGrant: true,
+      localHistoryResetOnRestart: true,
+      localHistoryColdSourceNotActivated: true,
       elapsedSeconds: Math.round((Date.now() - started) / 1000),
     };
   } catch (error) {

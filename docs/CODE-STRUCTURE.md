@@ -1,5 +1,7 @@
 # 自写改动的职责与依赖回查
 
+跨工作区历史读取是独立于家族控制的只读接口：精确调用者的授权/版本只在服务内存保存，UI 与原生命令负责用户授权，模型没有授权工具。roster 使用原生非激活 list，正文复用既有 bounded read/inspect；异步返回前再次验证调用者版本与目标 RemoteAccess。role-policy 只放行新只读局部工具的公开名称，未改变 native restrict 的全局工具集。扩展既有生命周期验收，不新增执行/存储引擎。
+
 后台完成通知复用真实 `turn/end` 与现有权限/停止/归档检查，完成序号仅保存在服务内存并在下一回合开始清除；不新增持久会话字段。全局 UI 请求只返回其 RemoteAccess 允许的记录，家族工具读取不包含该记录集。前端以原生会话列表订阅加轮询兜底发现结果，使用可叠加 `shell.overlay` 和已授权 Web Notification；偏好监听、订阅、轮询与系统通知均随卸载清理。通知不调用 Agent prompt/steer/followup。
 
 并排会话集中在嵌套前端 `installSplitView`：只注册自己的资源地址/右侧标签类型，使用原生 `sessions.retain/release`、`SessionProvider` 和内嵌 `conversation.content` Factory。渲染前检查引用与目标身份一致，切换/卸载释放引用；不复制对话渲染器、输入草稿或会话存储，不用 DOM 搬运主面板。

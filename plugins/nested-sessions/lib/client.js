@@ -811,6 +811,7 @@ window.__ModuleLoader__.load({
       const [links, setLinks] = React.useState([]),
         [automatic, setAutomatic] = React.useState(true),
         [requested, setRequested] = React.useState(false),
+        [localHistoryEnabled, setLocalHistoryEnabled] = React.useState(false),
         [collapsed, setCollapsed] = React.useState(new Set());
       const [error, setError] = React.useState(""),
         [loadError, setLoadError] = React.useState(""),
@@ -838,6 +839,7 @@ window.__ModuleLoader__.load({
         setLinks(value.links);
         setAutomatic(value.automatic);
         setRequested(value.requested);
+        setLocalHistoryEnabled(value.localHistoryEnabled === true);
       };
       React.useEffect(() => {
         let disposed = false;
@@ -848,6 +850,7 @@ window.__ModuleLoader__.load({
                 setLinks(value.links);
                 setAutomatic(value.automatic);
                 setRequested(value.requested);
+                setLocalHistoryEnabled(value.localHistoryEnabled === true);
                 setLoadError("");
               }
             })
@@ -1109,6 +1112,30 @@ window.__ModuleLoader__.load({
             h("span", null, "已完成 " + counts.completed),
           ),
         h("ul", { "aria-label": "父子任务进度" }, roots.map(row)),
+        h(
+          "button",
+          {
+            disabled: busy || !current,
+            "aria-pressed": localHistoryEnabled,
+            onClick: () =>
+              run(() =>
+                call(ctx, "localAccess", {
+                  sessionId: current,
+                  enabled: !localHistoryEnabled,
+                }),
+              ),
+          },
+          "当前会话查阅本机历史：" + (localHistoryEnabled ? "开启" : "关闭"),
+        ),
+        h(
+          "p",
+          null,
+          h(
+            "small",
+            null,
+            "仅授权当前会话在本次运行中只读查阅其他工作区历史，不继承给子会话，不授予消息或控制权限。",
+          ),
+        ),
         h(
           "button",
           {

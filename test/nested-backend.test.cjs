@@ -272,6 +272,148 @@ nativeTest(
 );
 
 nativeTest(
+  "recent local roster is bounded and ordered without passing extra fields through",
+  async () => {
+    const f = fixture();
+    let calls = 0;
+    f.ctx.sessionController.list = async () => {
+      calls++;
+      return {
+        items: Array.from({ length: 50 }, (_, i) => ({
+          sessionId: "s" + i,
+          updatedAt: i,
+          blank: false,
+          privateExtra: "not-roster-data",
+        })),
+      };
+    };
+    await f.service.localAccess({ sessionId: "root", enabled: true });
+    const rows = (await f.service.recent({ sessionId: "root", limit: 20 }))
+      .sessions;
+    assert.equal(rows.length, 20);
+    assert.equal(rows[0].sessionId, "s49");
+    assert.equal(rows.at(-1).sessionId, "s30");
+    assert(!JSON.stringify(rows).includes("not-roster-data"));
+    await assert.rejects(
+      f.service.recent({ sessionId: "root", limit: 21 }),
+      /20|limit/,
+    );
+    assert.equal(calls, 1);
+  },
+);
+
+nativeTest(
+  "local history requires exact caller consent, keeps family control closed and fences revocation",
+  async () => {
+    const f = fixture();
+    let listed = 0;
+    f.ctx.sessionController.list = async () => {
+      listed++;
+      return {
+        items: [
+          {
+            sessionId: "unrelated",
+            updatedAt: 3,
+            running: false,
+            blank: false,
+            projections: { values: { title: "Other workspace" } },
+          },
+          { sessionId: "root", updatedAt: 4, blank: false },
+          { sessionId: "archived", updatedAt: 9, blank: false },
+          { sessionId: "blank", updatedAt: 10, blank: true },
+          { sessionId: "native-child", updatedAt: 11, origin: "subagent" },
+        ],
+      };
+    };
+    f.ctx.workspaceRegistry.archivedSessionIds.push("archived");
+    await assert.rejects(
+      f.service.recent({ sessionId: "root" }),
+      /local-history/,
+    );
+    assert.equal(listed, 0);
+    await f.service.localAccess({ sessionId: "root", enabled: true });
+    assert.deepEqual(
+      Array.from(
+        (await f.service.recent({ sessionId: "root" })).sessions,
+        (row) => row.sessionId,
+      ),
+      ["unrelated"],
+    );
+    f.records.get("unrelated").events.push({
+      type: "user/message",
+      data: {
+        source: { kind: "user" },
+        content: [{ type: "text", text: "reference-only" }],
+      },
+    });
+    assert.match(
+      (
+        await f.service.localRead({
+          sessionId: "root",
+          targetSessionId: "unrelated",
+        })
+      ).content,
+      /reference-only/,
+    );
+    await assert.rejects(
+      f.service.send({
+        sessionId: "root",
+        targetSessionId: "unrelated",
+        message: "Do not send",
+      }),
+      /family|linked/i,
+    );
+    const child = await f.service.start({
+      sessionId: "root",
+      title: "Worker",
+      context: "fresh",
+    });
+    await assert.rejects(
+      f.service.recent({ sessionId: child.sessionId }),
+      /local-history/,
+    );
+    f.deny("unrelated");
+    assert.equal(
+      (await f.service.recent({ sessionId: "root" })).sessions.length,
+      0,
+    );
+    await assert.rejects(
+      f.service.localRead({ sessionId: "root", targetSessionId: "unrelated" }),
+      /denied|forbidden|access/i,
+    );
+    f.deny(undefined);
+    const inspect = f.ctx.sessionController.inspect;
+    f.ctx.sessionController.inspect = async (id) => {
+      await f.service.localAccess({ sessionId: "root", enabled: false });
+      await f.service.localAccess({ sessionId: "root", enabled: true });
+      return inspect(id);
+    };
+    await assert.rejects(
+      f.service.localRead({ sessionId: "root", targetSessionId: "unrelated" }),
+      /local-history/,
+    );
+    f.ctx.sessionController.inspect = async (id) => {
+      f.deny(id);
+      return inspect(id);
+    };
+    await assert.rejects(
+      f.service.localRead({ sessionId: "root", targetSessionId: "unrelated" }),
+      /denied|forbidden|access/i,
+    );
+    f.deny(undefined);
+    f.ctx.sessionController.list = async () => {
+      await f.service.localAccess({ sessionId: "root", enabled: false });
+      return { items: [] };
+    };
+    await assert.rejects(
+      f.service.recent({ sessionId: "root" }),
+      /local-history/,
+    );
+    assert.equal(f.deliveries.length, 0);
+  },
+);
+
+nativeTest(
   "task recap reads bounded exact native projections without waking an agent",
   async () => {
     const f = fixture();
