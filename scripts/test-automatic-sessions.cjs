@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const assert = require("node:assert/strict");
 const { pathToFileURL } = require("node:url");
+const { assertIsolatedHome } = require("./test-home.cjs");
 
 async function main() {
   assert(
@@ -12,6 +13,7 @@ async function main() {
     process.env.DSH_HOME && process.env.DSH_NATIVE_ROOT,
     "Run through harness.mjs automatic-test with an isolated --home",
   );
+  assertIsolatedHome(process.env.DSH_HOME);
   const native = process.env.DSH_NATIVE_ROOT;
   const { runProfile } = await import(
     pathToFileURL(path.join(native, "dsh/lib/profile-boot.js"))

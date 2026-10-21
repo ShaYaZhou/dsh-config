@@ -313,9 +313,11 @@ nativeTest(
       provider: "proxy",
       model: "small",
       reason: "独立任务",
+      agent_preset: "reviewer",
     });
 
     assert.equal(child.selection.model, "small");
+    assert.equal(f.records.get(child.sessionId).meta.agentPreset, "reviewer");
     assert.equal(
       (await f.service.list({ sessionId: child.sessionId })).automatic,
       true,

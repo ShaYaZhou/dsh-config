@@ -105,4 +105,24 @@ test("nested tree preserves sibling ordering, descendants and orphan history wit
     false,
   );
   assert.equal(plugin.hasPartialFamily(["a"], linked, new Set(["a"])), false);
+  const registrations = [];
+  plugin.apply({
+    effect: () => {},
+    slots: {
+      inject: (_name, callback) => {
+        const result = callback();
+        if (result?.next)
+          for (const _ of result) {
+          }
+      },
+      register: (options) => {
+        registrations.push(options);
+        return () => {};
+      },
+    },
+  });
+  assert.deepEqual(
+    registrations.map((row) => row.name),
+    ["conversation.session.header.actions","main"],
+  );
 });

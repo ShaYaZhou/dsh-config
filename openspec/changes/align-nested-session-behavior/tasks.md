@@ -4,8 +4,8 @@
 - [x] 1.3 Validate this change and maintain an evidence matrix without treating structural validation as implementation acceptance.
 
 ## 2. Continuous delivery
-- [ ] 2.1 Verify natural-language spec → real implementation → fresh reviewer → unchanged oracle → completed artifacts through the configured proxy (R1).
-- [ ] 2.2 Verify removal of global progress entry and retention of header control in native UI (R4).
+- [x] 2.1 Verify natural-language spec → real implementation → fresh reviewer → unchanged oracle → completed artifacts through the configured proxy (R1).
+- [x] 2.2 Verify removal of global progress entry and retention of header control in native UI (R4).
 
 ## 3. Execution and control
 - [ ] 3.1 Verify concurrent isolated worktrees, explicit ignored-file inclusion, integration and rollback (R2).

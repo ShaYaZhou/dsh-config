@@ -9,6 +9,7 @@ export const inject=['tools','systemPrompt'];
 export function apply(ctx,config){
  if(!/^[a-z][a-z0-9-]{0,63}$/.test(config.id))throw new Error('Invalid persistent agent id');
  const paths=new Map();
+ const linkedReadTools=['read_session','list_linked_sessions','send_session_message','wait_for_sessions'];
  function memoryFile(agent){
   const cwd=agent?.session.header.cwd??process.cwd();
   if(paths.has(cwd))return paths.get(cwd);
@@ -19,10 +20,11 @@ export function apply(ctx,config){
   fs.mkdirSync(path.dirname(file),{recursive:true});paths.set(cwd,file);return file;
  }
  ctx.on('agent/created',({agent})=>{
+  // Native restrictions name global tools only; linked tools are agent-local and checked by the guard below.
   agent.ctx.tools.restrict({allow:['read','read_image','glob','grep','write']});
  });
  ctx.effect(()=>ctx.tools.guard(exec=>{
-  if(exec.name!=='write')return ['read','read_image','glob','grep','skill','send_message','team_task_get','team_task_list','team_task_update'].includes(exec.name)?undefined:'This read-only agent cannot execute shell, edit project files, or delegate writes.';
+  if(exec.name!=='write')return ['read','read_image','glob','grep','skill','send_message','team_task_get','team_task_list','team_task_update',...linkedReadTools].includes(exec.name)?undefined:'This read-only agent cannot execute shell, edit project files, or delegate writes.';
   const file=memoryFile(exec.agent);
   const requested=exec.arguments?.file_path;
   if(typeof requested!=='string'||path.resolve(exec.agent.session.header.cwd,requested).toLowerCase()!==file.toLowerCase())return 'This agent may write only its own persistent MEMORY.md; project files are read-only.';

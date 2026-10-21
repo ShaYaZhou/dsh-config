@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
+import testHome from './test-home.cjs';
 
 export const repository=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const readJson=file=>JSON.parse(fs.readFileSync(file,'utf8'));
@@ -90,7 +91,7 @@ export function renderPlan(home,settings,artifacts={}, {clean=false}={}){
 }
 function desktopSkillSources(){
  const base='profiles/desktop/agent-capabilities/skills/';
- const sources={[base+'computer-use/SKILL.md']:'skills/computer-use/SKILL.md'};
+ const sources={[base+'computer-use/SKILL.md']:'skills/computer-use/SKILL.md',[base+'dsh-spec-delivery/SKILL.md']:'skills/dsh-spec-delivery/SKILL.md'};
  for(const entry of fs.readdirSync(path.join(repository,'.dsh/skills'),{withFileTypes:true}))if(entry.isDirectory()&&/^openspec-[a-z0-9-]+$/.test(entry.name))sources[base+entry.name+'/SKILL.md']='.dsh/skills/'+entry.name+'/SKILL.md';
  return sources;
 }
@@ -160,7 +161,7 @@ function backup(home,files){
  write(path.join(folder,'backup.json'),json(records));return folder;
 }
 export function staleModulePaths(previous,next){
- return Object.keys(previous?.files??{}).filter(relative=>(/^profiles\/desktop\/agent-capabilities\/[a-z0-9-]+\.mjs$/.test(relative)||/^profiles\/desktop\/agent-capabilities\/skills\/(?:computer-use|openspec-[a-z0-9-]+)\/SKILL\.md$/.test(relative))&&!next.has(relative));
+ return Object.keys(previous?.files??{}).filter(relative=>(/^profiles\/desktop\/agent-capabilities\/[a-z0-9-]+\.mjs$/.test(relative)||/^profiles\/desktop\/agent-capabilities\/skills\/(?:computer-use|dsh-spec-delivery|openspec-[a-z0-9-]+)\/SKILL\.md$/.test(relative))&&!next.has(relative));
 }
 export function install(home,settings,{dryRun=false,refreshLock=false,clean=false}={}){
  const preview=renderPlan(home,settings,{}, {clean});
@@ -268,11 +269,12 @@ function runtimeCheck(home,script,marker){
  const output=execute(command.executable,['--expose-internals',path.join(repository,'scripts',script)],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1',DSH_HOME:home,DSH_SMOKE_FLAVOR:state.flavor??provenance.flavor,DSH_NATIVE_ROOT:path.resolve(path.dirname(command.cli),'..','..')}});
  assert(output.includes(marker),'Runtime check did not complete: '+marker);
  const safe=output.replaceAll(process.env.OPENAI_API_KEY,'<redacted>').replace(/([?&]token=)[^\s]+/g,'$1<redacted>');
- write(path.join(repository,'.local',script==='smoke.cjs'?'smoke-runtime.log':'automatic-session-runtime.log'),safe);
+ write(path.join(repository,'.local',script==='smoke.cjs'?'smoke-runtime.log':script==='test-spec-delivery.cjs'?'spec-delivery-runtime.log':'automatic-session-runtime.log'),safe);
  console.log(safe.split(/\r?\n/).filter(x=>x.startsWith(marker)).join('\n'));
 }
 export function smoke(home){runtimeCheck(home,'smoke.cjs','PORTABLE_SMOKE_PASS');}
-export function automaticTest(home){assert(path.resolve(home)!==path.join(os.homedir(),'.dsh'),'Use an isolated --home for automatic-test');runtimeCheck(home,'test-automatic-sessions.cjs','AUTOMATIC_SESSIONS_PASS');}
+export function automaticTest(home){testHome.assertIsolatedHome(home);runtimeCheck(home,'test-automatic-sessions.cjs','AUTOMATIC_SESSIONS_PASS');}
+export function specTest(home){testHome.assertIsolatedHome(home);runtimeCheck(home,'test-spec-delivery.cjs','SPEC_DELIVERY_PASS');}
 export function migrateLiangshen(home,{dryRun=false}={}){
  const command=runner();
  return JSON.parse(execute(command.executable,['--expose-internals',path.join(repository,'scripts/migrate-liangshen.cjs'),...(dryRun?[]:['--apply'])],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1',DSH_HOME:home,DSH_NATIVE_ROOT:path.resolve(path.dirname(command.cli),'..','..')}}));
@@ -289,6 +291,7 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
   else if(options.command==='lock')saveLocks(options.home);
   else if(options.command==='smoke')smoke(options.home);
   else if(options.command==='automatic-test')automaticTest(options.home);
+  else if(options.command==='spec-test')specTest(options.home);
   else if(options.command==='migrate-liangshen')console.log(json(migrateLiangshen(options.home,options)));
   else throw new Error('Unknown command: '+options.command);
  }catch(error){let message=error.message;if(process.env.OPENAI_API_KEY)message=message.replaceAll(process.env.OPENAI_API_KEY,'<redacted>');console.error(message.replace(/([?&]token=)[^\s]+/g,'$1<redacted>'));process.exitCode=1;}

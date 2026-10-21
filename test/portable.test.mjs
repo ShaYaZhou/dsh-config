@@ -46,6 +46,9 @@ test('official OpenSpec skills deploy portably and native cleanup removes only m
  assert(![...native.keys()].some(name=>name.includes('openspec-')));
  assert(!plan.get('profiles/headless/cordis.patch.yml').includes('agent-capabilities/skills'));
  assert(plan.get('profiles/desktop/cordis.patch.yml').includes('customSkillDirs'));
+ const delivery=base+'dsh-spec-delivery/SKILL.md';
+ assert.equal(plan.get(delivery),fs.readFileSync(path.join(repository,'skills/dsh-spec-delivery/SKILL.md'),'utf8'));
+ assert.deepEqual(staleModulePaths({files:{[delivery]:'old'}},new Map()),[delivery]);
 });
 
 test('desktop configuration does not register the retired liangshen preset',()=>{

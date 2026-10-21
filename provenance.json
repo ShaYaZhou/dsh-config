@@ -71,12 +71,12 @@
     {
       "id": "nested-sessions",
       "package": "@local/dsh-nested-sessions",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
         "changes": [
-          "Root-led collaboration with native workspace sidebar indentation, accessible child ownership and reversible folding; no session record rewrites."
+          "Linked task roles for independent implementation/review; native sidebar hierarchy and conversation-level progress, with the redundant global panel removed."
         ]
       }
     },
@@ -103,7 +103,9 @@
       "profile": "core",
       "skillsSource": ".dsh/skills",
       "license": "MIT",
-      "localChanges": false
+      "localChanges": false,
+      "deliverySkill": "dsh-spec-delivery",
+      "localWorkflowSource": "skills/dsh-spec-delivery/SKILL.md"
     }
   }
 }

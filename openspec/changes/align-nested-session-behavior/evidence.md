@@ -26,14 +26,22 @@ Proprietary extracts remain outside the configuration repository. Implementation
 
 | Requirement | Current evidence | Remaining acceptance |
 | --- | --- | --- |
-| R1 | Delivery skill and reviewer communication fix; real implementation occurred in proxy fixture | Full independent-review/acceptance run not yet passed |
+| R1 | Real natural-language fixture passed: spec precedes delegation, DeepSeek standard child implements, fresh gpt-6.1-sol reviewer inspects, main runs protected oracle and records completed artifacts; persisted task resumes after test timeout | Broader workload coverage; uninterrupted full-run duration was not established |
 | R2 | Native worktree module installed | Concurrent isolation, include and integrated acceptance |
 | R3 | Linked-family unit regressions pass, bounded terminal reports and stopped/archive guards | Native lifecycle and explicit recent-local roster |
-| R4 | Existing native hierarchy verified at prior release; redundant global entry removed in source | Current native UI, attention/tasks/recap/notifications |
+| R4 | Existing native hierarchy verified at prior release; current isolated native host confirms global entry absent and header task popup opens, with native rewind retained | Attention/tasks/recap/notifications; restored legacy panel redirect |
 | R5 | Native browser/diff/terminal already present | Session split, local multi-repository environments and recent-folder flow |
 | R6 | Public contract established | Confirmed suggestion lifecycle, Start all, optional composer suggestions |
 | R7 | Existing btw implementation and prior proxy proof | Current concurrent and shortcut regression |
 | R8 | Native durable manual/pressure compaction available; isolated idle scheduler source and four eligibility/cancellation regressions pass | Native idle integration, user switch and real resume evidence |
 | R9 | User answered remote endpoints unconfigured; proceed locally | User-owned endpoint configuration and real remote checks |
 
-Current source regression: 43 tests passed, none skipped. These are not substitutes for the remaining real-host/proxy checks. Acceptance rows must be updated with actual evidence as work proceeds.
+Current delivery regression: 41 tests passed, none skipped; unmounted idle policy has 5 additional passing tests. These are not substitutes for the remaining real-host/proxy checks. Acceptance rows must be updated with actual evidence as work proceeds.
+
+Current native-host UI proof: `会话内协作入口与全局入口清理验收.png` in the task outputs directory (not committed; contains only synthetic fixture). Tested with desktop runtime 0.2.1-rc.2 and nested-sessions 1.3.0 using actual menu clicks.
+
+Real proxy evidence: `.local/spec-delivery-test/result.json`, `passed:true`, original oracle unchanged, source writes attributed only to implementation child, both children completed, all tasks checked. Initial 600-second test deadline expired after implementation/review/evidence writing; the persisted main task was resumed rather than rerunning planning. The final 21 seconds are the resumed verification segment, not total delivery latency. The verifier now permits 900 seconds and serializes evidence writes. The exact final body with path guard and evidence lock passed through the native Electron runtime. General native smoke also passed (`PORTABLE_SMOKE_PASS`).
+
+Security review found the old case-sensitive home check could accept a Windows alias for production. A shared realpath/case-fold guard now protects both entry commands and direct agent-test scripts. Unit tests cover case, dot segments and junction alias without opening production data; the actual CLI rejects the production case alias before boot. Parallel verifier output is protected by an exclusive lock and a regression verifies release on failure.
+
+Deployment milestone: dry-run followed by managed install succeeded; installer backup `portable-harness-2026-10-21T03-54-02-060Z` retained under the target home's backups. Managed status reports no local drift. Headless package, patch, lock and workspace file hashes are unchanged. No user desktop process was restarted; existing windows load the updated plugin on normal restart. Remote parity and unchecked tasks above remain open.

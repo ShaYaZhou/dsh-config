@@ -27,6 +27,14 @@ rtk proxy openspec init --tools dsh --profile core --language Chinese --no-anima
 
 之后在 DSH 对话中使用：
 
+也可以直接说：**“先用 OpenSpec 写 spec，再自动分配嵌套会话实现、独立审查并运行验收，不用我切命令。需求是……”**。桌面默认提供的 `dsh-spec-delivery` 是本地完整交付技能，区别于下面保持原文的官方分阶段技能。
+
+完整请求会让主会话读取项目、初始化当前项目所需的规格根、按 CLI instructions 写规格和任务，然后自行选择实现子会话及模型，等待结果，安排独立 reviewer，实际运行验收并循环修复。由主会话统一更新任务和 `acceptance.md`。需求不清、执行权限被拒绝、用户之前明确暂停等真实冲突仍需处理；不会自动把失败改成通过，也不会自动推送或发布。只说“先写 spec”则只完成规格。
+
+新会话会按自然语言意图发现这个技能，不要求 `/collaborate`、先进入面板或手工填写人数和模型。现有项目根不明确或 store 声明损坏时不能凭空选择；这类问题会说明具体原因。
+
+维护者可在已安装的隔离 home 运行 `rtk proxy node scripts/harness.mjs spec-test --home <测试目录>`；需要本地注入代理 key，不能使用真实 `.dsh`（包括目录别名）。验收会创建独立测试项目并产生真实模型请求。中断后用同一命令加环境变量 `DSH_SPEC_RESUME_LAST=1` 恢复上次测试项目；保留最初分工记录、源码修改归属和原始验收文件摘要，不把恢复后的单段耗时当全流程耗时。记录只保存在 `.local/`，不提交私人测试会话。
+
 | 入口 | 行为 |
 |---|---|
 | `/openspec-explore` | 调研、理解代码和讨论方案 |
@@ -36,7 +44,7 @@ rtk proxy openspec init --tools dsh --profile core --language Chinese --no-anima
 | `/openspec-sync-specs 变更名` | 将增量规格合入主规格 |
 | `/openspec-archive-change 变更名` | 同步并归档已完成的变更 |
 
-这是技能入口，不是另写一套 `/spec` 命令。新会话若尚未刷新技能列表，重新打开该项目会话。上游 propose 只规划；执行阶段由 apply 明确启动。未启用 OpenSpec 的项目继续正常工作，小修复不必强行套用规格流程。
+这些是官方分阶段技能入口。新会话若尚未刷新技能列表，重新打开该项目会话。上游 propose 只规划，执行阶段由 apply 明确启动；本地完整交付技能直接按 CLI instructions 驱动，避免同一完整请求在规划结束后被迫停住，且不修改上游技能。未启用 OpenSpec 的项目继续正常工作，小修复不必强行套用规格流程。
 
 规格保存于项目的 `openspec/`，与项目代码一起提交 Git。不要把不同业务项目的规格收集到本配置仓库，也不要推送本机 DSH_HOME、会话或凭据。
 

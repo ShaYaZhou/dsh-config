@@ -31,6 +31,7 @@ async function main(){
     const skill=await ctx.skills.get('openspec-'+suffix,{scope:agent,cwd:skillWorkspace});
     assert(skill?.path.replaceAll('\\','/').includes('/agent-capabilities/skills/openspec-'),'Missing managed OpenSpec skill: '+suffix);
    }
+   assert(await ctx.skills.get('dsh-spec-delivery',{scope:agent,cwd:skillWorkspace}),'Missing natural-language spec delivery skill');
   }
   else {assert(!presets.some(p=>p.id==='reviewer'));assert(!ctx.commands.list().some(c=>c.name==='btw'));}
   const signal=AbortSignal.timeout(120000);

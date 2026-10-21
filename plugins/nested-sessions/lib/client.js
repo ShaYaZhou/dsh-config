@@ -408,9 +408,7 @@ window.__ModuleLoader__.load({
 .dsh-nested summary{cursor:pointer}
 .dsh-nested-popup{position:absolute;top:calc(100% + 10px);left:0;width:min(470px,calc(100vw - 30px));max-height:75vh;overflow:auto;z-index:100;padding:22px;border:1px solid var(--dsw-alias-border-l2,#dce0e7);border-radius:14px;background:var(--dsw-alias-bg-layer-1,#fff);box-shadow:0 12px 40px #0002}
 .dsh-nested-popup h2{font-size:18px}
-.dsh-nested-main{width:100%;min-width:0;flex:1;align-self:stretch;overflow:auto;height:100%;box-sizing:border-box;padding:36px clamp(20px,5vw,72px)}
-.dsh-nested-main>.dsh-nested{width:100%;max-width:920px;margin:0 auto}
-@media(max-width:620px){.dsh-nested-main{padding:24px 16px}.dsh-nested-heading{align-items:flex-start;flex-direction:column;gap:8px}.dsh-nested ul ul{margin-left:8px;padding-left:10px}.dsh-nested-card{padding:12px}}
+@media(max-width:620px){.dsh-nested-heading{align-items:flex-start;flex-direction:column;gap:8px}.dsh-nested ul ul{margin-left:8px;padding-left:10px}.dsh-nested-card{padding:12px}}
 `;
 
     async function call(ctx, method, request) {
@@ -425,13 +423,7 @@ window.__ModuleLoader__.load({
       return result.value;
     }
 
-    function Progress({
-      ctx,
-      sessionId,
-      useSessions,
-      useSessionStatus,
-      all = false,
-    }) {
+    function Progress({ ctx, sessionId, useSessions, useSessionStatus }) {
       const list = useSessions((state) => state),
         statuses = useSessionStatus((state) => state);
       const [links, setLinks] = React.useState([]),
@@ -459,7 +451,6 @@ window.__ModuleLoader__.load({
       const refresh = async () => {
         const value = await call(ctx, "list", {
           ...(current ? { sessionId: current } : {}),
-          all,
         });
         setLinks(value.links);
         setAutomatic(value.automatic);
@@ -468,7 +459,7 @@ window.__ModuleLoader__.load({
       React.useEffect(() => {
         let disposed = false;
         const update = () =>
-          call(ctx, "list", { ...(current ? { sessionId: current } : {}), all })
+          call(ctx, "list", { ...(current ? { sessionId: current } : {}) })
             .then((value) => {
               if (!disposed) {
                 setLinks(value.links);
@@ -486,7 +477,7 @@ window.__ModuleLoader__.load({
           disposed = true;
           clearInterval(timer);
         };
-      }, [current, all, list.byId]);
+      }, [current, list.byId]);
       const run = async (action) => {
         setBusy(true);
         setError("");
@@ -669,8 +660,7 @@ window.__ModuleLoader__.load({
           "p",
           { className: "dsh-nested-intro" },
           links.length
-            ? (all ? "共展示 " + links.length + " 个子任务；" : "") +
-                "当前任务 " +
+            ? "当前任务 " +
                 currentLinks.length +
                 " 个子任务，" +
                 running +
@@ -807,27 +797,23 @@ window.__ModuleLoader__.load({
           Header,
         ),
       );
+      // Existing windows may restore the retired panel key; return them to a conversation.
       ctx.slots.inject("main", () =>
-        ctx.slots.inject("sidebar.panellist", function* () {
-          yield ctx.slots.register(
-            { name: "main", key: "nested-sessions" },
-            (props) =>
-              h(
-                "div",
-                { className: "dsh-nested-main" },
-                h(Progress, { ...props, ctx, all: true }),
-              ),
-          );
-          yield ctx.slots.register(
-            {
-              name: "sidebar.panellist",
-              id: "nested-sessions",
-              label: "协作进度",
-              order: 25,
-            },
-            () => h("span", { "aria-hidden": true }, "⑂"),
-          );
-        }),
+        ctx.slots.register(
+          { name: "main", key: "nested-sessions" },
+          ({ useSessions }) => {
+            const list = useSessions((state) => state),
+              archived = ctx.workspaces.list.getSnapshot().archivedSessionIds;
+            const id =
+              Object.values(list.byId).find(
+                (row) => (row.retainedBy?.mainView ?? 0) > 0,
+              )?.id ?? list.ids.find((id) => !archived.includes(id));
+            React.useEffect(() => {
+              if (id) ctx.uiWorkspace.openSession(id);
+            }, [id]);
+            return id ? null : h("p", null, "请从左侧选择会话。");
+          },
+        ),
       );
     }
     return { inject, apply, familyTree, sidebarRows, hasPartialFamily };

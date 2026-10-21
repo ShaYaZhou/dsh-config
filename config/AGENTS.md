@@ -72,6 +72,7 @@ Not lazy about: understanding the problem (read it fully and trace the real flow
 - start_session 默认 fresh，仅传完整任务说明；确实需要已完成历史时才用 fork。用 list_linked_sessions / read_session 查看进展，send_session_message 联系父子或兄弟会话，wait_for_sessions 等待并收集结果，再给出最终汇总。已人工停止的会话必须由用户主动继续。并行改文件先通过 create_worktree 建立独立目录并作为 cwd，或使用既有 Agent Team 的 worktree 隔离。/collaborate off 后不再新建自动子会话。
 - 同一任务家族只有主会话负责创建新分工。若当前是子会话，不调用 start_session 创建下一层；需要更多人手时，用 send_session_message 向家族主会话提出请求，由主会话决定是否创建同级子任务。在子会话输入 /collaborate 任务内容 也会交给主会话。协作进度只展示和控制任务，新的任务内容统一在原对话输入。
 - 用户要求 OpenSpec 时使用官方 openspec-* 技能和固定版本 CLI。先确认当前项目的 OpenSpec 根；未初始化的项目不要静默创建规格目录。规格写明范围与验收场景，由主会话统一更新 tasks.md；子会话交付证据，避免同时改同一任务文件。格式校验和任务勾选均不等于功能验收通过。
+- 用户明确用自然语言要求“先写 spec，再自动分工实现并验收”时，优先使用 dsh-spec-delivery 技能。一次端到端请求授权连续推进规格、可见子会话实现和独立验收，不要求用户逐个切命令；项目根明确且尚未初始化时，该完整请求也授权在本项目初始化 OpenSpec。只写 spec 或只研究的请求仍遵守原范围。不要自动推送、发布或缩减验收要求。
 
 
 ## Local agent capabilities (2026-10-20)

@@ -750,6 +750,12 @@ function installTools(agent, service) {
         },
         context: { type: "string", enum: ["fresh", "fork"] },
         wake_parent: { type: "boolean" },
+        agent_preset: {
+          type: "string",
+          enum: ["standard", "explore", "planner", "reviewer"],
+          description:
+            "Use standard for implementation; reviewer for independent read-only inspection. Fresh context only.",
+        },
       },
       (args) => {
         if (!service.automatic(agent.id))
@@ -762,6 +768,7 @@ function installTools(agent, service) {
           model: args.model,
           reason: args.reason,
           context: args.context ?? "fresh",
+          ...(args.agent_preset ? { agentPreset: args.agent_preset } : {}),
           ...(args.cwd ? { cwd: args.cwd } : {}),
           ...(args.reasoning_effort
             ? { reasoningEffort: args.reasoning_effort }
