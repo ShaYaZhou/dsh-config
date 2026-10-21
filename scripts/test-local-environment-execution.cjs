@@ -393,6 +393,9 @@ async function main() {
       );
     phase("native multi-repository environment");
     const catalog = ctx.localEnvironmentCatalog;
+    const { localGit } = await import(
+      pathToFileURL(path.join(candidate, "lib/workspace.js"))
+    );
     const catalogId = "catalog-" + randomUUID();
     const repoRoots = [];
     for (const repo of ["web", "api"]) {
@@ -404,20 +407,23 @@ async function main() {
         path.join(root, ".gitignore"),
         ".dsh/\nprivate.env\nempty-hooks/\n",
       );
-      await catalog.git(
+      await localGit(
+        ctx,
         root,
         ["-c", "init.templateDir=", "init", "-b", "main"],
         signal,
       );
-      await catalog.git(
+      await localGit(
+        ctx,
         root,
         ["config", "core.hooksPath", path.join(root, "empty-hooks")],
         signal,
       );
-      await catalog.git(root, ["config", "core.longpaths", "true"], signal);
-      await catalog.git(root, ["config", "core.autocrlf", "false"], signal);
-      await catalog.git(root, ["add", "seed.txt", ".gitignore"], signal);
-      await catalog.git(
+      await localGit(ctx, root, ["config", "core.longpaths", "true"], signal);
+      await localGit(ctx, root, ["config", "core.autocrlf", "false"], signal);
+      await localGit(ctx, root, ["add", "seed.txt", ".gitignore"], signal);
+      await localGit(
+        ctx,
         root,
         [
           "-c",

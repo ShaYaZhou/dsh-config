@@ -6,7 +6,12 @@ import {
   principalOf,
 } from "@deepseek-ai/dsh-typert-protocol";
 import { defineDomain } from "@deepseek-ai/dsh-storage-domain";
-import { realpath, stat } from "node:fs/promises";
+import { stat } from "node:fs/promises";
+import {
+  canonicalDirectory,
+  preflightRepositories,
+  createRepositoryWorkspaces,
+} from "./workspace.js";
 import path from "node:path";
 import {
   definitionSchema,
@@ -102,14 +107,6 @@ export class LocalEnvironmentCatalog extends TypertRemoteService {
     if (!row) throw new Error("Environment does not exist: " + id);
     return row;
   }
-  async directory(value) {
-    if (!path.isAbsolute(value))
-      throw new Error("Bind an existing absolute folder on this computer");
-    const canonical = await realpath(value);
-    if (!(await stat(canonical)).isDirectory())
-      throw new Error("Binding is not a directory");
-    return canonical;
-  }
   async list(request) {
     this.input("list", request);
     return this.domain.global.get();
@@ -145,7 +142,7 @@ export class LocalEnvironmentCatalog extends TypertRemoteService {
       if (!definition.repositories.some((repo) => repo.key === input.key))
         throw new Error("The repository key is not part of this environment");
       const canonical =
-        input.path === null ? null : await this.directory(input.path);
+        input.path === null ? null : await canonicalDirectory(input.path);
       signal.throwIfAborted();
       const state = this.domain.global.get();
       const bindings = { ...state.bindings[input.id] };
@@ -190,75 +187,21 @@ export class LocalEnvironmentCatalog extends TypertRemoteService {
       return { imported: input.environments.length };
     });
   }
-  async git(cwd, args, signal) {
-    signal.throwIfAborted();
-    const task = this.ctx.subprocess.spawn({
-      argv: ["git", "--no-optional-locks", "-C", cwd, ...args],
-      cwd,
-      signal,
-      env: { GIT_NO_LAZY_FETCH: "1", GIT_TERMINAL_PROMPT: "0" },
-      graceMs: 1000,
-      stdio: {
-        stdin: "ignore",
-        stdout: { maxBytes: 8192 },
-        stderr: { maxBytes: 8192 },
-      },
-    });
-    const outcome = await task.done;
-    signal.throwIfAborted();
-    const stdout = task.collected.stdout.readFrom(0);
-    if (outcome.exitCode !== 0 || stdout.lossy)
-      throw new Error(
-        "Local Git reference cannot be resolved; check the folder and base ref",
-      );
-    return stdout.text.trim();
-  }
   async launch(request) {
     const { id } = this.input("launch", request);
     return this.serialize(async (signal) => {
       const definition = this.definition(id);
       const bindings = this.domain.global.get().bindings[id] ?? {};
-      const repositories = [];
-      // Resolve every binding and local revision before creating retained artifacts.
-      for (const repo of definition.repositories) {
-        if (!bindings[repo.key])
-          throw new Error("Bind a local folder for " + repo.key);
-        const sourceRoot = await this.directory(bindings[repo.key]);
-        signal.throwIfAborted();
-        let commit;
-        if (repo.mode === "worktree") {
-          const root = await this.directory(
-            await this.git(
-              sourceRoot,
-              ["rev-parse", "--show-toplevel"],
-              signal,
-            ),
-          );
-          if (root !== sourceRoot)
-            throw new Error(
-              "Worktree bindings must point to the repository root",
-            );
-          commit = await this.git(
-            sourceRoot,
-            [
-              "rev-parse",
-              "--verify",
-              "--end-of-options",
-              (repo.baseRef ?? "HEAD") + "^{commit}",
-            ],
-            signal,
-          );
-          if (!/^[a-f0-9]{40,64}$/.test(commit))
-            throw new Error("Invalid resolved Git commit");
-        }
-        repositories.push({
+      const planned = await preflightRepositories(
+        this.ctx,
+        definition.repositories.map((repo) => ({
           key: repo.key,
-          sourceRoot,
-          cwd: sourceRoot,
+          path: bindings[repo.key],
           worktree: repo.mode === "worktree",
-          commit,
-        });
-      }
+          from: repo.baseRef,
+        })),
+        signal,
+      );
       await this.ctx.localEnvironments.configuredValues(
         id,
         definition.requiredVariables,
@@ -266,24 +209,13 @@ export class LocalEnvironmentCatalog extends TypertRemoteService {
       );
       const prepared = [];
       try {
-        for (const repo of repositories) {
-          if (!repo.worktree) continue;
-          signal.throwIfAborted();
-          const setup = await this.ctx.sessionController.create({
-            cwd: repo.sourceRoot,
-          });
-          prepared.push(setup.sessionId);
-          const { agent } = await this.ctx.sessionController.resolveAgent(
-            setup.sessionId,
-          );
-          const tree = await this.ctx.worktrees.create(
-            agent,
-            { from: repo.commit },
-            signal,
-          );
-          repo.cwd = tree.path;
-          repo.branch = tree.branch;
-        }
+        const isolation = await createRepositoryWorkspaces(
+          this.ctx,
+          planned,
+          signal,
+        );
+        prepared.push(...isolation.preparationSessionIds);
+        const repositories = isolation.repositories;
         signal.throwIfAborted();
         const workspace = await this.ctx.workspaceRegistry.create(
           repositories[0].cwd,
@@ -364,7 +296,7 @@ export class LocalEnvironmentCatalog extends TypertRemoteService {
   async openFolder(request) {
     const input = this.input("openFolder", request);
     return this.serialize(async (signal) => {
-      const cwd = await this.directory(input.path);
+      const cwd = await canonicalDirectory(input.path);
       signal.throwIfAborted();
       const workspace = await this.ctx.workspaceRegistry.create(cwd);
       return this.ctx.sessionController.create({ workspaceId: workspace.id });

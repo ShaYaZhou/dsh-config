@@ -1015,6 +1015,53 @@ nativeTest(
 );
 
 nativeTest(
+  "trusted linked sends honor cancellation across queue and target resolution",
+  async () => {
+    for (const boundary of ["queue", "resolve"]) {
+      const f = fixture();
+      const child = await f.service.start({
+        sessionId: "root",
+        title: "A",
+        context: "fresh",
+      });
+      let release, entered;
+      const gate = new Promise((resolve) => {
+        release = resolve;
+      });
+      const waiting = new Promise((resolve) => {
+        entered = resolve;
+      });
+      if (boundary === "queue") {
+        void f.service.serialize(async () => {
+          entered();
+          await gate;
+        });
+      } else {
+        f.ctx.sessionController.resolveAgent = async (id) => {
+          entered();
+          await gate;
+          return { agent: f.agents.get(id) };
+        };
+      }
+      const controller = new AbortController();
+      const sent = f.service.sendWithSignal(
+        {
+          sessionId: "root",
+          targetSessionId: child.sessionId,
+          message: "stale brief",
+        },
+        controller.signal,
+      );
+      await waiting;
+      controller.abort(new Error("source scope changed"));
+      release();
+      await assert.rejects(sent, /source scope changed/);
+      assert.equal(f.deliveries.length, 0);
+    }
+  },
+);
+
+nativeTest(
   "strict requests and session access guards reject before creating or disclosing data",
   async () => {
     const f = fixture();

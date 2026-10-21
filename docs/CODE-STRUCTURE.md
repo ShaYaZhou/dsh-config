@@ -1,5 +1,7 @@
 # 自写改动的职责与依赖回查
 
+后续建议集中在 `plugins/follow-ups`：`state.js` 折叠提议与 admission；后端持有 owner 确认、原生偏好及工作区准备，前端复用原生 composer 槽位和 revision-guarded InputActions。模型不能确认执行。`local-environments/workspace` 公开共享原生工作树准备，`nestedSessions.sendWithSignal` 是不暴露为 Remote 的取消派发入口；不导入其他插件私有状态。详见 `FOLLOW-UPS.md`。
+
 本地环境集中在 `plugins/local-environments`：`definition.js` 只定义便携 schema；`catalog.js` 管理 owner-only 配置与原生工作区准备；`index.js` 读取可忽略会话记录及凭据变量；`pwsh.js`/`subprocess.js` 只在原生执行边界合并本会话变量。`client.js` 的设置页和侧栏弹窗共用管理组件，导航用原生会话引用保留最近启动来源，不复制草稿。目录/ref/变量预检先于原生 worktree 创建；失败保留原生产物，不另外实现 Git 或进程管理器。
 
 当前宿主没有公开的当前会话观察接口，返回来源的导航适配读取固定 0.2.1-rc.2 的 `uiWorkspace.selection` 内部 SnapshotStore；它不是公开 UiWorkspace 接口。升级时须重新验证或替换为公开接口。引用保留/释放和导航本身使用原生公开能力。

@@ -682,6 +682,9 @@ export class NestedSessions extends TypertRemoteService {
     });
   }
   async send(request) {
+    return this.sendWithSignal(request, this.ctx.invocation?.signal);
+  }
+  async sendWithSignal(request, signal) {
     const input = parse("send", request);
     this.assertAccess(input.sessionId);
     this.assertAccess(input.targetSessionId);
@@ -692,10 +695,12 @@ export class NestedSessions extends TypertRemoteService {
         {},
       );
     return this.serialize(async () => {
+      signal?.throwIfAborted();
       this.assertFamily(input.sessionId, input.targetSessionId);
       this.assertMessaging(input.targetSessionId);
       this.assertMessaging(input.sessionId, "sender");
       const target = await this.agent(input.targetSessionId);
+      signal?.throwIfAborted();
       this.assertMessaging(input.targetSessionId);
       this.assertMessaging(input.sessionId, "sender");
       target.followup(
@@ -1052,13 +1057,16 @@ function installTools(agent, service) {
         target_session_id: target,
         message: { type: "string", required: true },
       },
-      (args) => {
+      (args, exec) => {
         service.assertFamily(agent.id, args.target_session_id);
-        return service.send({
-          sessionId: agent.id,
-          targetSessionId: args.target_session_id,
-          message: args.message,
-        });
+        return service.sendWithSignal(
+          {
+            sessionId: agent.id,
+            targetSessionId: args.target_session_id,
+            message: args.message,
+          },
+          exec.signal,
+        );
       },
     ],
     [

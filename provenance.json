@@ -4,14 +4,29 @@
   "nativeSource": "Official installed DeepSeek Harness desktop package",
   "plugins": [
     {
-      "id": "local-environments",
-      "package": "@local/dsh-local-environments",
+      "id": "follow-ups",
+      "package": "@local/dsh-follow-ups",
       "version": "0.1.0",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
         "changes": [
+          "Model offers bounded optional tasks without executing them; only owner confirmation admits isolated workspaces or a human queue request.",
+          "Ignorable session records preserve admission identities; cold dismissal and persistent prompt preferences use the native storage domain without activating agents.",
+          "Native composer cards and opt-out ghost prompts adopt through revision-guarded input actions without auto-send or background suggestion inference."
+        ]
+      }
+    },
+    {
+      "id": "local-environments",
+      "package": "@local/dsh-local-environments",
+      "version": "0.1.1",
+      "license": "UNLICENSED",
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "changes": [
           "Owner-only saved local environments with portable definitions, machine-scoped folder bindings and write-only credential-backed variables.",
+          "Public workspace preparation helpers share native preflight, permission inheritance and reserved setup identities with confirmed follow-ups.",
           "Session-scoped native PowerShell/PTY overlays, native worktree preparation and fresh conversations with independent repository sandbox roots.",
           "Recent folders and environment management in native settings and a sidebar footer dialog; preserves existing drafts and histories."
         ]
@@ -22,7 +37,12 @@
       "package": "@local/dsh-idle-settings",
       "version": "1.0.0",
       "license": "UNLICENSED",
-      "localChanges": { "unpublishedLocalBuild": true, "changes": ["Native settings section for the separate idle maintenance capability; uses ConfigForms and Switch without a second settings store."] }
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "changes": [
+          "Native settings section for the separate idle maintenance capability; uses ConfigForms and Switch without a second settings store."
+        ]
+      }
     },
     {
       "id": "memory",
@@ -94,7 +114,7 @@
     {
       "id": "nested-sessions",
       "package": "@local/dsh-nested-sessions",
-      "version": "1.3.0",
+      "version": "1.3.1",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
@@ -107,7 +127,8 @@
           "Side-by-side linked conversations reuse native retained session references, SessionProvider and embedded Conversation factory in a native right-sidebar tab; independent drafts and native permissions remain scoped to each session.",
           "Background completion notices use ephemeral actual-turn records, existing access/stop/archive checks, an additive native overlay and already-authorized Web Notifications; local mute preference, initial-history suppression and per-turn deduplication preserve user control.",
           "Explicit per-caller transient authorization enables bounded cross-workspace local history roster/read tools without inheriting grants, activating targets or widening family controls; grant versions fence asynchronous revocation.",
-          "Global session status groups use a native terminal-event projection and bounded read-only metadata RPC; a native sidebar footer popover preserves the workspace hierarchy without restoring a global collaboration page or making model calls."
+          "Global session status groups use a native terminal-event projection and bounded read-only metadata RPC; a native sidebar footer popover preserves the workspace hierarchy without restoring a global collaboration page or making model calls.",
+          "Trusted linked dispatch propagates caller cancellation across queued admission and target resolution; remote send keeps its existing wire schema."
         ]
       }
     },

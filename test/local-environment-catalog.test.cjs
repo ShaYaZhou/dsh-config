@@ -73,6 +73,11 @@ async function fixture(t) {
     box,
   );
   vm.runInContext(
+    read("workspace.js") +
+      "\nthis.prepareWorkspaces=createRepositoryWorkspaces;this.preflight=preflightRepositories;",
+    box,
+  );
+  vm.runInContext(
     read("catalog.js") +
       "\nthis.Catalog=LocalEnvironmentCatalog;this.specification=spec;",
     box,
@@ -89,6 +94,14 @@ async function fixture(t) {
     },
   };
   const ctx = {
+    permissionPresets: {
+      set: (session, preset) =>
+        calls.push({ kind: "permission", sessionId: session.id, preset }),
+    },
+    sessions: {
+      flush: async (session) =>
+        calls.push({ kind: "flush", sessionId: session.id }),
+    },
     localEnvironments: {
       setVariables: async (id, value) =>
         calls.push({ kind: "variables", id, value }),
@@ -106,7 +119,7 @@ async function fixture(t) {
     sessionController: {
       create: async (request) => {
         calls.push({ kind: "create", request });
-        const id = "session-" + agents.size;
+        const id = request.sessionId ?? "session-" + agents.size;
         agents.set(id, {
           id,
           cwd: request.cwd ?? request.workspaceId,
@@ -167,8 +180,58 @@ async function fixture(t) {
     definition,
     state: () => state,
     portable: box.portable,
+    prepareWorkspaces: box.prepareWorkspaces,
+    preflight: box.preflight,
   };
 }
+
+nativeTest(
+  "shared native preparation reserves identities and persists inherited permissions before filesystem effects",
+  async (t) => {
+    const f = await fixture(t),
+      signal = AbortSignal.timeout(1000);
+    const planned = await f.preflight(
+      f.ctx,
+      [{ key: "web", path: f.root, worktree: true }],
+      signal,
+    );
+    const result = await f.prepareWorkspaces(f.ctx, planned, signal, {
+      permissionPreset: "workspace-write",
+      sessionIds: { web: "session-reserved" },
+    });
+    assert.equal(result.preparationSessionIds[0], "session-reserved");
+    assert.equal(
+      f.calls.find((call) => call.kind === "permission").preset,
+      "workspace-write",
+    );
+    assert(
+      f.calls.findIndex((call) => call.kind === "flush") <
+        f.calls.findIndex((call) => call.kind === "worktree"),
+    );
+    assert.equal(
+      planned[0].cwd,
+      f.root,
+      "Preparation must not mutate its caller's source selection",
+    );
+    f.ctx.sessionController.create = async () => ({
+      sessionId: "session-other",
+    });
+    const before = f.calls.filter((call) => call.kind === "worktree").length;
+    await assert.rejects(
+      f.prepareWorkspaces(f.ctx, planned, signal, {
+        sessionIds: { web: "session-reserved" },
+      }),
+      (error) => {
+        assert.equal(error.preparationSessionIds[0], "session-other");
+        return /not reusable/.test(error.message);
+      },
+    );
+    assert.equal(
+      f.calls.filter((call) => call.kind === "worktree").length,
+      before,
+    );
+  },
+);
 
 nativeTest(
   "owner-only environment definitions export without host bindings or variable values",

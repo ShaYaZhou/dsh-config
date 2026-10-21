@@ -281,6 +281,7 @@ export function lifecycleTest(home){testHome.assertIsolatedHome(home);runtimeChe
 export function btwTest(home){testHome.assertIsolatedHome(home);runtimeCheck(home,'test-btw-concurrency.cjs','BTW_CONCURRENCY_PASS','btw-concurrency-runtime.log');}
 export function attentionTest(home){testHome.assertIsolatedHome(home);runtimeCheck(home,'test-global-attention.cjs','GLOBAL_ATTENTION_PASS','global-attention-runtime.log');}
 export function environmentExecutionTest(home){testHome.assertIsolatedHome(home);runtimeCheck(home,'test-local-environment-execution.cjs','LOCAL_ENVIRONMENT_EXECUTION_PASS','local-environment-execution-runtime.log');}
+export function followUpsTest(home){testHome.assertIsolatedHome(home);runtimeCheck(home,'test-follow-ups.cjs','FOLLOW_UPS_PASS','follow-ups-runtime.log');}
 export function migrateLiangshen(home,{dryRun=false}={}){
  const command=runner();
  return JSON.parse(execute(command.executable,['--expose-internals',path.join(repository,'scripts/migrate-liangshen.cjs'),...(dryRun?[]:['--apply'])],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1',DSH_HOME:home,DSH_NATIVE_ROOT:path.resolve(path.dirname(command.cli),'..','..')}}));
@@ -304,6 +305,7 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
   else if(options.command==='btw-test')btwTest(options.home);
   else if(options.command==='attention-test')attentionTest(options.home);
   else if(options.command==='environment-execution-test')environmentExecutionTest(options.home);
+  else if(options.command==='follow-ups-test')followUpsTest(options.home);
   else if(options.command==='migrate-liangshen')console.log(json(migrateLiangshen(options.home,options)));
   else throw new Error('Unknown command: '+options.command);
  }catch(error){let message=error.message;if(process.env.OPENAI_API_KEY)message=message.replaceAll(process.env.OPENAI_API_KEY,'<redacted>');console.error(message.replace(/([?&]token=)[^\s]+/g,'$1<redacted>'));process.exitCode=1;}

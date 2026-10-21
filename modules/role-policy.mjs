@@ -9,7 +9,7 @@ export const inject=['tools','systemPrompt'];
 export function apply(ctx,config){
  if(!/^[a-z][a-z0-9-]{0,63}$/.test(config.id))throw new Error('Invalid persistent agent id');
  const paths=new Map();
- const linkedReadTools=['read_session','list_linked_sessions','send_session_message','wait_for_sessions','list_recent_sessions','read_local_session'];
+ const linkedReadTools=['read_session','list_linked_sessions','send_session_message','wait_for_sessions','list_recent_sessions','read_local_session','propose_followups'];
  function memoryFile(agent){
   const cwd=agent?.session.header.cwd??process.cwd();
   if(paths.has(cwd))return paths.get(cwd);

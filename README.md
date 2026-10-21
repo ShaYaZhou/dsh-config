@@ -32,7 +32,7 @@ rtk proxy node scripts/harness.mjs install
 
 可见浏览器、目标高亮、交互式批注和 Windows computer-use 的操作与验收边界见 [浏览器与桌面控制](docs/BROWSER-COMPUTER-USE.md)。
 
-内置浏览器有独立的 **截图** 和 **批注** 入口：截图不必填写意见；批注支持元素吸附、CSS 定位和可选的编号图片。职责与依赖回查见 [代码结构](docs/CODE-STRUCTURE.md)；后续改动遵循仓库根目录 `AGENTS.md`。
+内置浏览器有独立的 **截图** 和 **批注** 入口：截图不必填写意见；批注支持元素吸附、CSS 定位和可选的编号图片。可选后续任务支持确认后独立启动或在当前会话执行，详见 [后续建议](docs/FOLLOW-UPS.md)。职责与依赖回查见 [代码结构](docs/CODE-STRUCTURE.md)；后续改动遵循仓库根目录 `AGENTS.md`。
 
 在原对话输入 **/collaborate 任务内容** 即可发起协作；也可直接说 **“先用 OpenSpec 写 spec，再自动分工实现、独立审查和验收，需求是……”**。主 Agent 自己选择数量和模型，不要求手工切阶段命令。子会话需要更多分工时请求主会话创建同级任务。左侧会话树展示层级，标题栏 **任务协作** 查看模型、结果和停止操作，重复的全局进度入口已移除。详见 [嵌套会话](docs/NESTED-SESSIONS.md) 和 [规格交付](docs/OPENSPEC.md)。
 
