@@ -4,27 +4,9 @@ const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
 const { createHash, randomUUID } = require("node:crypto");
 const { pathToFileURL } = require("node:url");
-const { assertIsolatedHome } = require("./test-home.cjs");
+const { assertIsolatedHome, withAgentTestHomeLock } = require("./test-home.cjs");
+const { withOutputLock } = require("./test-output-lock.cjs");
 const output = path.resolve(__dirname, "../.local/spec-delivery-test");
-
-async function withOutputLock(folder, action) {
-  fs.mkdirSync(folder, { recursive: true });
-  const lock = path.join(folder, "runner.lock");
-  let handle;
-  try {
-    handle = fs.openSync(lock, "wx");
-  } catch (error) {
-    if (error.code === "EEXIST") throw new Error(`Another spec-test owns ${lock}. Run these checks serially; remove a stale lock only after its recorded process has exited.`);
-    throw error;
-  }
-  try {
-    fs.writeFileSync(handle, JSON.stringify({ pid: process.pid }));
-    return await action();
-  } finally {
-    fs.closeSync(handle);
-    fs.unlinkSync(lock);
-  }
-}
 
 async function main() {
   process.env.OPENSPEC_TELEMETRY = '0';
@@ -383,8 +365,7 @@ console.log('SPEC_COUNT_ACCEPTANCE_PASS');
     await shutdown.shutdown(0);
   }
 }
-module.exports = { withOutputLock };
-if (require.main === module) withOutputLock(output, main).catch((error) => {
+if (require.main === module) withOutputLock(output, () => withAgentTestHomeLock(process.env.DSH_HOME, main)).catch((error) => {
   console.error(error.stack);
   process.exitCode = 1;
 });

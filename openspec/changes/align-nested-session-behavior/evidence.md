@@ -33,10 +33,16 @@ Proprietary extracts remain outside the configuration repository. Implementation
 | R5 | Native browser/diff/terminal already present | Session split, local multi-repository environments and recent-folder flow |
 | R6 | Public contract established | Confirmed suggestion lifecycle, Start all, optional composer suggestions |
 | R7 | Existing btw implementation and prior proxy proof | Current concurrent and shortcut regression |
-| R8 | Native durable manual/pressure compaction available; isolated idle scheduler source and four eligibility/cancellation regressions pass | Native idle integration, user switch and real resume evidence |
+| R8 | Native idle maintenance mounted for four roles; real proxy summary/checkpoint at 402075 estimated tokens, original history preserved, resumed fact retained, persistent native off/on switch and archive cancellation verified | Production 54-minute default checked by fake clock/config; actual host timer tested at 60 seconds, not a full 54-minute wait |
 | R9 | User answered remote endpoints unconfigured; proceed locally | User-owned endpoint configuration and real remote checks |
 
-Current delivery regression: 41 tests passed, none skipped; unmounted idle policy has 5 additional passing tests. These are not substitutes for the remaining real-host/proxy checks. Acceptance rows must be updated with actual evidence as work proceeds.
+Current regression: 56 tests passed, none skipped. Timer overlap was reproduced with two eligible sessions before adding the single-flight guard; the regression now verifies serial progress after completion. These checks are not substitutes for the remaining acceptance rows.
+
+Idle native evidence: `.local/idle-compaction-test/result.json`, `passed:true`, elapsed 264 seconds. The native settings switch prevented compaction while off across restart; a temporary CLI overlay used a 60-second wait without persisting that test interval. Four roles had four distinct native engines. Real summary/checkpoint retained the verification fact; original event-prefix hash was unchanged and the later reply used no tool calls. Slow maintenance blocked plain archive and was cancelled by stop-and-archive without committing a summary. All three acceptance runners share a canonical-home lease and separate output locks.
+
+Idle UI proof in task outputs: `空闲压缩原生设置验收.png`, `空闲压缩原生设置关闭验收.png`, `空闲压缩原生会话结果验收.png`. Actual native ConfigForms/Switch clicks saved off/on, refresh preserved off, and the conversation showed five compressed records and about 6% active context. Synthetic fixtures only; no user history was compacted for acceptance.
+
+Peer diagnostic is not green: the native `plugin peers check` exits 1 for existing host-provided SDK/React peer declarations. The new dependency-free settings companion adds no duplicate SDK/React; frozen installation and actual host UI/services/model execution pass using the repository's pinned host dependency closure. No peer-warning suppression or third-party dependency upgrade was introduced.
 
 Current native-host UI proof: `会话内协作入口与全局入口清理验收.png` in the task outputs directory (not committed; contains only synthetic fixture). Tested with desktop runtime 0.2.1-rc.2 and nested-sessions 1.3.0 using actual menu clicks.
 
@@ -45,3 +51,5 @@ Real proxy evidence: `.local/spec-delivery-test/result.json`, `passed:true`, ori
 Security review found the old case-sensitive home check could accept a Windows alias for production. A shared realpath/case-fold guard now protects both entry commands and direct agent-test scripts. Unit tests cover case, dot segments and junction alias without opening production data; the actual CLI rejects the production case alias before boot. Parallel verifier output is protected by an exclusive lock and a regression verifies release on failure.
 
 Deployment milestone: dry-run followed by managed install succeeded; installer backup `portable-harness-2026-10-21T03-54-02-060Z` retained under the target home's backups. Managed status reports no local drift. Headless package, patch, lock and workspace file hashes are unchanged. No user desktop process was restarted; existing windows load the updated plugin on normal restart. Remote parity and unchecked tasks above remain open.
+
+Idle milestone: final frozen isolated install and real-proxy smoke passed after the timer overlap fix. Production managed install followed dry-run, backup `portable-harness-2026-10-21T05-19-28-123Z`; status has no drift and all four headless managed-file hashes are unchanged. No existing user desktop process was stopped or restarted.

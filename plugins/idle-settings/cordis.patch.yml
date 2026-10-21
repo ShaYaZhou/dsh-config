@@ -1,0 +1,3 @@
+- insert:
+    - id: idle-settings
+      name: '@local/dsh-idle-settings'

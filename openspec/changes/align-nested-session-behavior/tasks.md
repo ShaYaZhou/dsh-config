@@ -21,8 +21,8 @@
 - [ ] 4.6 Verify btw context inheritance, non-interruption and separate transcript/shortcut (R7).
 
 ## 5. Maintenance and release
-- [ ] 5.1 Implement idle eligibility/off switch/race tests using native maintenance admission (R8).
-- [ ] 5.2 Verify actual summary, durable history and resume through proxy (R8).
+- [x] 5.1 Implement idle eligibility/off switch/race tests using native maintenance admission (R8).
+- [x] 5.2 Verify actual summary, durable history and resume through proxy (R8).
 - [ ] 5.3 Run complete regression, native UI and deployment drift checks; back up and deploy verified changes.
 - [ ] 5.4 Record evidence and limitations, inspect diff for secrets/absolute paths, commit and push.
 - [ ] 5.5 Configure and test user-owned remote environments when endpoints are provided (R9; user deferred configuration).

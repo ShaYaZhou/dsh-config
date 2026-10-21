@@ -31,6 +31,26 @@ test('only explicit expression nodes emit JS tags; scalar strings retain their t
  assert.throws(()=>parseArgs(['install','--settings']),/Missing/);
 });
 
+test('idle maintenance installs only on desktop and binds inside native compaction isolation',()=>{
+ const plan=renderPlan(path.join(os.tmpdir(),'idle portable home'),settings);
+ const config=JSON.parse(fs.readFileSync(path.join(repository,'config/desktop.patch.json'),'utf8'));
+ const globalPolicy=config.flatMap(row=>row.insert??[]).find(row=>row.id==='idle-compaction');
+ assert.deepEqual(globalPolicy.config,{enabled:true,idleMs:3240000,minTokens:200000});
+ const preset=config.find(row=>row.id==='preset-standard');
+ const group=preset.config.plugins.find(row=>row.id==='compaction');
+ assert.equal(group.isolate.compaction,true);
+ assert(group.config.some(row=>row.id==='idle-compaction-agent'));
+ for(const role of ['explore','planner','reviewer']){
+  const rolePreset=config.flatMap(row=>row.insert??[]).find(row=>row.id==='preset-'+role);
+  const roleGroup=rolePreset.config.plugins.find(row=>row.id==='compaction');
+  assert.equal(roleGroup.isolate.compaction,true);
+  assert(roleGroup.config.some(row=>row.id==='idle-compaction-agent'));
+ }
+ for(const file of ['idle-compaction.mjs','idle-compaction-agent.mjs'])assert(plan.has('profiles/desktop/agent-capabilities/'+file));
+ assert(!plan.get('profiles/headless/cordis.patch.yml').includes('idle-compaction'));
+ assert(!renderPlan(path.join(os.tmpdir(),'native idle home'),settings,{}, {clean:true}).get('profiles/desktop/cordis.patch.yml').includes('idle-compaction'));
+});
+
 test('official OpenSpec skills deploy portably and native cleanup removes only managed skill files',()=>{
  const plan=renderPlan(path.join(os.tmpdir(),'spec portable home'),settings),base='profiles/desktop/agent-capabilities/skills/';
  const source=JSON.parse(fs.readFileSync(path.join(repository,'provenance.json'),'utf8')).integrations.openspec;

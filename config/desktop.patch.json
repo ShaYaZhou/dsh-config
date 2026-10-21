@@ -247,6 +247,15 @@
       {
         "id": "tool-worktree",
         "name": "${MODULE_URL}/worktree-tools.mjs"
+      },
+      {
+        "id": "idle-compaction",
+        "name": "${MODULE_URL}/idle-compaction.mjs",
+        "config": {
+          "enabled": true,
+          "idleMs": 3240000,
+          "minTokens": 200000
+        }
       }
     ]
   },
@@ -358,6 +367,10 @@
               "config": {
                 "auto": true
               }
+            },
+            {
+              "id": "idle-compaction-agent",
+              "name": "${MODULE_URL}/idle-compaction-agent.mjs"
             },
             {
               "id": "command-compact",
@@ -510,6 +523,27 @@
               }
             },
             {
+              "id": "compaction",
+              "name": "cordis:group",
+              "group": true,
+              "isolate": { "compaction": true },
+              "config": [
+                {
+                  "id": "compaction-basic",
+                  "name": "${MODULE_URL}/compaction-basic.mjs",
+                  "config": { "auto": true }
+                },
+                {
+                  "id": "idle-compaction-agent",
+                  "name": "${MODULE_URL}/idle-compaction-agent.mjs"
+                },
+                {
+                  "id": "command-compact",
+                  "name": "@deepseek-ai/dsh-command-compact"
+                }
+              ]
+            },
+            {
               "id": "role-policy",
               "name": "${MODULE_URL}/role-policy.mjs",
               "config": {
@@ -562,6 +596,27 @@
               }
             },
             {
+              "id": "compaction",
+              "name": "cordis:group",
+              "group": true,
+              "isolate": { "compaction": true },
+              "config": [
+                {
+                  "id": "compaction-basic",
+                  "name": "${MODULE_URL}/compaction-basic.mjs",
+                  "config": { "auto": true }
+                },
+                {
+                  "id": "idle-compaction-agent",
+                  "name": "${MODULE_URL}/idle-compaction-agent.mjs"
+                },
+                {
+                  "id": "command-compact",
+                  "name": "@deepseek-ai/dsh-command-compact"
+                }
+              ]
+            },
+            {
               "id": "role-policy",
               "name": "${MODULE_URL}/role-policy.mjs",
               "config": {
@@ -612,6 +667,27 @@
               "config": {
                 "sampleOverCapGlobResults": false
               }
+            },
+            {
+              "id": "compaction",
+              "name": "cordis:group",
+              "group": true,
+              "isolate": { "compaction": true },
+              "config": [
+                {
+                  "id": "compaction-basic",
+                  "name": "${MODULE_URL}/compaction-basic.mjs",
+                  "config": { "auto": true }
+                },
+                {
+                  "id": "idle-compaction-agent",
+                  "name": "${MODULE_URL}/idle-compaction-agent.mjs"
+                },
+                {
+                  "id": "command-compact",
+                  "name": "@deepseek-ai/dsh-command-compact"
+                }
+              ]
             },
             {
               "id": "role-policy",

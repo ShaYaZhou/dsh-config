@@ -3,7 +3,7 @@ const path = require('node:path');
 const os = require('node:os');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {withOutputLock} = require('../scripts/test-spec-delivery.cjs');
+const {withOutputLock} = require('../scripts/test-output-lock.cjs');
 
 test('real spec acceptance evidence has one writer and releases its lock after failures', async()=>{
   const folder=fs.mkdtempSync(path.join(os.tmpdir(),'dsh-spec-evidence-'));

@@ -4,6 +4,13 @@
   "nativeSource": "Official installed DeepSeek Harness desktop package",
   "plugins": [
     {
+      "id": "idle-settings",
+      "package": "@local/dsh-idle-settings",
+      "version": "1.0.0",
+      "license": "UNLICENSED",
+      "localChanges": { "unpublishedLocalBuild": true, "changes": ["Native settings section for the separate idle maintenance capability; uses ConfigForms and Switch without a second settings store."] }
+    },
+    {
       "id": "memory",
       "package": "@dsh-external/dsh-memory",
       "version": "0.5.1",

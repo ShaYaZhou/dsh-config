@@ -18,7 +18,8 @@
     "dshmarket": "1.66.44",
     "@local/dsh-desktop-commands": "@artifact/desktop-commands",
     "@local/dsh-nested-sessions": "@artifact/nested-sessions",
-    "@local/dsh-browser-review": "@artifact/browser-review"
+    "@local/dsh-browser-review": "@artifact/browser-review",
+    "@local/dsh-idle-settings": "@artifact/idle-settings"
   },
   "dsh": {
     "profile": {
@@ -37,7 +38,8 @@
         "@dsh-external/dsh-memory",
         "@local/dsh-desktop-commands",
         "@local/dsh-nested-sessions",
-        "@local/dsh-browser-review"
+        "@local/dsh-browser-review",
+        "@local/dsh-idle-settings"
       ]
     }
   }

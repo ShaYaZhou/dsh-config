@@ -2,7 +2,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const assert = require("node:assert/strict");
 const { pathToFileURL } = require("node:url");
-const { assertIsolatedHome } = require("./test-home.cjs");
+const { assertIsolatedHome, withAgentTestHomeLock } = require("./test-home.cjs");
+const { withOutputLock } = require("./test-output-lock.cjs");
 
 async function main() {
   assert(
@@ -283,7 +284,7 @@ export async function rotate(file) { await fs.rename(file, file + '.bak'); }
     await shutdown.shutdown(0);
   }
 }
-main().catch((error) => {
+withOutputLock(path.resolve(__dirname, "../.local/automatic-session-test"), () => withAgentTestHomeLock(process.env.DSH_HOME, main)).catch((error) => {
   console.error(error.stack);
   process.exitCode = 1;
 });

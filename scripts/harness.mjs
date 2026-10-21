@@ -262,19 +262,20 @@ export function parseArgs(args){
  }
  return options;
 }
-function runtimeCheck(home,script,marker){
+function runtimeCheck(home,script,marker,logFile='automatic-session-runtime.log'){
  assert(process.env.OPENAI_API_KEY,'Set OPENAI_API_KEY locally for the optional real-proxy smoke test');
  const command=runner();
  const state=readJson(path.join(home,'.portable-harness/state.json'));
  const output=execute(command.executable,['--expose-internals',path.join(repository,'scripts',script)],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1',DSH_HOME:home,DSH_SMOKE_FLAVOR:state.flavor??provenance.flavor,DSH_NATIVE_ROOT:path.resolve(path.dirname(command.cli),'..','..')}});
  assert(output.includes(marker),'Runtime check did not complete: '+marker);
  const safe=output.replaceAll(process.env.OPENAI_API_KEY,'<redacted>').replace(/([?&]token=)[^\s]+/g,'$1<redacted>');
- write(path.join(repository,'.local',script==='smoke.cjs'?'smoke-runtime.log':script==='test-spec-delivery.cjs'?'spec-delivery-runtime.log':'automatic-session-runtime.log'),safe);
+ write(path.join(repository,'.local',logFile),safe);
  console.log(safe.split(/\r?\n/).filter(x=>x.startsWith(marker)).join('\n'));
 }
-export function smoke(home){runtimeCheck(home,'smoke.cjs','PORTABLE_SMOKE_PASS');}
+export function smoke(home){runtimeCheck(home,'smoke.cjs','PORTABLE_SMOKE_PASS','smoke-runtime.log');}
 export function automaticTest(home){testHome.assertIsolatedHome(home);runtimeCheck(home,'test-automatic-sessions.cjs','AUTOMATIC_SESSIONS_PASS');}
-export function specTest(home){testHome.assertIsolatedHome(home);runtimeCheck(home,'test-spec-delivery.cjs','SPEC_DELIVERY_PASS');}
+export function specTest(home){testHome.assertIsolatedHome(home);runtimeCheck(home,'test-spec-delivery.cjs','SPEC_DELIVERY_PASS','spec-delivery-runtime.log');}
+export function idleTest(home){testHome.assertIsolatedHome(home);runtimeCheck(home,'test-idle-compaction.cjs','IDLE_COMPACTION_PASS','idle-compaction-runtime.log');}
 export function migrateLiangshen(home,{dryRun=false}={}){
  const command=runner();
  return JSON.parse(execute(command.executable,['--expose-internals',path.join(repository,'scripts/migrate-liangshen.cjs'),...(dryRun?[]:['--apply'])],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1',DSH_HOME:home,DSH_NATIVE_ROOT:path.resolve(path.dirname(command.cli),'..','..')}}));
@@ -292,6 +293,7 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
   else if(options.command==='smoke')smoke(options.home);
   else if(options.command==='automatic-test')automaticTest(options.home);
   else if(options.command==='spec-test')specTest(options.home);
+  else if(options.command==='idle-test')idleTest(options.home);
   else if(options.command==='migrate-liangshen')console.log(json(migrateLiangshen(options.home,options)));
   else throw new Error('Unknown command: '+options.command);
  }catch(error){let message=error.message;if(process.env.OPENAI_API_KEY)message=message.replaceAll(process.env.OPENAI_API_KEY,'<redacted>');console.error(message.replace(/([?&]token=)[^\s]+/g,'$1<redacted>'));process.exitCode=1;}

@@ -29,6 +29,9 @@ importers:
       '@local/dsh-desktop-commands':
         specifier: file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}
         version: file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}
+      '@local/dsh-idle-settings':
+        specifier: file:../../local-plugins/${IDLE-SETTINGS_TGZ}
+        version: file:../../local-plugins/${IDLE-SETTINGS_TGZ}
       '@local/dsh-nested-sessions':
         specifier: file:../../local-plugins/${NESTED-SESSIONS_TGZ}
         version: file:../../local-plugins/${NESTED-SESSIONS_TGZ}(zod@4.4.3)
@@ -282,6 +285,10 @@ packages:
   '@local/dsh-desktop-commands@file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}':
     resolution: {integrity: ${DESKTOP-COMMANDS_INTEGRITY}, tarball: file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}}
     version: 1.0.2
+
+  '@local/dsh-idle-settings@file:../../local-plugins/${IDLE-SETTINGS_TGZ}':
+    resolution: {integrity: ${IDLE-SETTINGS_INTEGRITY}, tarball: file:../../local-plugins/${IDLE-SETTINGS_TGZ}}
+    version: 1.0.0
 
   '@local/dsh-nested-sessions@file:../../local-plugins/${NESTED-SESSIONS_TGZ}':
     resolution: {integrity: ${NESTED-SESSIONS_INTEGRITY}, tarball: file:../../local-plugins/${NESTED-SESSIONS_TGZ}}
@@ -1383,6 +1390,8 @@ snapshots:
   '@local/dsh-browser-review@file:../../local-plugins/${BROWSER-REVIEW_TGZ}': {}
 
   '@local/dsh-desktop-commands@file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}': {}
+
+  '@local/dsh-idle-settings@file:../../local-plugins/${IDLE-SETTINGS_TGZ}': {}
 
   '@local/dsh-nested-sessions@file:../../local-plugins/${NESTED-SESSIONS_TGZ}(zod@4.4.3)':
     dependencies:
