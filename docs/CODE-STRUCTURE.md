@@ -2,6 +2,8 @@
 
 自然语言完整交付由 `skills/dsh-spec-delivery` 编排官方 CLI 和已有 linked-session 工具；不另建任务引擎、不修改官方分阶段技能。`role-policy` 仅调整该角色可使用的局部只读/通信工具，家族授权仍由 nested-sessions 服务校验。测试目录保护与同 home lease 集中于 `scripts/test-home.cjs`，命令入口和直接脚本共同调用；`test-output-lock.cjs` 提供结果单写者保护。
 
+`test-worktree-delivery.cjs` 仅负责隔离合成项目的原生/代理验收，不提供产品 Git 操作服务。产品继续使用原生 worktree 和工作目录服务；主会话的准备、审阅和整合指引由既有协作提示与交付技能维护。恢复验收仅支持首次 revert 之前，回滚标记防止意外重放。
+
 空闲压缩的全局策略与各角色隔离引擎通过自己的公开绑定服务协作，使用原生 scope API；归档活动和停止走 workspace 公开事件。`plugins/idle-settings` 只用原生 ConfigForms/Switch 渲染设置页，不复制业务状态。详见 `IDLE-COMPACTION.md`。
 
 2026-10-21，针对本仓库此前提交的本地增强与本次批注修复。范围是自写功能和上游发布产物中的本地补丁，不把上游整包宣称为重新审计过的自写源码。

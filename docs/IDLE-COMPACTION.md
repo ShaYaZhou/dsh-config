@@ -25,7 +25,7 @@
 rtk proxy node scripts/harness.mjs idle-test --home <已安装的测试目录>
 ```
 
-`DSH_IDLE_SESSION` 可复用该 fixture 的测试会话；已有压缩时通过原生 fork 回到之前的完整回合，不重复发送大段种子。三个代理 runner 共用 home 级 lease，并分别锁结果目录。强制终止可能留下锁，确认记录的 PID 已退出后才移除对应 `runner.lock`；不要与同 home 的桌面窗口或其他工具并行运行。
+`DSH_IDLE_SESSION` 可复用该 fixture 的测试会话；已有压缩时通过原生 fork 回到之前的完整回合，不重复发送大段种子。代理验收 runner 共用 home 级 lease，并分别锁结果目录。强制终止可能留下锁，确认记录的 PID 已退出后才移除对应 `runner.lock`；不要与同 home 的桌面窗口或其他工具并行运行。
 
 2026-10-21，固定原生 Electron/desktop profile + 实际 proxy 通过：
 

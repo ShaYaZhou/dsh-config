@@ -36,6 +36,8 @@ rtk proxy node scripts/harness.mjs install
 
 在原对话输入 **/collaborate 任务内容** 即可发起协作；也可直接说 **“先用 OpenSpec 写 spec，再自动分工实现、独立审查和验收，需求是……”**。主 Agent 自己选择数量和模型，不要求手工切阶段命令。子会话需要更多分工时请求主会话创建同级任务。左侧会话树展示层级，标题栏 **任务协作** 查看模型、结果和停止操作，重复的全局进度入口已移除。详见 [嵌套会话](docs/NESTED-SESSIONS.md) 和 [规格交付](docs/OPENSPEC.md)。
 
+并行写代码使用原生 worktree 隔离，主会话审阅并整合后验收；只带入明确选中的忽略配置，保留源目录未提交修改。目录切换、分支保留与撤销边界见 [并行写入与整合](docs/WORKTREE-DELIVERY.md)。
+
 长会话默认在空闲约 54 分钟、估算上下文达到 20 万 token 后使用原生引擎生成摘要，保留原始记录。**设置 → 上下文压缩** 可即时关闭；停止与归档保护、代理缓存的费用边界和真实验收见 [空闲压缩](docs/IDLE-COMPACTION.md)。
 
 旧 `liangshen` preset 已移除。升级前先完全退出 Harness，再迁移旧会话；安装器发现仍有会话绑定旧 preset 时会拒绝覆盖配置：

@@ -8,7 +8,7 @@
 - [x] 2.2 Verify removal of global progress entry and retention of header control in native UI (R4).
 
 ## 3. Execution and control
-- [ ] 3.1 Verify concurrent isolated worktrees, explicit ignored-file inclusion, integration and rollback (R2).
+- [x] 3.1 Verify concurrent isolated worktrees, explicit ignored-file inclusion, integration and rollback (R2).
 - [ ] 3.2 Verify bounded terminal reports, safe message/read/stop/archive/resume and attributed receipt (R3).
 - [ ] 3.3 Implement and verify explicit recent-local-conversation access without weakening family tools (R3).
 
