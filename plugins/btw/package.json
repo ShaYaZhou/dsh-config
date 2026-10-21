@@ -45,7 +45,8 @@
       "inject": [
         "@deepseek-ai/dsh-client-ui-conversation",
         "@deepseek-ai/dsh-api-remotes",
-        "@deepseek-ai/dsh-client-locale"
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-shortcuts"
       ]
     }
   },
@@ -123,10 +124,12 @@
   "harnessTuning": {
     "unpublishedLocalBuild": true,
     "baseVersion": "1.0.0",
-    "date": "2026-10-20",
+    "date": "2026-10-21",
     "changes": [
       "Durable last-20 side conversation pairs.",
-      "Tool-enabled background-session promotion."
+      "Tool-enabled background-session promotion.",
+      "Native Ctrl+Alt+Shift+B side-question dialog preserves the main composer draft.",
+      "Child-scoped prompt assembly removes inherited and child-local tools from answer-only requests."
     ]
   }
 }

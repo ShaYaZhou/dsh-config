@@ -464,7 +464,17 @@ function apply(ctx) {
   const arm = (agent) => {
     protection.own(agent);
     if (!agent.ctx || childGuards.has(agent)) return;
-    childGuards.set(agent, agent.ctx.tools.guard(protection));
+    const releaseGuard = agent.ctx.tools.guard(protection);
+    childGuards.set(agent, releaseGuard);
+    // An allowlist leaves child-local tools visible; the side answer needs none.
+    const releasePresentation = agent.ctx.on("system-prompt/assemble", async (_assembly, _context, next) => ({ ...await next(), tools: [] }), { prepend: true });
+    childGuards.set(agent, async () => {
+      try {
+        await releasePresentation?.();
+      } finally {
+        await releaseGuard();
+      }
+    });
   };
   const releaseChild = async (agent) => {
     if (!agent) return;

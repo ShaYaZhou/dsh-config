@@ -485,6 +485,8 @@ var MAX_REFERENCE_LENGTH = 8e3;
 // src/locales.ts
 var NS = "michengai.btw";
 var zh = {
+  "shortcut.context": "基于已完成的主会话背景回答，不打断主任务。",
+  "shortcut.noSession": "请先打开一个普通会话",
   "locale.id": "zh",
   "error.composerBusy": "\u6D88\u606F\u6B63\u5728\u63D0\u4EA4\uFF0C\u8BF7\u7A0D\u540E\u518D\u6DFB\u52A0\u5F15\u7528\u3002",
   "selection.ask": "\u65C1\u95EE\u8FD9\u6BB5\u5185\u5BB9",
@@ -539,6 +541,8 @@ var zh = {
   "error.cleanupTimeout": "\u8D44\u6E90\u91CA\u653E\u4ECD\u672A\u5B8C\u6210\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u5173\u95ED\u3002"
 };
 var en = {
+  "shortcut.context": "Uses completed main-chat context without interrupting the task.",
+  "shortcut.noSession": "Open an ordinary conversation first",
   "locale.id": "en",
   "error.composerBusy": "A message is being submitted. Please add the quote afterward.",
   "selection.ask": "Ask about this text",
@@ -13758,7 +13762,7 @@ function captureSelection(scope, target) {
 }
 
 // src/client/SelectionAsk.tsx
-function SelectionAsk({ store, sessionId, t, addToConversation }) {
+function SelectionAsk({ store, sessionId, t, addToConversation, openers }) {
   const anchor = (0, import_react6.useRef)(null);
   const dialog = (0, import_react6.useRef)(null);
   const previousFocus = (0, import_react6.useRef)(null);
@@ -13779,6 +13783,14 @@ function SelectionAsk({ store, sessionId, t, addToConversation }) {
     if (!scope) return () => {
       mounted.current = false;
     };
+    const shortcutOpen = () => {
+      if (!mounted.current || !scope.isConnected || !scope.getClientRects().length || dialog.current?.open) return;
+      previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      const reference = captureSelection(scope, document.activeElement) || "";
+      setQuestion(""); setError("");
+      setDraft({ reference, x: 0, y: 0, bottom: 0, keyboard: true, form: true });
+    };
+    openers.set(scope, { sessionId, open: shortcutOpen });
     const open = (event) => {
       if (event instanceof KeyboardEvent && (event.isComposing || !(event.key === "Shift" || event.shiftKey && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)))) return;
       if (dialog.current instanceof HTMLDialogElement && dialog.current.open || event instanceof MouseEvent && event.button !== 0) return;
@@ -13795,6 +13807,7 @@ function SelectionAsk({ store, sessionId, t, addToConversation }) {
     scope.addEventListener("keyup", open);
     return () => {
       mounted.current = false;
+      if (openers.get(scope)?.open === shortcutOpen) openers.delete(scope);
       scope.removeEventListener("mouseup", open);
       scope.removeEventListener("keyup", open);
     };
@@ -13881,7 +13894,7 @@ function SelectionAsk({ store, sessionId, t, addToConversation }) {
     setBusy(true);
     setError("");
     try {
-      await store.ask(sessionId, value.trim(), draft.reference);
+      await store.ask(sessionId, value.trim(), draft.reference || void 0);
       if (mounted.current) {
         setDraft(void 0);
         previousFocus.current?.focus({ preventScroll: true });
@@ -13910,7 +13923,7 @@ function SelectionAsk({ store, sessionId, t, addToConversation }) {
         dialog.current = element3;
       },
       className: draft.form ? "btw-selection-dialog" : "btw-selection-menu",
-      "aria-label": t("selection.ask"),
+      "aria-label": draft.reference ? t("selection.ask") : t("selection.btw"),
       onCancel: (event) => {
         event.preventDefault();
         dismiss();
@@ -13923,7 +13936,7 @@ function SelectionAsk({ store, sessionId, t, addToConversation }) {
     draft.form ? /* @__PURE__ */ import_react6.default.createElement("form", { onSubmit: (event) => {
       event.preventDefault();
       void send(question);
-    } }, /* @__PURE__ */ import_react6.default.createElement("h3", null, t("selection.ask")), /* @__PURE__ */ import_react6.default.createElement("details", { className: "btw-reference" }, /* @__PURE__ */ import_react6.default.createElement("summary", null, t("selection.reference"), " \xB7 ", draft.reference.length, /* @__PURE__ */ import_react6.default.createElement("span", { className: "btw-reference-preview" }, draft.reference.slice(0, 120), draft.reference.length > 120 ? "\u2026" : "")), /* @__PURE__ */ import_react6.default.createElement("blockquote", null, draft.reference)), /* @__PURE__ */ import_react6.default.createElement("label", null, /* @__PURE__ */ import_react6.default.createElement("span", null, t("selection.question")), /* @__PURE__ */ import_react6.default.createElement(
+    } }, /* @__PURE__ */ import_react6.default.createElement("h3", null, draft.reference ? t("selection.ask") : t("selection.btw")), draft.reference && /* @__PURE__ */ import_react6.default.createElement("details", { className: "btw-reference" }, /* @__PURE__ */ import_react6.default.createElement("summary", null, t("selection.reference"), " \xB7 ", draft.reference.length, /* @__PURE__ */ import_react6.default.createElement("span", { className: "btw-reference-preview" }, draft.reference.slice(0, 120), draft.reference.length > 120 ? "\u2026" : "")), /* @__PURE__ */ import_react6.default.createElement("blockquote", null, draft.reference)), /* @__PURE__ */ import_react6.default.createElement("label", null, /* @__PURE__ */ import_react6.default.createElement("span", null, t("selection.question")), /* @__PURE__ */ import_react6.default.createElement(
       "textarea",
       {
         value: question,
@@ -13937,7 +13950,7 @@ function SelectionAsk({ store, sessionId, t, addToConversation }) {
           }
         }
       }
-    )), /* @__PURE__ */ import_react6.default.createElement("p", { className: "btw-selection-hint" }, t("selection.context")), /* @__PURE__ */ import_react6.default.createElement("div", { className: "btw-selection-actions" }, /* @__PURE__ */ import_react6.default.createElement("button", { type: "button", disabled: busy, onClick: dismiss }, t("selection.cancel")), /* @__PURE__ */ import_react6.default.createElement("button", { type: "button", disabled: busy || draft.reference.length > MAX_REFERENCE_LENGTH, onClick: () => {
+    )), /* @__PURE__ */ import_react6.default.createElement("p", { className: "btw-selection-hint" }, t(draft.reference ? "selection.context" : "shortcut.context")), /* @__PURE__ */ import_react6.default.createElement("div", { className: "btw-selection-actions" }, /* @__PURE__ */ import_react6.default.createElement("button", { type: "button", disabled: busy, onClick: dismiss }, t("selection.cancel")), /* @__PURE__ */ import_react6.default.createElement("button", { type: "button", disabled: busy || draft.reference.length > MAX_REFERENCE_LENGTH, onClick: () => {
       void send(t("selection.explain"));
     } }, t("selection.explain")), /* @__PURE__ */ import_react6.default.createElement("button", { type: "submit", disabled: busy || !question.trim() || draft.reference.length > MAX_REFERENCE_LENGTH }, t("selection.send")))) : /* @__PURE__ */ import_react6.default.createElement("div", { role: "toolbar", "aria-label": t("selection.ask"), onMouseDown: (event) => event.preventDefault() }, /* @__PURE__ */ import_react6.default.createElement("button", { type: "button", onClick: add }, t("selection.add")), /* @__PURE__ */ import_react6.default.createElement("button", { type: "button", onClick: () => setDraft({ ...draft, form: true }) }, t("selection.btw"))),
     draft.form && draft.reference.length > MAX_REFERENCE_LENGTH && /* @__PURE__ */ import_react6.default.createElement("p", { className: "btw-error", role: "alert" }, t("error.reference")),
@@ -13987,7 +14000,7 @@ var CSS = `
 `;
 
 // src/client/index.tsx
-var inject = ["slots", "remote", "remote.commands", "locale", "conversation", "sessions"];
+var inject = ["slots", "remote", "remote.commands", "locale", "conversation", "sessions", "shortcuts"];
 function BtwCommandIcon({ size = 16, className }) {
   return /* @__PURE__ */ import_react7.default.createElement(MessageCircle, { size, className });
 }
@@ -14068,12 +14081,29 @@ function attachOfficialBtw(commandUi, claim, t, isSubagent) {
   }
   return () => restore.forEach((dispose) => dispose());
 }
+function registerBtwShortcut(shortcuts, openers, sessions, t) {
+  const binding = { code: "KeyB", modifiers: ["control", "alt", "shift"] };
+  return shortcuts.register({
+    id: "btw.ask", label: () => t("selection.btw"), aliases: ["btw", "side question", "旁问"],
+    defaults: { "desktop:windows": binding, "web:windows": binding },
+    regions: ["page", "editable"], modals: [],
+    resolve: ({ target, modal }) => {
+      if (modal) return { status: "pass" };
+      const visible = [...openers].filter(([element]) => element.isConnected && element.getClientRects().length);
+      const main = Object.values(sessions.list.getSnapshot().byId).find(row => (row.retainedBy?.mainView ?? 0) > 0)?.id;
+      const match = visible.find(([element]) => element.contains(target)) ?? visible.find(([, value]) => value.sessionId === main);
+      return match ? { status: "handled", run: match[1].open } : { status: "blocked", reason: t("shortcut.noSession") };
+    },
+  });
+}
 function apply(ctx) {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }));
   const t = ctx.locale.bind(NS);
   const slots = ctx.get("slots");
   const remote = ctx.get("remote");
   const sessions = ctx.get("sessions");
+  const openers = new Map();
+  ctx.effect(() => registerBtwShortcut(ctx.get("shortcuts"), openers, sessions, t));
   const isSubagent = (id) => Boolean(sessions.subagentAddress?.(id)) || sessions.list?.getSnapshot().byId[id]?.origin === "subagent";
   const execute = async (session, line, signal) => {
     const response = await remote.commands.execute(session, line, [], signal);
@@ -14123,7 +14153,7 @@ function apply(ctx) {
   });
   ctx.effect(() => () => store.dispose());
   function Dock(props) {
-    return /* @__PURE__ */ import_react7.default.createElement(import_react7.default.Fragment, null, !props.session.subagent && !isSubagent(props.session.sessionId) && /* @__PURE__ */ import_react7.default.createElement(SelectionAsk, { key: props.session.sessionId, store, sessionId: props.session.sessionId, t: props.t, addToConversation: (reference) => {
+    return /* @__PURE__ */ import_react7.default.createElement(import_react7.default.Fragment, null, !props.session.subagent && !isSubagent(props.session.sessionId) && /* @__PURE__ */ import_react7.default.createElement(SelectionAsk, { key: props.session.sessionId, store, sessionId: props.session.sessionId, t: props.t, openers, addToConversation: (reference) => {
       const session = ctx.get("sessions").scope(props.session.sessionId);
       if (!session) throw new Error(props.t("error.backend"));
       addQuoteToComposer(ctx.conversation.input.for(session), reference, props.t);

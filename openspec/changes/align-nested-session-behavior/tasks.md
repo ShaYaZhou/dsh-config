@@ -18,7 +18,7 @@
 - [x] 4.3 Implement and verify background completion notification and session side-by-side viewing (R4, R5).
 - [ ] 4.4 Implement and verify recent folders, named local multi-repository environments and portable bindings (R5).
 - [ ] 4.5 Implement and verify follow-up Do it here/Start/Start all and disableable composer suggestions (R6).
-- [ ] 4.6 Verify btw context inheritance, non-interruption and separate transcript/shortcut (R7).
+- [x] 4.6 Verify btw context inheritance, non-interruption and separate transcript/shortcut (R7).
 
 ## 5. Maintenance and release
 - [x] 5.1 Implement idle eligibility/off switch/race tests using native maintenance admission (R8).
