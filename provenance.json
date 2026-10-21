@@ -114,7 +114,7 @@
     {
       "id": "nested-sessions",
       "package": "@local/dsh-nested-sessions",
-      "version": "1.3.2",
+      "version": "1.3.3",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
@@ -129,7 +129,8 @@
           "Explicit per-caller transient authorization enables bounded cross-workspace local history roster/read tools without inheriting grants, activating targets or widening family controls; grant versions fence asynchronous revocation.",
           "Global session status groups use a native terminal-event projection and bounded read-only metadata RPC; a native sidebar footer popover preserves the workspace hierarchy without restoring a global collaboration page or making model calls.",
           "Trusted linked dispatch propagates caller cancellation across queued admission and target resolution; remote send keeps its existing wire schema.",
-          "Cross-cwd sidebar lineage uses disposable navigation aliases and native status/navigation; native workspace ownership, history and menus stay with their actual sessions, with archive/view-switch restoration."
+          "Cross-cwd sidebar lineage uses disposable navigation aliases and native status/navigation; native workspace ownership and history remain unchanged, with archive/view-switch restoration.",
+          "Alias row menus reuse live native registered components, business injections, locale and shortcuts through an owned slot and native Menu portal; original entry lifecycle is respected without duplicating CRUD."
         ]
       }
     },

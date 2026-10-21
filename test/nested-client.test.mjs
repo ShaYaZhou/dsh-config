@@ -3,6 +3,97 @@ import vm from "node:vm";
 import test from "node:test";
 import assert from "node:assert/strict";
 
+test("linked row menus reuse live native components and action faces, then release them on source change", () => {
+  let plugin;
+  vm.runInNewContext(
+    fs.readFileSync(
+      new URL("../plugins/nested-sessions/lib/client.js", import.meta.url),
+      "utf8",
+    ),
+    {
+      window: {
+        __ModuleLoader__: {
+          load: (entry) => {
+            plugin = entry.factory(() => ({}));
+          },
+        },
+      },
+    },
+  );
+  let entries = ["pin", "rename", "fork", "archive", "session-id"].map(
+    (id, i) => ({
+      options: { id, order: i },
+      locale: "workspace",
+      component: () => id,
+      inject: (...args) => ({ nativeAction: args }),
+    }),
+  );
+  const original = entries.slice(),
+    registered = [];
+  let notify,
+    unsubscribed = false;
+  const dispose = plugin.installNativeMenuEntries({
+    slots: {
+      entriesOfSlot: () => entries,
+      entries: () => entries,
+      subscribe: (_key, listener) => {
+        notify = listener;
+        return () => {
+          unsubscribed = true;
+        };
+      },
+      register: (options, component) => {
+        const record = { options, component, disposed: false };
+        registered.push(record);
+        return () => {
+          record.disposed = true;
+        };
+      },
+    },
+  });
+  assert.equal(registered.length, 5);
+  for (const [i, row] of registered.entries()) {
+    assert.equal(row.component, original[i].component);
+    assert.equal(row.options.locale, "workspace");
+    assert.deepEqual(row.options.inject("owner").nativeAction, ["owner"]);
+    assert.equal(row.options.name, "nested.sidebar.menu.item");
+  }
+  notify();
+  assert.equal(
+    registered.length,
+    5,
+    "Unchanged native entries must not remount menus",
+  );
+  entries = [];
+  notify();
+  assert(registered.every((row) => row.disposed));
+  assert.throws(() => registered[0].options.inject(), /unloaded/);
+  dispose();
+  assert(unsubscribed);
+  const catalog = { getSnapshot: () => [], subscribe: () => () => {} },
+    declarations = [];
+  plugin.apply({
+    effect() {},
+    shortcuts: { catalog },
+    slots: {
+      inject: (_name, callback) => callback(),
+      entriesOfSlot: () => [],
+      subscribe: () => () => {},
+      register: (options) => declarations.push(options),
+    },
+  });
+  const hooks = declarations.find(
+    (entry) => entry.id === "nested-sidebar-menus",
+  ).children["nested.sidebar.menu.item"].inject.hooks;
+  assert.equal(
+    hooks.shortcuts,
+    catalog,
+    "Native menu items require the shared shortcuts source",
+  );
+  const state = [true, () => {}];
+  assert.equal(hooks.menuOpenState({}, state)(), state);
+});
+
 test("sidebar lineage projects cross-directory children without changing native ownership", () => {
   let plugin;
   vm.runInNewContext(
@@ -100,7 +191,10 @@ test("the retired panel redirects to an existing conversation without recreating
   );
   plugin.apply({
     effect() {},
+    shortcuts: { catalog: {} },
     slots: {
+      entriesOfSlot: () => [],
+      subscribe: () => () => {},
       inject: (_key, callback) => callback(),
       register: (options, component) =>
         registrations.push({ options, component }),
@@ -279,7 +373,10 @@ test("global attention makes no closed-panel reads and discards a reply after cl
         },
       },
       sessions: { list: { getSnapshot: () => list } },
+      shortcuts: { catalog: {} },
       slots: {
+        entriesOfSlot: () => [],
+        subscribe: () => () => {},
         inject: (_name, fn) => fn(),
         register: (options, component) => {
           registrations.push({ options, component });
@@ -386,7 +483,10 @@ test("a list change invalidates an in-flight completion response before it can n
   );
   const ctx = {
     effect: () => {},
+    shortcuts: { catalog: {} },
     slots: {
+      entriesOfSlot: () => [],
+      subscribe: () => () => {},
       inject: (_, fn) => fn(),
       register: (options, component) => {
         registrations.push({ options, component });
@@ -711,7 +811,10 @@ test("nested tree preserves sibling ordering, descendants and orphan history wit
   const registrations = [];
   plugin.apply({
     effect: () => {},
+    shortcuts: { catalog: {} },
     slots: {
+      entriesOfSlot: () => [],
+      subscribe: () => () => {},
       inject: (_name, callback) => {
         const result = callback();
         if (result?.next)
@@ -731,6 +834,7 @@ test("nested tree preserves sibling ordering, descendants and orphan history wit
       "shell.overlay",
       "sidebar.right.pane.tab",
       "nested.split.conversation",
+      "shell.overlay",
       "conversation.session.header.actions",
       "main",
     ],

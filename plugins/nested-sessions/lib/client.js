@@ -2,6 +2,11 @@ window.__ModuleLoader__.load({
   id: "@local/dsh-nested-sessions",
   factory: (require) => {
     const React = require("react"),
+      { createPortal } = require("react-dom"),
+      {
+        Menu,
+        IconEllipsisOutlineRegular,
+      } = require("@deepseek-ai/dsh-client-ui-primitives"),
       h = React.createElement;
     const inject = [
       "slots",
@@ -9,6 +14,7 @@ window.__ModuleLoader__.load({
       "workspaces",
       "uiWorkspace",
       "uiSession",
+      "shortcuts",
       "connection",
       "sidebarRight",
       "sidebarRightTabs",
@@ -16,6 +22,91 @@ window.__ModuleLoader__.load({
     const splitPrefix = "dsh-resource://linked-session/";
     const notificationKey = "dsh.nested.completion-notifications";
     const notificationEvent = "dsh-nested-notification-preference";
+    const nativeMenuKey = "sidebar.workspaces.session.menu.item";
+    const linkedMenuKey = "nested.sidebar.menu.item";
+    function installNativeMenuEntries(ctx) {
+      let previous = [],
+        disposers = [];
+      const update = () => {
+        const entries = ctx.slots
+          .entriesOfSlot(nativeMenuKey)
+          .filter(
+            (entry) =>
+              ["pin", "rename", "fork", "archive", "session-id"].includes(
+                entry.options.id,
+              ) &&
+              !entry.children &&
+              !entry.store,
+          );
+        if (
+          entries.length === previous.length &&
+          entries.every((entry, i) => entry === previous[i])
+        )
+          return;
+        for (const dispose of disposers) dispose();
+        previous = entries;
+        disposers = entries.map((entry) =>
+          ctx.slots.register(
+            {
+              name: linkedMenuKey,
+              id: entry.options.id,
+              order: entry.options.order,
+              locale: entry.locale,
+              inject: (...args) => {
+                if (!ctx.slots.entries(nativeMenuKey).includes(entry))
+                  throw new Error("Native session menu was unloaded");
+                return entry.inject?.(...args) ?? {};
+              },
+            },
+            entry.component,
+          ),
+        );
+      };
+      const off = ctx.slots.subscribe(nativeMenuKey, update);
+      update();
+      return () => {
+        off();
+        for (const dispose of disposers) dispose();
+      };
+    }
+    function NativeRowMenu({ target, renderSlot }) {
+      const state = React.useState(false);
+      return createPortal(
+        h(
+          Menu,
+          {
+            open: state[0],
+            onClose: () => state[1](false),
+            portal: true,
+            closeOnPointerLeave: true,
+            anchor: h(
+              "button",
+              {
+                type: "button",
+                className: "dsh-linked-menu-button",
+                "aria-label": `会话“${target.title}”的操作`,
+                onClick: () => state[1]((open) => !open),
+              },
+              h(IconEllipsisOutlineRegular, { size: 16 }),
+            ),
+          },
+          renderSlot(
+            linkedMenuKey,
+            { sessionId: target.id, displayTitle: target.title },
+            { hookContext: state },
+          ),
+        ),
+        target.host,
+        target.id,
+      );
+    }
+    function SidebarMenus({ ctx, renderSlot }) {
+      const [targets, setTargets] = React.useState([]);
+      React.useEffect(() => installSidebarTree(ctx, setTargets), [ctx]);
+      return targets.map((target) =>
+        h(NativeRowMenu, { key: target.id, target, renderSlot }),
+      );
+    }
     function useNotificationPreference() {
       const [enabled, setEnabled] = React.useState(
         () => localStorage.getItem(notificationKey) !== "off",
@@ -405,7 +496,7 @@ window.__ModuleLoader__.load({
     }
 
     // Native 0.2.1-rc.2 has no row-order slot; adapt only its semantic row markers, never move React-owned nodes.
-    function installSidebarTree(ctx) {
+    function installSidebarTree(ctx, publishMenus) {
       const selector = '[data-row-key^="session:"]',
         collapsed = new Set(),
         saved = new Map(),
@@ -414,7 +505,8 @@ window.__ModuleLoader__.load({
       let disposed = false,
         links = [],
         frame,
-        lastSelected;
+        lastSelected,
+        menuTargets = [];
       const preserve = (element, properties, attributes = []) => {
         if (saved.has(element)) return;
         saved.set(element, {
@@ -521,7 +613,8 @@ window.__ModuleLoader__.load({
               const wrapper = document.createElement("div"),
                 row = document.createElement("div"),
                 title = document.createElement("span"),
-                status = document.createElement("span");
+                status = document.createElement("span"),
+                menuHost = document.createElement("span");
               row.dataset.dshFamilyAlias = id;
               row.className = "dsh-linked-alias";
               row.setAttribute("role", "treeitem");
@@ -530,9 +623,14 @@ window.__ModuleLoader__.load({
                 "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0";
               status.style.cssText =
                 "font-size:11px;color:var(--dsw-alias-label-tertiary);flex-shrink:0";
-              row.append(title, status);
-              row.onclick = () => ctx.uiWorkspace.openSession(id);
+              menuHost.className = "dsh-linked-menu-host";
+              row.append(title, status, menuHost);
+              row.onclick = (event) => {
+                if (!menuHost.contains(event.target))
+                  ctx.uiWorkspace.openSession(id);
+              };
               row.onkeydown = (event) => {
+                if (event.target !== row) return;
                 if (["Enter", " "].includes(event.key)) {
                   event.preventDefault();
                   event.stopPropagation();
@@ -540,7 +638,7 @@ window.__ModuleLoader__.load({
                 }
               };
               wrapper.append(row);
-              alias = { id, row, wrapper, title, status };
+              alias = { id, row, wrapper, title, status, menuHost };
               aliases.set(id, alias);
             }
             const summary = catalog.byId[id],
@@ -587,6 +685,23 @@ window.__ModuleLoader__.load({
             alias.wrapper.remove();
             aliases.delete(id);
           }
+        const nextMenus = [...aliases.values()].map((alias) => ({
+          id: alias.id,
+          host: alias.menuHost,
+          title: alias.title.textContent,
+        }));
+        if (
+          nextMenus.length !== menuTargets.length ||
+          nextMenus.some(
+            (target, i) =>
+              target.id !== menuTargets[i].id ||
+              target.host !== menuTargets[i].host ||
+              target.title !== menuTargets[i].title,
+          )
+        ) {
+          menuTargets = nextMenus;
+          publishMenus(menuTargets);
+        }
         for (const [container, rows] of groups) {
           const overflow = Array.from(container.children).find((node) =>
             node.dataset.rowKey?.startsWith("overflow:"),
@@ -1126,6 +1241,9 @@ window.__ModuleLoader__.load({
 .dsh-nested-title{border:0!important;background:transparent!important;text-align:left;min-width:0;flex:1;padding:0!important;font-weight:600!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dsh-linked-alias{display:flex;align-items:center;gap:8px;min-height:32px;padding:6px 8px;box-sizing:border-box;border-radius:var(--dsw-radius-md);font-size:14px;line-height:20px;color:var(--dsw-alias-label-primary);cursor:pointer;outline-offset:-2px}
 .dsh-linked-alias:hover,.dsh-linked-alias[aria-selected="true"]{background:var(--dsw-alias-interactive-bg-hover)}
+.dsh-linked-menu-host{display:inline-flex;flex-shrink:0}
+.dsh-linked-menu-button{display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--dsw-alias-label-tertiary);width:24px;height:24px;padding:0;cursor:pointer;border-radius:var(--dsw-radius-sm)}
+.dsh-linked-menu-button:hover{background:var(--dsw-alias-interactive-bg-hover)}
 .dsh-nested-status{font-size:12px;white-space:nowrap;color:var(--dsw-alias-label-secondary,#697386)}
 .dsh-nested-status[data-status=completed]{color:#15803d}
 .dsh-nested-status[data-status=running],.dsh-nested-status[data-status=queued]{color:#2563eb}
@@ -1623,7 +1741,31 @@ window.__ModuleLoader__.load({
         ),
       );
       installSplitView(ctx);
-      ctx.effect(() => installSidebarTree(ctx));
+      ctx.slots.inject("shell.overlay", () =>
+        ctx.slots.register(
+          {
+            name: "shell.overlay",
+            id: "nested-sidebar-menus",
+            order: 79,
+            children: {
+              [linkedMenuKey]: {
+                kind: "list",
+                scope: "root",
+                inject: {
+                  hooks: {
+                    menuOpenState: (_standard, state) => () => state,
+                    shortcuts: ctx.shortcuts.catalog,
+                  },
+                },
+              },
+            },
+          },
+          (props) => h(SidebarMenus, { ...props, ctx }),
+        ),
+      );
+      ctx.slots.inject(nativeMenuKey, () =>
+        ctx.slots.inject(linkedMenuKey, () => installNativeMenuEntries(ctx)),
+      );
       ctx.effect(() => {
         const style = document.createElement("style");
         style.textContent = css;
@@ -1763,6 +1905,7 @@ window.__ModuleLoader__.load({
       attentionRows,
       splitSessionId,
       completionUpdates,
+      installNativeMenuEntries,
     };
   },
 });

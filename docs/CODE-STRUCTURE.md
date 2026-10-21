@@ -1,6 +1,6 @@
 # 自写改动的职责与依赖回查
 
-跨工作目录树显示仍集中在 `installSidebarTree`：纯 `sidebarGroups` 计算显示归属，自有导航行复用原生 `uiWorkspace.openSession` 和 `uiSession.sessionStatus`。不伪造 Workspace 成员、不移动 React 节点；自有节点与被隐藏原生行在卸载、归档、视图切换时清理或恢复。不同 cwd 的菜单仍由打开后的原生会话提供，适配器不另写一套归档/重命名逻辑。
+跨工作目录树显示仍集中在 `installSidebarTree`：纯 `sidebarGroups` 计算显示归属，自有导航行复用原生 `uiWorkspace.openSession` 和 `uiSession.sessionStatus`。不伪造 Workspace 成员、不移动 React 节点；自有节点与被隐藏原生行在卸载、归档、视图切换时清理或恢复。菜单用原生 `Menu` 与公开 `StoredEntry` 的五项组件/业务注入引用，在自有槽位提供原生所需的 `menuOpenState`、`shortcuts.catalog` 和 locale；不重新声明宿主独占子槽、不复制 CRUD、存储或原生源码。订阅原条目生命周期并在注入前检查成员身份，卸载时注销引用和 portal。
 
 后续建议集中在 `plugins/follow-ups`：`state.js` 折叠提议与 admission；后端持有 owner 确认、原生偏好及工作区准备，前端复用原生 composer 槽位和 revision-guarded InputActions。模型不能确认执行。`local-environments/workspace` 公开共享原生工作树准备，`nestedSessions.sendWithSignal` 是不暴露为 Remote 的取消派发入口；不导入其他插件私有状态。详见 `FOLLOW-UPS.md`。
 
