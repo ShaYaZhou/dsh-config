@@ -16,7 +16,7 @@
 - [x] 4.1 Implement and verify attention states including pending questions/permissions, tasks and recap (R4).
 - [x] 4.2 Verify parent archive/detach preserves discoverable child history (R4).
 - [x] 4.3 Implement and verify background completion notification and session side-by-side viewing (R4, R5).
-- [ ] 4.4 Implement and verify recent folders, named local multi-repository environments and portable bindings (R5).
+- [x] 4.4 Implement and verify recent folders, named local multi-repository environments and portable bindings (R5).
 - [ ] 4.5 Implement and verify follow-up Do it here/Start/Start all and disableable composer suggestions (R6).
 - [x] 4.6 Verify btw context inheritance, non-interruption and separate transcript/shortcut (R7).
 

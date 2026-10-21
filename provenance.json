@@ -4,6 +4,20 @@
   "nativeSource": "Official installed DeepSeek Harness desktop package",
   "plugins": [
     {
+      "id": "local-environments",
+      "package": "@local/dsh-local-environments",
+      "version": "0.1.0",
+      "license": "UNLICENSED",
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "changes": [
+          "Owner-only saved local environments with portable definitions, machine-scoped folder bindings and write-only credential-backed variables.",
+          "Session-scoped native PowerShell/PTY overlays, native worktree preparation and fresh conversations with independent repository sandbox roots.",
+          "Recent folders and environment management in native settings and a sidebar footer dialog; preserves existing drafts and histories."
+        ]
+      }
+    },
+    {
       "id": "idle-settings",
       "package": "@local/dsh-idle-settings",
       "version": "1.0.0",

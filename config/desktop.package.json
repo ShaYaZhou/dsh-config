@@ -19,7 +19,8 @@
     "@local/dsh-desktop-commands": "@artifact/desktop-commands",
     "@local/dsh-nested-sessions": "@artifact/nested-sessions",
     "@local/dsh-browser-review": "@artifact/browser-review",
-    "@local/dsh-idle-settings": "@artifact/idle-settings"
+    "@local/dsh-idle-settings": "@artifact/idle-settings",
+    "@local/dsh-local-environments": "@artifact/local-environments"
   },
   "dsh": {
     "profile": {
@@ -39,7 +40,8 @@
         "@local/dsh-desktop-commands",
         "@local/dsh-nested-sessions",
         "@local/dsh-browser-review",
-        "@local/dsh-idle-settings"
+        "@local/dsh-idle-settings",
+        "@local/dsh-local-environments"
       ]
     }
   }

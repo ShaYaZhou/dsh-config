@@ -1,0 +1,14 @@
+- id: subprocess
+  disabled: true
+- id: pwsh-sandbox
+  disabled: true
+- insert:
+    - id: local-environment-subprocess
+      name: '@local/dsh-local-environments/subprocess'
+    - id: local-environment-pwsh
+      name: '@local/dsh-local-environments/pwsh'
+      disabled: !!js process.platform !== 'win32'
+    - id: local-environments
+      name: '@local/dsh-local-environments'
+    - id: local-environment-catalog
+      name: '@local/dsh-local-environments/catalog'

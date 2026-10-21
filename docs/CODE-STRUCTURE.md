@@ -1,5 +1,9 @@
 # 自写改动的职责与依赖回查
 
+本地环境集中在 `plugins/local-environments`：`definition.js` 只定义便携 schema；`catalog.js` 管理 owner-only 配置与原生工作区准备；`index.js` 读取可忽略会话记录及凭据变量；`pwsh.js`/`subprocess.js` 只在原生执行边界合并本会话变量。`client.js` 的设置页和侧栏弹窗共用管理组件，导航用原生会话引用保留最近启动来源，不复制草稿。目录/ref/变量预检先于原生 worktree 创建；失败保留原生产物，不另外实现 Git 或进程管理器。
+
+当前宿主没有公开的当前会话观察接口，返回来源的导航适配读取固定 0.2.1-rc.2 的 `uiWorkspace.selection` 内部 SnapshotStore；它不是公开 UiWorkspace 接口。升级时须重新验证或替换为公开接口。引用保留/释放和导航本身使用原生公开能力。
+
 全局状态复用原生 Session Projection：`attention-state.js` 只折叠 turn/start 与真实 turn/end 原因，不新增会话日志或私有历史状态文件；原生 checkpoint 负责缓存，撤销插件即不再提供该投影。UI-only `attention` RPC 每次最多 20 个已有身份，只返回 id/status，逐项读取前后复核 RemoteAccess，沿用原生 projections 冷读及 RPC 取消信号。模型没有新的跨历史工具或授权入口。
 
 状态弹层使用原生 `sidebar.footer.action` 槽位、useSessions/useSessionStatus/useWorkspaces hooks 和 uiWorkspace.openSession；不替换原会话树、不借用其他插件 DOM。关闭时不读，重开清缓存；打开期间用运行状态与用户消息时间共同校验迟到结果。Native updatedAt 不是回合版本，不能据它长期缓存完成状态。状态逻辑和用户协作/任务管理分开，保留会话内原控制。

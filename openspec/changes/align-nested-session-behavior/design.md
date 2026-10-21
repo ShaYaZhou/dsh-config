@@ -20,6 +20,16 @@ Goals: implement R1–R9 with observable behavior and real host evidence; high c
 
 ## Risks / Trade-offs
 
+### R5 local environment boundaries
+
+- Save portable environment definitions separately from machine directory bindings and variable values. Bind repository keys within an environment, not globally. Definitions name repositories, checkout/worktree choices, base refs and required variable names; they contain no host paths or values.
+- The pinned native workspace-write sandbox uses the immutable session cwd as its root. A multi-repository coordinator delegates writes through linked sessions rooted in each repository; never widen the sandbox to their common parent. Preflight all bindings and refs before creating native worktrees, preserve source changes and retain partial artifacts for recovery.
+- Environment selection is native session metadata, inherited by linked children and fresh native subagents. Values are read on each shell/PTY operation from a plugin-owned native credential record. The native store is file-backed; this does not promise encryption. Values are not injected into initial prompts, environment selection events or portable exports.
+- Extend the pinned native PowerShell executor and subprocess terminal provider without replacing sandbox or process lifecycle logic. Ordinary synchronous subprocess spawn stays native. Native user terminals retain their native user permissions; they are not model read-only sandboxes.
+- Cordis patch `name` is an identity guard, not a rename operation. Replacing a provider requires disabling its original row and inserting a separate adapter row. Acceptance asserts the actual runtime classes before invoking a model.
+- Configuration must be owner-only and environment use starts a new native conversation. Preserve drafts and attachments in their original conversation. Recent folders reuse native workspace/session metadata and validate bindings on open.
+- Desktop registration includes the separate catalog and execution services. Portable definitions, bindings and values use separate storage boundaries; native UI acceptance must cover save/unbind, missing configuration, import/export, fresh navigation and the retained return reference before release.
+
 Model orchestration is nondeterministic: unit tests alone cannot establish full delivery. Run a real proxy fixture with protected oracle and actual fresh reviewer. Native UI bindings are version-specific and require native-host interaction checks. Idle summarization has cost and may lose detail; provide a switch, preserve logs and do not claim universal cache savings.
 
 ## Migration Plan

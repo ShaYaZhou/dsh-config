@@ -32,6 +32,9 @@ importers:
       '@local/dsh-idle-settings':
         specifier: file:../../local-plugins/${IDLE-SETTINGS_TGZ}
         version: file:../../local-plugins/${IDLE-SETTINGS_TGZ}
+      '@local/dsh-local-environments':
+        specifier: file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}
+        version: file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(zod@4.4.3)
       '@local/dsh-nested-sessions':
         specifier: file:../../local-plugins/${NESTED-SESSIONS_TGZ}
         version: file:../../local-plugins/${NESTED-SESSIONS_TGZ}(zod@4.4.3)
@@ -289,6 +292,19 @@ packages:
   '@local/dsh-idle-settings@file:../../local-plugins/${IDLE-SETTINGS_TGZ}':
     resolution: {integrity: ${IDLE-SETTINGS_INTEGRITY}, tarball: file:../../local-plugins/${IDLE-SETTINGS_TGZ}}
     version: 1.0.0
+
+  '@local/dsh-local-environments@file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}':
+    resolution: {integrity: ${LOCAL-ENVIRONMENTS_INTEGRITY}, tarball: file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}}
+    version: 0.1.0
+    peerDependencies:
+      '@deepseek-ai/cordis': ^4.0.5
+      '@deepseek-ai/dsh-credentials': 0.2.1-rc.2
+      '@deepseek-ai/dsh-session': 0.2.1-rc.2
+      '@deepseek-ai/dsh-storage-domain': 0.2.1-rc.2
+      '@deepseek-ai/dsh-typert-protocol': 0.2.1-rc.2
+      '@deepseek-ai/dsh-pwsh-sandbox': 0.2.1-rc.2
+      '@deepseek-ai/dsh-subprocess-local': 0.2.1-rc.2
+      zod: ^4.0.0
 
   '@local/dsh-nested-sessions@file:../../local-plugins/${NESTED-SESSIONS_TGZ}':
     resolution: {integrity: ${NESTED-SESSIONS_INTEGRITY}, tarball: file:../../local-plugins/${NESTED-SESSIONS_TGZ}}
@@ -1392,6 +1408,10 @@ snapshots:
   '@local/dsh-desktop-commands@file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}': {}
 
   '@local/dsh-idle-settings@file:../../local-plugins/${IDLE-SETTINGS_TGZ}': {}
+
+  '@local/dsh-local-environments@file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(zod@4.4.3)':
+    dependencies:
+      zod: 4.4.3
 
   '@local/dsh-nested-sessions@file:../../local-plugins/${NESTED-SESSIONS_TGZ}(zod@4.4.3)':
     dependencies:
