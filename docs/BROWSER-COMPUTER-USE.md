@@ -26,6 +26,8 @@
 
 网页操作使用 `mcp__playwright__browser_*`。Agent 先读取新快照；结果为文件链接时读取对应 YAML，然后用 `browser_highlight` 高亮精确 ref。页面会显示目标遮罩及 `aria-ref=e6` 这类与当前快照一致的标签。操作后重新观察，清除旧高亮，不把一次点击投递当成成功。
 
+需要保留登录态时改用 `mcp__playwright-session__browser_*`。它使用 `DSH_HOME/browser-profiles/playwright-session` 下的独立持久 profile，产物写入 `DSH_HOME/browser-output-session`。第一次使用要在该窗口里登录目标站点：Harness 不复制日常浏览器或其他 profile 的 cookie，所以“另一条链路已登录”不能当作这条也已登录。这个 profile 不是安全边界，不要把高权限账号长期留在里面。两个服务使用同一浏览器内核，但会话、缓存和登录态互不共享。
+
 `browser_annotate` 打开 Dashboard 的批注模式。在截图上拖出区域，填写意见，点击 **ADD**，完成后点 **Done annotating**，再点 **Submit**。工具返回页面 URL、区域坐标、完整意见、批注图片与 ARIA 快照文件路径。图片可由 Agent 的图像读取工具读取；不需要手动把意见重新粘贴进聊天。取消批注或空结果不算已提交。工具等待上限设为 10 分钟，超时后需重新请求批注。
 
 原生桌面控制使用 `cua_driver_native__*`。先发现准确应用与窗口，再获取 UIA 元素/截图；使用当前元素 token 或截图坐标操作，最后读取新状态验证。优先后台投递；遇到明确拒绝不能擅自切换前台或另一个窗口。
@@ -48,6 +50,6 @@ Playwright 已提供高亮、可交互区域批注和快照，无需再装功能
 - 右侧内置页面的工具栏批注按钮、框选编号、原会话收件、模型确认以及输入框原草稿保留通过。
 - 使用安装版同一 Electron 运行时的隔离 WebView，实际调用 capturePage，框选生成有编号的 PNG，验证只附带批注自己的图片并发给绑定会话。没有关闭或操作用户现有桌面任务；不把这个隔离载体验收说成所有真实网站都已通过。
 
-独立浏览器默认不继承日常浏览器登录态。原生桌面能力需要可交互图形会话；锁屏或应用权限高于宿主时，操作可能被拒绝。Windows CUA 的独立 OS 光标叠层未验证可见，不能据此宣称已具备该效果；网页反馈由已验证的 Playwright 高亮与批注承担。其他电脑、其他操作系统与所有第三方网站未逐一实测。
+独立浏览器默认不继承日常浏览器登录态；持久 profile 只保留它自己在该窗口里登录过的会话，两者不互相继承。原生桌面能力需要可交互图形会话；锁屏或应用权限高于宿主时，操作可能被拒绝。Windows CUA 的独立 OS 光标叠层未验证可见，不能据此宣称已具备该效果；网页反馈由已验证的 Playwright 高亮与批注承担。其他电脑、其他操作系统与所有第三方网站未逐一实测。
 
 依据：[Playwright MCP](https://github.com/microsoft/playwright-mcp)、[官方 CUA native provider](https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/experimental/computer-use-cua-driver-native)。不改写浏览器安全配置，不启用 legacy JavaScript mutation 逃生开关，不绕过驱动的拒绝。

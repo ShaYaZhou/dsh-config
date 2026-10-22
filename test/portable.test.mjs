@@ -60,7 +60,7 @@ test('official OpenSpec skills deploy portably and native cleanup removes only m
   assert.equal(text,fs.readFileSync(path.join(repository,'.dsh/skills',name,'SKILL.md'),'utf8'));
   assert(text.includes('generatedBy: "'+source.version+'"'));
   assert(!/(?<![a-zA-Z])[A-Za-z]:[\\/]/.test(text));
-  assert.deepEqual(staleModulePaths({files:{[target]:'old','skills/user/SKILL.md':'keep'}},new Map()),[target]);
+  assert.deepEqual(staleModulePaths({sources:{[target]:'old','skills/user/SKILL.md':'keep'}},new Map()),[target]);
  }
  const native=renderPlan(path.join(os.tmpdir(),'spec clean home'),settings,{}, {clean:true});
  assert(![...native.keys()].some(name=>name.includes('openspec-')));
@@ -68,7 +68,41 @@ test('official OpenSpec skills deploy portably and native cleanup removes only m
  assert(plan.get('profiles/desktop/cordis.patch.yml').includes('customSkillDirs'));
  const delivery=base+'dsh-spec-delivery/SKILL.md';
  assert.equal(plan.get(delivery),fs.readFileSync(path.join(repository,'skills/dsh-spec-delivery/SKILL.md'),'utf8'));
- assert.deepEqual(staleModulePaths({files:{[delivery]:'old'}},new Map()),[delivery]);
+ assert.deepEqual(staleModulePaths({sources:{[delivery]:'old'}},new Map()),[delivery]);
+});
+
+test('enhanced modules and skills deploy with bounded workflow and both browser servers',()=>{
+ const home=path.join(os.tmpdir(),'enhanced portable home');
+ const plan=renderPlan(home,settings),base='profiles/desktop/agent-capabilities/skills/';
+ for(const name of ['workflow-orchestration','dsh-code-review','security-review','claude-context','usage-report'])
+  assert.equal(plan.get(base+name+'/SKILL.md'),fs.readFileSync(path.join(repository,'skills',name,'SKILL.md'),'utf8'));
+ assert.equal(plan.get(base+'security-review/scan.mjs'),fs.readFileSync(path.join(repository,'skills/security-review/scan.mjs'),'utf8'));
+ for(const name of ['claude-context.mjs','usage-report.mjs','session-bus.mjs'])
+  assert.equal(plan.get('profiles/desktop/agent-capabilities/'+name),fs.readFileSync(path.join(repository,'modules',name),'utf8'));
+
+ const config=JSON.parse(fs.readFileSync(path.join(repository,'config/desktop.patch.json'),'utf8'));
+ const preset=config.find(row=>row.id==='preset-standard');
+ const ids=config.flatMap(row=>row.insert??[]).map(row=>row.id);
+ for(const id of ['claude-context','usage-report','session-bus'])assert(ids.includes(id),id+' must mount globally, not per preset');
+ assert(!preset.config.plugins.some(row=>['claude-context','usage-report','session-bus'].includes(row.id)));
+ const workflow=preset.config.plugins.find(row=>row.id==='delegation').config.find(row=>row.id==='workflow-ptc');
+ assert.deepEqual(workflow.config,{provider:'spawn',maxConcurrentAgents:6,maxTotalAgents:64});
+
+ const browsers=config.flatMap(row=>row.insert??[]).filter(row=>row.id?.startsWith('mcp-playwright'));
+ assert.equal(browsers.length,2);
+ for(const row of browsers)assert(row.config.args.includes('${BROWSER}'));
+ const session=browsers.find(row=>row.id==='mcp-playwright-session');
+ assert(session.config.args.includes('--user-data-dir'));
+ assert(session.config.args.some(arg=>arg.includes('browser-profiles/playwright-session')));
+
+ const rendered=renderPlan(home,{...settings,browser:'msedge'}).get('profiles/desktop/cordis.patch.yml');
+ assert.equal((rendered.match(/msedge/g)??[]).length,2);
+ assert(!rendered.includes('${'));
+
+ const stale=base+'security-review/scan.mjs';
+ assert.deepEqual(staleModulePaths({sources:{[stale]:'old','skills/user/SKILL.md':'keep'}},new Map()),[stale]);
+ const retired=base+'code-review/SKILL.md';
+ assert.deepEqual(staleModulePaths({sources:{[retired]:'old'}},new Map()),[retired]);
 });
 
 test('desktop configuration does not register the retired liangshen preset',()=>{
@@ -119,7 +153,7 @@ test('native preset mounts only official bundles and no external hooks or role m
 });
 test('reverting to native removes only old managed module files, never data or package-manager files',()=>{
  const safe='profiles/desktop/agent-capabilities/role-policy.mjs',skill='profiles/desktop/agent-capabilities/skills/computer-use/SKILL.md';
- const previous={files:{[safe]:'hash',[skill]:'hash','skills/user/SKILL.md':'hash','sessions/user.json':'hash','memories/user.md':'hash','profiles/desktop/node_modules/package/lib/index.js':'hash','profiles/desktop/agent-capabilities/../../outside.mjs':'hash'}};
+ const previous={sources:{[safe]:'hash',[skill]:'hash','skills/user/SKILL.md':'hash','sessions/user.json':'hash','memories/user.md':'hash','profiles/desktop/node_modules/package/lib/index.js':'hash','profiles/desktop/agent-capabilities/../../outside.mjs':'hash'}};
  assert.deepEqual(staleModulePaths(previous,new Map()),[safe,skill]);assert.deepEqual(staleModulePaths(previous,new Map([[safe,'new'],[skill,'new']])),[]);
 });
 test('versioned sources contain neither personal host paths nor credential files',()=>{

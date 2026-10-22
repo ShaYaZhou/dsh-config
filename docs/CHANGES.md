@@ -12,7 +12,8 @@
 | `profiles/desktop/pnpm-workspace.yaml` | 保留 hoisted、禁用自动补装 peer 及构建策略 | `config/pnpm-workspace.json` |
 | `profiles/headless/cordis.patch.yml` | 同一 proxy、默认模型、记忆与有效 Hooks 引用 | `config/headless.patch.json` |
 | `profiles/headless/package.json`、锁与 workspace 文件 | 版本匹配的 Hooks 组件及包管理输出；初轮未对其所有文件留有基线，不能逐文件证明前后差异 | 对应 headless 模板和共用 workspace 模板 |
-| `profiles/desktop/agent-capabilities/*.mjs` | 7 个本地模块，见下表 | `modules/` |
+| `profiles/desktop/agent-capabilities/*.mjs` | 13 个本地模块，见下表 | `modules/` |
+| `profiles/desktop/agent-capabilities/skills/*` | 受管技能目录，见下表 | `skills/`、`.dsh/skills/` |
 | `profiles/desktop/agent-capabilities/manifest.json` | 生成的来源、版本和哈希记录 | 安装器生成 |
 | `local-plugins/*.tgz` | 本地调校插件；旧的重复 tgz 保留，不被加载 | 从 `plugins/` 重打包 |
 | `profiles/desktop/node_modules`、`profiles/headless/node_modules` | 包管理器安装产物，不手工维护 | 按模板和锁安装 |
@@ -29,6 +30,10 @@
 | `modules/team.mjs` | 传递角色、模型、cwd，并在队友启动前创建 worktree |
 | `modules/team-tools.mjs` | 暴露和校验新增 Team 参数 |
 | `modules/worktree.mjs`、`modules/worktree-tools.mjs` | 从当前官方桌面包提取的原生模块，作为可挂载本地副本；主体未改写 |
+| `modules/claude-context.mjs` | 读取并注入 `~/.claude/CLAUDE.md`、项目 `.claude/CLAUDE.md` 与 `.claude/rules/*.md`，过滤 Claude 专用 RTK 段落和 `@import`；记忆只给索引路径 |
+| `modules/usage-report.mjs` | 从原生会话投影汇总 token、缓存命中、上下文压力与耗时；价格只来自配置费率，缺省为 null |
+| `modules/session-bus.mjs` | 用户逐对授权的会话间消息；复用原生 followup 与 agent-message relay，持久保存授权与用户停止标记 |
+| `modules/browser-guidance.mjs` | 提示同时说明隔离浏览器与持久 profile 两条链路；修正模板字符串中的反引号语法错误 |
 | `plugins/memory/lib/index.js` | headless 结束前等待记忆写回；移除固定十分钟合并门槛 |
 | `plugins/btw/lib/index.js` | 最近 20 对旁问历史、跨进程保存、转有工具的后台会话 |
 | `plugins/rewind/lib/index.js` | 文件独立回退，复用原快照日志和原生维护锁 |

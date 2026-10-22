@@ -34,7 +34,7 @@ rtk proxy node scripts/harness.mjs install
 
 可见浏览器、目标高亮、交互式批注和 Windows computer-use 的操作与验收边界见 [浏览器与桌面控制](docs/BROWSER-COMPUTER-USE.md)。
 
-内置浏览器有独立的 **截图** 和 **批注** 入口：截图不必填写意见；批注支持元素吸附、CSS 定位和可选的编号图片。可选后续任务支持确认后独立启动或在当前会话执行，详见 [后续建议](docs/FOLLOW-UPS.md)。本机功能的逐项结果和边界见 [嵌套会话验收](docs/NESTED-ACCEPTANCE.md)。职责与依赖回查见 [代码结构](docs/CODE-STRUCTURE.md)；后续改动遵循仓库根目录 `AGENTS.md`。
+内置浏览器有独立的 **截图** 和 **批注** 入口：截图不必填写意见；批注支持元素吸附、CSS 定位和可选的编号图片。可选后续任务支持确认后独立启动或在当前会话执行，详见 [后续建议](docs/FOLLOW-UPS.md)。本机功能的逐项结果和边界见 [嵌套会话验收](docs/NESTED-ACCEPTANCE.md)。职责与依赖回查见 [代码结构](docs/CODE-STRUCTURE.md)；后续改动遵循仓库根目录 `AGENTS.md`。工作流、会话间消息、审查、安全、浏览器与用量成本，以及 Claude 指令/记忆注入，见 [六项 Agent 能力增强](docs/AGENT-ENHANCEMENTS.md)。
 
 在原对话输入 **/collaborate 任务内容** 即可发起协作；也可直接说 **“先用 OpenSpec 写 spec，再自动分工实现、独立审查和验收，需求是……”**。主 Agent 自己选择数量和模型，不要求手工切阶段命令。子会话需要更多分工时请求主会话创建同级任务。左侧会话树展示层级，标题栏 **任务协作** 查看模型、结果和停止操作，重复的全局进度入口已移除。详见 [嵌套会话](docs/NESTED-SESSIONS.md) 和 [规格交付](docs/OPENSPEC.md)。
 
@@ -84,7 +84,7 @@ rtk proxy node scripts/harness.mjs status
 | 内容 | 版本控制位置 |
 |---|---|
 | 原生能力补丁与浏览器操作指引 | `modules/` |
-| DSH 专用 computer-use 技能 | `skills/computer-use/SKILL.md` |
+| DSH 专用技能 | `skills/<名称>/SKILL.md` 及同目录的 `.mjs`/`.md` 等资源；安装器自动发现，无需登记 |
 | 记忆、BTW、Rewind 本地包及原浏览器资源 | `plugins/` |
 | profile 插件、模型、权限、记忆参数 | `config/*.json` |
 | 可独立恢复的官方原生基线 | `presets/native/` |

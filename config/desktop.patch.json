@@ -191,10 +191,33 @@
             "vision,devtools",
             "--snapshot-boxes",
             "--browser",
-            "chrome",
+            "${BROWSER}",
             "--isolated",
             "--output-dir",
             "${DSH_HOME}/browser-output"
+          ],
+          "failOnStartupError": false,
+          "toolCallTimeoutMs": 600000
+        }
+      },
+      {
+        "id": "mcp-playwright-session",
+        "name": "@deepseek-ai/dsh-mcp-client",
+        "config": {
+          "transport": "stdio",
+          "serverName": "playwright-session",
+          "command": "${NODE_EXECUTABLE}",
+          "args": [
+            "${DESKTOP_DIR}/node_modules/@playwright/mcp/cli.js",
+            "--caps",
+            "vision,devtools",
+            "--snapshot-boxes",
+            "--browser",
+            "${BROWSER}",
+            "--user-data-dir",
+            "${DSH_HOME}/browser-profiles/playwright-session",
+            "--output-dir",
+            "${DSH_HOME}/browser-output-session"
           ],
           "failOnStartupError": false,
           "toolCallTimeoutMs": 600000
@@ -223,6 +246,21 @@
       {
         "id": "browser-guidance",
         "name": "${MODULE_URL}/browser-guidance.mjs"
+      },
+      {
+        "id": "claude-context",
+        "name": "${MODULE_URL}/claude-context.mjs"
+      },
+      {
+        "id": "usage-report",
+        "name": "${MODULE_URL}/usage-report.mjs",
+        "config": {
+          "pricing": {}
+        }
+      },
+      {
+        "id": "session-bus",
+        "name": "${MODULE_URL}/session-bus.mjs"
       },
       {
         "id": "agent-team-local",
@@ -430,7 +468,9 @@
               "id": "workflow-ptc",
               "name": "@deepseek-ai/dsh-workflow-ptc",
               "config": {
-                "provider": "spawn"
+                "provider": "spawn",
+                "maxConcurrentAgents": 6,
+                "maxTotalAgents": 64
               }
             },
             {

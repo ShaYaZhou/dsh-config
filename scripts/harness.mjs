@@ -52,7 +52,7 @@ export function renderPlan(home,settings,artifacts={}, {clean=false}={}){
   '${DSH_HOME}':home,'${DESKTOP_DIR}':desktop,'${NODE_EXECUTABLE}':process.execPath,
   '${MODULE_URL}':pathToFileURL(path.join(desktop,'agent-capabilities')).href,
   '${MEMORY_URL}':pathToFileURL(path.join(desktop,'node_modules','@dsh-external','dsh-memory','lib','index.js')).href,
-  '${PROXY_BASE_URL}':settings.proxyBaseUrl,'${DEFAULT_MODEL}':settings.defaultModel,
+  '${PROXY_BASE_URL}':settings.proxyBaseUrl,'${DEFAULT_MODEL}':settings.defaultModel,'${BROWSER}':settings.browser,
   '${REASONING_EFFORT}':settings.reasoningEffort,'${PERMISSION_PRESET}':settings.permissionPreset,
   '${HOOKS_DISABLED}':!fs.existsSync(path.join(home,'claude-hooks.json')),
   '${USER_HOME}':os.homedir(),
@@ -67,8 +67,6 @@ export function renderPlan(home,settings,artifacts={}, {clean=false}={}){
   files.set('profiles/'+profile+'/package.json',json(manifest));
   files.set('profiles/'+profile+'/pnpm-workspace.yaml',json(config('pnpm-workspace.json')));
   const patch=substitute(config(profile+'.patch.json'),tokens);
-  const browser=patch.flatMap(x=>x.insert??[]).find(x=>x.id==='mcp-playwright');
-  if(browser){const index=browser.config.args.indexOf('--browser');browser.config.args[index+1]=settings.browser;}
   files.set('profiles/'+profile+'/cordis.patch.yml',emitYaml(patch));
   const lock=path.join(directory,profile+'.lock.yaml');
   if(fs.existsSync(lock)){
@@ -89,9 +87,23 @@ export function renderPlan(home,settings,artifacts={}, {clean=false}={}){
  files.set('profiles/desktop/agent-capabilities/manifest.json',json({managedBy:'deepseek-harness-config',flavor:clean?'native':provenance.flavor,runtime:provenance.runtime,modules:Object.fromEntries(moduleNames.map(name=>[name,digest(path.join(repository,'modules',name))])),artifacts}));
  return files;
 }
+const SKILL_RESOURCE_EXTENSIONS=new Set(['.mjs','.js','.json','.md','.txt','.yaml','.yml']);
 function desktopSkillSources(){
  const base='profiles/desktop/agent-capabilities/skills/';
- const sources={[base+'computer-use/SKILL.md']:'skills/computer-use/SKILL.md',[base+'dsh-spec-delivery/SKILL.md']:'skills/dsh-spec-delivery/SKILL.md'};
+ const sources={};
+ const root=path.join(repository,'skills');
+ for(const entry of fs.readdirSync(root,{withFileTypes:true})){
+  if(!entry.isDirectory())continue;
+  const directory=path.join(root,entry.name);
+  const files=fs.readdirSync(directory,{withFileTypes:true});
+  if(!files.some(file=>file.isFile()&&file.name==='SKILL.md'))continue;
+  sources[base+entry.name+'/SKILL.md']='skills/'+entry.name+'/SKILL.md';
+  for(const file of files){
+   if(!file.isFile()||file.name==='SKILL.md')continue;
+   if(!SKILL_RESOURCE_EXTENSIONS.has(path.extname(file.name).toLowerCase()))continue;
+   sources[base+entry.name+'/'+file.name]='skills/'+entry.name+'/'+file.name;
+  }
+ }
  for(const entry of fs.readdirSync(path.join(repository,'.dsh/skills'),{withFileTypes:true}))if(entry.isDirectory()&&/^openspec-[a-z0-9-]+$/.test(entry.name))sources[base+entry.name+'/SKILL.md']='.dsh/skills/'+entry.name+'/SKILL.md';
  return sources;
 }
@@ -161,7 +173,12 @@ function backup(home,files){
  write(path.join(folder,'backup.json'),json(records));return folder;
 }
 export function staleModulePaths(previous,next){
- return Object.keys(previous?.files??{}).filter(relative=>(/^profiles\/desktop\/agent-capabilities\/[a-z0-9-]+\.mjs$/.test(relative)||/^profiles\/desktop\/agent-capabilities\/skills\/(?:computer-use|dsh-spec-delivery|openspec-[a-z0-9-]+)\/SKILL\.md$/.test(relative))&&!next.has(relative));
+ const base='profiles/desktop/agent-capabilities/';
+ return Object.keys(previous?.sources??{}).filter(relative=>{
+  if(!relative.startsWith(base))return false;
+  const rest=relative.slice(base.length).split('/');
+  return ((rest.length===1&&rest[0].endsWith('.mjs'))||(rest.length===3&&rest[0]==='skills'))&&!next.has(relative);
+ });
 }
 export function install(home,settings,{dryRun=false,refreshLock=false,clean=false}={}){
  const preview=renderPlan(home,settings,{}, {clean});

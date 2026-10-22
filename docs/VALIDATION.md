@@ -1,5 +1,14 @@
 # 可迁移性验收
 
+## 2026-10-22 六项能力与 Claude 上下文注入
+
+- 完整 `npm test` 143 项通过，无跳过；新增断言覆盖三个模块的全局挂载（且不在 preset 内）、workflow 6/64 上限、两个 Playwright 服务、session-bus 授权/前缀/停止/去重、usage 计算与无价格、安全扫描脱敏与目录跳过、claude-context 过滤与 project slug。
+- 隔离 DSH_HOME 全新安装 38 个受管文件后，用安装版同一 Electron 运行时启动 desktop profile，取得 `ENHANCED_ACCEPTANCE_PASS`：`usage_report`、`message_session`、`list_authorized_sessions` 注册；`mcp__playwright__*` 与 `mcp__playwright-session__*` 两套工具都存在；5 个技能解析到 `agent-capabilities/skills/<name>/SKILL.md`；`/session-bus list` 返回 success；装配后的系统提示含 `claude-context`（合成 `.claude/CLAUDE.md` 标记可见）与 `session-bus`。
+- 修正两处实现问题：三个模块原先挂在 preset 内，第二个 Agent 会重复打开同一 storage domain；`browser-guidance` 模板字符串内的反引号导致语法错误。两者都有回归覆盖。
+- 技能 `code-review` 重命名为 `dsh-code-review`：外部技能 provider（`~/.codex/skills` 等）优先级高于桌面 `customSkillDirs`，同名技能会被覆盖；安装器白名单保留旧名用于清理旧部署。
+- 限制：本次环境没有 `OPENAI_API_KEY`，未做真实模型调用，也没有端到端执行 `usage_report` 工具；验收止于原生装配层。工具注册侧的 `execute(args, exec)` 签名已从宿主源码确认。启动期间原生 `spill-local` 输出过一次临时目录 `EPERM` 警告，宿主仍完成启动和验收。
+- 该隔离 home 不是用户日常 home；正式部署需重新 dry-run、备份后执行，未确认前不重启用户当前桌面进程。
+
 ## 2026-10-21 本地环境与最近文件夹
 
 - 独立源码快照完整 96 项回归通过，无跳过。新增环境执行、catalog 与客户端检查覆盖 owner-only、字面量变量/空值、平台大小写、取消、家族继承、便携定义和目录绑定隔离、全量预检、部分失败保留、解绑与原生导航引用释放。
