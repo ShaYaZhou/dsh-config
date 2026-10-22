@@ -58,13 +58,9 @@ PTC 只向模型暴露 `run_code`；文件、shell、skills、`subagent`、`work
 
 ## 团队审批与任务门禁
 
-`modules/team.mjs` 增加两个可选治理开关，默认都关闭，不改变现有 Team 行为：
+`modules/team.mjs` 增加两个可选治理开关，即 `TeamService.Config` 的 `requireTaskApproval` 与 `taskGate`，默认分别为 `false` 与空字符串，不改变现有 Team 行为。
 
-```json
-"agent-team-local": {"requireTaskApproval": false, "taskGate": ""}
-```
-
-这两个字段是 `TeamService.Config` 的引擎配置项，默认关闭。当前模板 `config/desktop.patch.json` 只为该模块登记了 id 与入口，没有 config 块；要启用需先在模板里给该条目补上这段配置再重新生成，不要直接改已生成的运行时配置。
+当前模板 `config/desktop.patch.json` 只为该模块登记 id 与入口，没有向模块传配置的通道，仓库内也没有其他模块使用模块级 config 块。因此这两个开关目前只能在生成后的本机配置里手工开启，重新生成会丢失；要长期启用，需要先给部署模板补上模块配置通道。
 
 - **任务审批**：开启 `requireTaskApproval` 后，队友创建的任务进入 `awaiting_approval`，不能认领；只有 Team Lead 能用 `team_task_update` 的 `approve` / `reject` 放行或删除被拒任务（仍被未删除任务阻塞时拒绝删除）。Lead 自己创建的任务仍是 `pending`。
 - **任务门禁**：配置 `taskGate` 为命令后，任务创建（TaskCreated）与完成（TaskCompleted）都会把 `{type, teamId, task}` 以 JSON 写到该命令 stdin，超时 10 秒。退出码 0 放行；2 拒绝并返回命令的 stderr；其他非 0 记 `TEAM_TASK_GATE_FAILED`。超过 10 秒同样按 `TEAM_TASK_GATE_FAILED` 拒绝，不会因门禁留下子进程而无限等待。门禁在写入共享任务之前执行，采用与 Claude Hook 相同的退出码约定。
