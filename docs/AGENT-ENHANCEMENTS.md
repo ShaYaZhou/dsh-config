@@ -1,20 +1,34 @@
-# 六项 Agent 能力增强
+# Agent 能力增强（六项能力与 CC 模式）
 
-2026-10-22。桌面 profile 在原配置上增加了三个本地模块（`claude-context`、`usage-report`、`session-bus`）和五个技能（`workflow-orchestration`、`dsh-code-review`、`security-review`、`claude-context`、`usage-report`）。全部是受管文件，安装后必须从菜单真正退出 Harness 再打开才加载。
+2026-10-22。桌面 profile 在原配置上增加了三个本地模块（`claude-context`、`usage-report`、`session-bus`）和五个技能（`workflow-orchestration`、`dsh-code-review`、`security-review`、`claude-context`、`usage-report`）。另提供额外可选 `cc` preset（CC 模式），把这些能力按 PTC 工具形态组合。全部是受管文件，安装后必须从菜单真正退出 Harness 再打开才加载。
 
 三个模块都挂在**顶层全局 insert**，与原生 `working-directory`、`browser-guidance` 同级，而不是放进 preset。preset 会为每个 Agent 实例化一份插件：`session-bus` 若在 preset 内，第二个 Agent 打开同一 storage domain 会直接失败；`usage-report` 和 `claude-context` 也不需要重复实例。工具仍通过 `agent.ctx.tools.register` 按 Agent 注册，子代理不获得 `message_session`。
 
 ## 工作流编排
 
-使用原生 `@deepseek-ai/dsh-workflow-ptc` 与 `dsh-tool-workflow`，没有新引擎。配置为 `provider: spawn`、并发 6、单次运行最多 64 个子代理：
+使用原生 `@deepseek-ai/dsh-workflow-ptc` 与 `dsh-tool-workflow`，没有新引擎。配置为 `provider: spawn`、并发 16、单次运行最多 1000 个子代理：
 
 ```json
-"workflow-ptc": {"provider": "spawn", "maxConcurrentAgents": 6, "maxTotalAgents": 64}
+"workflow-ptc": {"provider": "spawn", "maxConcurrentAgents": 16, "maxTotalAgents": 1000}
 ```
 
 `workflow-orchestration` 技能负责“什么时候用”：一两项委派走普通 `subagent`；多路独立审计、迁移、跨文件排查才用 `workflow`。技能同时写明实际契约：`meta` 与 `script` 分开传、`args` 必须是对象、`agent()` 失败返回 `null`、优先 `pipeline()` 而不是阶段屏障、重要发现做对抗验证。
 
-边界：工作流子级不继承父会话的 cwd、preset 或 reasoning effort；不提供检查点、恢复或嵌套；没有整体时长和 token 预算。原生 subagent 活跃槽位默认 8，工作流占 6，手工 `subagent` 只剩 2。工作流在被调用方的文件沙箱策略下运行，不能用来绕过权限。
+边界：工作流子级不继承父会话的 cwd、preset 或 reasoning effort；不提供检查点、恢复或嵌套；没有整体时长和 token 预算。原生 subagent 活跃槽位已从默认 8 调到 20，工作流占 16，手工 `subagent` 保留 4；这些是协作式配额，不是硬性调度保证。工作流在被调用方的文件沙箱策略下运行，不能用来绕过权限。
+
+## CC 模式
+
+额外可选 preset `cc`（显示名“CC 模式”，order 2），默认仍是 `standard`。它的插件列表是 `preset-standard` 的完整克隆，再追加一行：
+
+```json
+{"id":"agent-tool-presentation","name":"@deepseek-ai/dsh-agent-tool-presentation","config":{"mode":"ptc"}}
+```
+
+PTC 只向模型暴露 `run_code`；文件、shell、skills、`subagent`、`workflow` 等能力通过生成的 SDK 在代码里调用。因为克隆了 standard，planning、compaction、delegation（16/1000）和技能目录都在。`claude-context`、`usage-report`、`session-bus`、Team、worktree、记忆和空闲压缩是顶层全局挂载，不随 preset 复制，CC 同样继承。`cc` 也加进了 `tool-subagent` 的 `allowedAgentPresets`，standard 或 CC 会话都能把它作为子代理角色选择；`start_session` 的 fresh 子会话也可指定 `agent_preset: "cc"`。
+
+原生 preset 没有继承机制，插件列表必须复制；单测断言“CC = standard + presentation 行”，standard 改动后忘记同步 CC 会直接失败。PTC 需要宿主已组装 `ctx.ptcRuntime`（base 的 `ptc-runtime` 行），缺失时 preset 在挂载阶段拒绝，不会拖到第一条消息；每个 agent 只能声明一次呈现方式。
+
+不设为默认：PTC 改变模型调用工具的方式，普通交互任务用 native 形态更直接；需要代码式编排时再选 CC。PTC 只改变工具呈现，不改变权限、沙箱和子代理继承边界，也不补上工作流引擎缺失的续跑与预算语义。
 
 ## 会话间消息
 
@@ -84,8 +98,9 @@ Claude 专用的 `RTK` 段落和单独成行的 `@import` 会被过滤：前者�
 
 ## 验收
 
-- 完整 `rtk npm test` 143 项通过，无跳过；新增工作流上限与全局挂载、session-bus 授权/停止/去重、usage 计算与无价格、安全扫描脱敏与目录跳过、claude-context 过滤与 project slug 等断言。
+- 完整 `rtk npm test` 143 项通过，无跳过；新增工作流上限与全局挂载、CC preset 克隆关系、session-bus 授权/停止/去重、usage 计算与无价格、安全扫描脱敏与目录跳过、claude-context 过滤与 project slug 等断言。
 - 隔离 DSH_HOME 完整安装后，用安装版同一 Electron 运行时启动桌面 profile：`ENHANCED_ACCEPTANCE_PASS`，确认 `usage_report`、`message_session`、`list_authorized_sessions` 三个工具注册，两个 Playwright 服务前缀都存在，五个技能解析到 `agent-capabilities/skills/`，`/session-bus list` 返回 success，装配后的系统提示含 `claude-context`（含合成标记）与 `session-bus`。
-- 未做真实模型调用：本次环境没有可用的 `OPENAI_API_KEY`，验收止于原生装配层。`usage_report` 的端到端工具调用也因此没有实跑，只验证了注册与字段映射。
+- CC 模式：隔离 `DSH_HOME` 重新安装后，standard 会话解析为 `native` 且 `workflow` 直接可见；`agentPreset: "cc"` 会话解析为 `ptc`，模型可见工具只有 `run_code`，输出 `CC_PRESET_ACCEPTANCE_PASS`。
+- 未做真实模型调用：本次环境没有可用的 `OPENAI_API_KEY`，验收止于原生装配层。`usage_report` 的端到端工具调用也因此没有实跑，只验证了注册与字段映射；CC 模式同样没有执行真实的 `run_code` 程序。
 - 验收期间原生 `spill-local` 输出过一次临时目录 `EPERM` 警告，宿主仍正常启动并完成验收；与本仓库模块无关。
 - 真实宿主验收必须固定宿主版本；升级 Harness 后重新验收，不能只改版本号。

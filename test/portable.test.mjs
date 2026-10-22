@@ -86,7 +86,16 @@ test('enhanced modules and skills deploy with bounded workflow and both browser 
  for(const id of ['claude-context','usage-report','session-bus'])assert(ids.includes(id),id+' must mount globally, not per preset');
  assert(!preset.config.plugins.some(row=>['claude-context','usage-report','session-bus'].includes(row.id)));
  const workflow=preset.config.plugins.find(row=>row.id==='delegation').config.find(row=>row.id==='workflow-ptc');
- assert.deepEqual(workflow.config,{provider:'spawn',maxConcurrentAgents:6,maxTotalAgents:64});
+ assert.deepEqual(workflow.config,{provider:'spawn',maxConcurrentAgents:16,maxTotalAgents:1000});
+ const subagent=config.find(row=>row.id==='subagent');
+ assert.deepEqual(subagent.config,{maxActiveSubagents:20});
+ const cc=config.flatMap(row=>row.insert??[]).find(row=>row.id==='preset-cc');
+ assert(cc,'CC preset must be declared');
+ assert.equal(cc.config.id,'cc');
+ assert.deepEqual(cc.config.plugins.at(-1),{id:'agent-tool-presentation',name:'@deepseek-ai/dsh-agent-tool-presentation',config:{mode:'ptc'}});
+ assert.deepEqual(cc.config.plugins.slice(0,-1),preset.config.plugins,'CC preset must track the standard plugin list');
+ const allowed=preset.config.plugins.find(row=>row.id==='delegation').config.find(row=>row.id==='tool-subagent').config.allowedAgentPresets;
+ assert(allowed.includes('cc'),'CC preset must be selectable for delegated agents');
 
  const browsers=config.flatMap(row=>row.insert??[]).filter(row=>row.id?.startsWith('mcp-playwright'));
  assert.equal(browsers.length,2);

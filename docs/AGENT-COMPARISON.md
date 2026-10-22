@@ -50,12 +50,12 @@
 | Shell / 文件 / 搜索 | ✅ bash/pwsh、fs、fs-search | ✅ Bash/PowerShell、文件工具 | 持平 |
 | 计划模式 | ✅ plan mode + planner 预设 | ✅ plan mode + Plan 子代理 | 持平 |
 | 目标保持 / 长任务 | ✅ goal 工具 + 命令，带执行时权限检查 | ✅ `/goal` 可验证完成条件，小模型判停 | 接近 |
-| 子代理 | ✅ subagent / fork / list-agents / control | ✅ 子代理，可按 ID 恢复、可互发消息，默认嵌套 3 层、20 并发 | **弱（恢复/互发未验证）** |
+| 子代理 | ✅ subagent / fork / list-agents / control；本部署活跃槽位 20 | ✅ 子代理，可按 ID 恢复、可互发消息，默认嵌套 3 层、20 并发 | **弱（恢复/互发未验证）** |
 | 多代理团队 | ✅ 本地 Team：共享任务（CAS/依赖/认领/改派）、`send_message`、`list_agents`、`wait_agent`、worktree 隔离 | ✅ Agent Teams（实验，默认关闭）：共享任务 + mailbox + 计划审批 + 门禁 hook + 分屏 | **接近，弱在审批动作与任务 hook** |
 | 嵌套会话 / 状态总览 | ✅ 两层父子会话、并排分屏、待审批/计划待审/问题/停止/失败状态、跨工作区分组（元数据，20 条/批） | ✅ 子代理 + agent view 全局状态、按 ID 恢复 | 接近 |
 | 本地环境 / 多仓库 | ✅ 保存多仓库 + worktree + 只写变量，便携定义导入导出，启动独立会话 | ◐ worktree、`--add-dir`、Projects；无同等环境定义与变量管理 | **DSH 更强** |
 | 后续建议 / 确认式派发 | ✅ `propose_followups` 只提议；owner 确认后独立 worktree 启动或排入当前会话，Tab 采纳草稿 | ✅ 桌面建议提示、采纳后排入 | 接近（DSH 强在确认前不执行） |
-| 工作流编排 | ◐ 原生 `workflow-ptc`：本仓库配置并发 6、单次最多 64 个子代理（原生默认按 CPU 自动 / 1000），`agent()` 支持 `schema`；无检查点、续跑、嵌套、整体时长/token 预算，运行时未验收 | ✅ JS 编排、schema（失败重试 5 次）、同会话断点续跑、默认 16 并发（可调 1–256）、单次最多 1000 代理 | **弱（规模已固定，治理未验证）** |
+| 工作流编排 | ◐ 原生 `workflow-ptc`：本仓库配置并发 16、单次最多 1000 个子代理（并发 16 对齐 Claude，总量取原生默认），`agent()` 支持 `schema`；无检查点、续跑、嵌套、整体时长/token 预算，装配已验收、真实并发行为未验收 | ✅ JS 编排、schema（失败重试 5 次）、同会话断点续跑、默认 16 并发（可调 1–256）、单次最多 1000 代理 | **弱（治理未验证：无续跑/预算）** |
 | 程序化工具调用 | ✅ PTC 运行时（`dsh-ptc-runtime`、`workflow-ptc`） | ✅ programmatic tool calling + code execution 组合 | 接近 |
 | 会话间消息 | ◐ Team / 任务家族内部 + `session-bus` 同机逐对授权（目标须运行、非子代理、未归档、未被用户停止；单条 16000 字符） | ✅ 本机/跨机/云，accept/hold/refuse | **部分缺失（跨机器）** |
 | 后台任务 | ✅ jobs + 后台完成通知 | ✅ agent view、`--bg`、独立配额、JSON 状态 | 接近 |
@@ -149,11 +149,11 @@ Claude 把会话产出发布为 claude.ai 上的 Artifacts（原地更新、版�
 |---|---|---|
 | 子代理 | `subagent` / `fork` / `list-agents` / `control`；按 ID 恢复与子代理之间互发消息未验收 | 可按 ID 恢复（`SendMessage`）、可按名字互发消息；默认向下嵌套 3 层（`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`，设为 1 关闭），默认 20 个并发 |
 | 团队 | 本地 Team：共享任务带 revision CAS、依赖、认领/完成/重开/改派、建议写范围（advisory，非锁）；`send_message` 在步边界 steer 或唤醒、`wait_agent`、`spawn_teammate` 支持独立 model / preset / worktree；默认 16 名成员、256 个任务、单条消息 64 KiB | Agent Teams（实验，默认关闭，需 `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`）：共享任务列表 + mailbox + 计划审批 + `TeammateIdle` / `TaskCreated` / `TaskCompleted` 门禁 hook + in-process/分屏两种显示；成员无硬上限（建议 3–5）；限制：每会话一支团队、团队不能嵌套、不能转移 lead、`/resume` 不恢复 in-process 成员 |
-| 工作流 | 原生 `workflow-ptc`：本仓库配置为 `provider: spawn`、并发 6、单次最多 64 个子代理（原生默认并发按 CPU 自动、单次 1000），`agent()` 支持 `schema`；无检查点、恢复、嵌套，无整体时长/token 预算 | 动态工作流：JS 脚本（`agent` / `pipeline` / `parallel` / `phase` / `args`）、`schema` 校验失败重试 5 次、单次调用最多 4096 项、默认 16 并发（可调 1–256）、单次最多 1000 个代理、同一会话内断点续跑、超过 25 个代理或预估 150 万 token 时提示 Large workflow |
+| 工作流 | 原生 `workflow-ptc`：本仓库配置为 `provider: spawn`、并发 16、单次最多 1000 个子代理（并发取 Claude 默认量，总量为原生默认），`agent()` 支持 `schema`；无检查点、恢复、嵌套，无整体时长/token 预算 | 动态工作流：JS 脚本（`agent` / `pipeline` / `parallel` / `phase` / `args`）、`schema` 校验失败重试 5 次、单次调用最多 4096 项、默认 16 并发（可调 1–256）、单次最多 1000 个代理、同一会话内断点续跑、超过 25 个代理或预估 150 万 token 时提示 Large workflow |
 
-- **DSH**：Team 只在 desktop profile 提供，只有 lead 能 spawn，`wait_agent` 超时限制 10 秒–1 小时；Team 成员是 subagent，不会出现在嵌套会话树里。嵌套会话是另一套机制，最多两层，`wait_for_sessions` 最多等 60 秒，`read_session` 默认取最后 12 条（最多 40 条、正文截 16K 字符），并带跨工作区状态分组（仅元数据、每批 20 条）、跨 cwd 的侧栏血缘、取消传播，以及经记忆插件公开服务继承的禁写边界。工作流的上限已由配置与单测固定，但运行时行为没有仓库内验收，子级也不继承父会话的 cwd、preset 或 reasoning effort。
+- **DSH**：Team 只在 desktop profile 提供，只有 lead 能 spawn，`wait_agent` 超时限制 10 秒–1 小时；Team 成员是 subagent，不会出现在嵌套会话树里。嵌套会话是另一套机制，最多两层，`wait_for_sessions` 最多等 60 秒，`read_session` 默认取最后 12 条（最多 40 条、正文截 16K 字符），并带跨工作区状态分组（仅元数据、每批 20 条）、跨 cwd 的侧栏血缘、取消传播，以及经记忆插件公开服务继承的禁写边界。工作流的上限（并发 16、单次 1000）已由配置、单测与隔离宿主装配验收固定，但没有做真实模型调用，16 路并发下的排队与限额行为未验收；子级也不继承父会话的 cwd、preset 或 reasoning effort。
 - **Claude**：subagent / Agent Teams / dynamic workflows 是三层递进，各有明确的规模与中断语义；工作流把中间结果留在脚本变量里，不占主上下文，对抗验证、多角度评审这类质量模式可以写进脚本复用；Team 的成员是独立会话，可在 UI 里直接对话、按名字互发消息。
-- **差距性质**：协议层（共享任务、消息、worktree 隔离）DSH 已接近；差距集中在两处——**治理**（计划审批、任务级 hook、按 ID 恢复、成员级 UI 与分屏）与**规模**（没有断点续跑和预算收敛；并发 6 / 单次 64 是本仓库的配置值，原生默认按 CPU 自动 / 1000，而 6 是为手工 subagent 保留原生 `maxActiveSubagents` 默认 8 中的 2 个槽位）。成熟度是反向的：Claude 的 Teams 仍是实验特性、默认关闭；DSH 的 Team 是常规配置。但 DSH 的 Team 与嵌套会话仍是两套并列机制，Claude 已是三层递进。
+- **差距性质**：协议层（共享任务、消息、worktree 隔离）DSH 已接近；差距集中在两处——**治理**（计划审批、任务级 hook、按 ID 恢复、成员级 UI 与分屏）与**规模语义**。规模数字已补上：工作流并发 16、单次 1000 对齐 Claude 的默认量与上限，原生 subagent 活跃槽位同步从默认 8 调到 20（工作流占 16，留 4 个给手工 subagent）。但引擎仍没有断点续跑、整体时长/token 预算和嵌套，这些是 `workflow-ptc` 内部语义，改配置补不了。成熟度是反向的：Claude 的 Teams 仍是实验特性、默认关闭；DSH 的 Team 是常规配置。但 DSH 的 Team 与嵌套会话仍是两套并列机制，Claude 已是三层递进。本部署另有额外可选 `cc` preset（CC 模式）：把 standard 的完整插件列表与 PTC 呈现组合，让模型用 `run_code` 调用工具；它改变的是工具呈现方式，不补上 `workflow-ptc` 的续跑、整体预算和嵌套语义。
 
 ### 5.2 权限与审批粒度
 
@@ -279,12 +279,12 @@ OpenSpec 1.14.3 + `dsh-spec-delivery`：从提案到实现到归档的完整 ski
 | 沙箱未验收 | 三档策略存在，但 OS 级文件/网络隔离无验收记录 | 处理不可信代码前补验收，或降到隔离环境 |
 | 平台单一 | 验收以 Windows 为主（本地环境、PowerShell/PTY 也只在 Windows 实测） | 跨平台使用前重新验收浏览器、CUA 与本地环境 |
 | 变量存储不加密 | 本地环境变量保存在原生凭据服务的文件记录中，文档明确"不能宣称加密"；导出定义不含变量值 | 不要把高敏感值放进共享环境；按 OS 账户隔离使用 |
-| 多代理上限 | 只有两层；Team 与嵌套会话是两套机制；工作流并发 6、单次 64 | 大规模并行不要硬套，改用工作流或人工拆分 |
+| 多代理上限 | 只有两层；Team 与嵌套会话是两套机制；工作流并发 16、单次 1000 | 大规模并行不要硬套，改用工作流或人工拆分 |
 | 最松权限档 | `danger-full-access` 配 approval `never`；模板默认是 `workspace-write` | 按任务选择预设；不要把最松一档写进脚本或模板 |
 | headless 功能面小 | 无 MCP / Team / worktree / plan mode / 空闲压缩 / 嵌套会话 / 新模块 | 不要把桌面能力写进无人值守流程 |
 | 记忆并发 | MCP 进程不参与目录锁，可能与 DSH 插件并发写同一存储 | 同时使用两种入口时避免写入，或只读 |
 | 第三方 bundle 未验收 | dshmarket、better-sidebar、code-review、skills-manager 等只锁定版本，源码与回归不在仓库 | 使用前单独验收，不把其行为写进能力承诺 |
-| workflow / PTC 部分验收 | 并发 6、单次 64、`provider: spawn` 已由配置与单测固定；续跑、检查点与整体成本语义无仓库内记录 | 先用小规模任务实测，再用于长流程 |
+| workflow / PTC 部分验收 | 并发 16、单次 1000、`provider: spawn` 已由配置与单测固定；续跑、检查点与整体成本语义无仓库内记录；CC 模式只验证 preset 装配与工具呈现，未做真实 `run_code` 调用 | 先用小规模任务实测，再用于长流程 |
 | Claude 侧实验特性 | Agent Teams、dynamic workflows、agent view、routines 均标注实验/研究预览 | 对照时按"已发布但实验"计，不作为稳定基线 |
 | 模型质量未比较 | 本报告不评价 DeepSeek / GLM / GPT-6 与 Claude 的推理差异 | 需要时单独做任务级评测，不要用功能表推断 |
 

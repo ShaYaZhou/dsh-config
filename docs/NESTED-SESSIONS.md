@@ -121,4 +121,4 @@ REA 的后台 Evidence：`ev_97f38f33a2f2b33f6018128f97ac49d8a4435a72c0ea05dd829
 
 `clean`/Git revert 后安装会卸载这项增强，但保留原生会话及插件 domain 数据；重新安装增强可恢复树。新电脑只获得程序与配置，不会拉取原电脑的会话、家族关系或记忆。
 
-明确要求“先写 spec，再自动实现和验收”时使用 [自然语言交付流程](OPENSPEC.md)：主会话写规格并调度，standard 子会话实现，fresh reviewer 独立审查，主会话运行实际验收并维护任务状态。`start_session` 可指定 `agent_preset`，fresh 模式支持 standard/explore/planner/reviewer；fork 继续保持源角色，不允许同时覆盖角色。
+明确要求“先写 spec，再自动实现和验收”时使用 [自然语言交付流程](OPENSPEC.md)：主会话写规格并调度，standard 子会话实现，fresh reviewer 独立审查，主会话运行实际验收并维护任务状态。`start_session` 可指定 `agent_preset`，fresh 模式支持 standard/explore/planner/reviewer/cc；fork 继续保持源角色，不允许同时覆盖角色。

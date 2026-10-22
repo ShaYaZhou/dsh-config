@@ -17,8 +17,8 @@ description: Orchestrate many DSH subagents with the native workflow tool for au
 
 ## 本部署上限
 
-- 并发 `agent()` 6 个，单次运行最多 64 个子代理，单次 `parallel()`/`pipeline()` 最多 4096 项。超过 6 的调用会排队，不要一次塞几百个短任务来“提速”。
-- 原生 subagent 的活跃槽位默认 8；工作流占 6，给手工 subagent 留 2。出现 `ACTIVATION_LIMIT_REACHED` 时降低并发或分批，不要重试同一波。
+- 并发 `agent()` 16 个，单次运行最多 1000 个子代理，单次 `parallel()`/`pipeline()` 最多 4096 项。超过 16 的调用会排队，不要一次塞几百个短任务来“提速”。
+- 原生 subagent 的活跃槽位在本部署调到 20；工作流占 16，给手工 subagent 留 4。出现 `ACTIVATION_LIMIT_REACHED` 时降低并发或分批，不要重试同一波。
 - 没有整体运行时长截止，也没有 token 预算。`syncTimeoutMs` 只限制脚本最初同步片段（5 秒）；不要把长循环写成同步代码。费用由你自行控制，必要时用 `usage_report` 查看消耗。
 - 工作流不提供检查点、恢复、保存或嵌套工作流。每个 `agent()` 的输出要自包含；跨阶段需要的中间结果写进返回值或文件，别指望运行中断后还能续上。
 - 工作流子级不继承父会话的 `cwd`、agent preset 或 reasoning effort。需要独立的目录或角色时，在提示词里写清，或改用普通 linked session 的 `subagent`/`start_session`。
