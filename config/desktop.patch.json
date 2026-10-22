@@ -10,7 +10,8 @@
     "id": "subagent",
     "name": "@deepseek-ai/dsh-subagent",
     "config": {
-      "maxActiveSubagents": 20
+      "maxActiveSubagents": 20,
+      "maxDepth": 3
     }
   },
   {

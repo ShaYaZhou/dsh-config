@@ -1,5 +1,14 @@
 # 可迁移性验收
 
+## 2026-10-22 子代理能力验收与嵌套深度对齐
+
+- 配置：`config/desktop.patch.json` 的 `@deepseek-ai/dsh-subagent` 增加 `maxDepth: 3`（原生默认 1）。Claude Code 的 `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` 默认值同为 3，语义一致：根会话深度 0，子代理每层加一，超过上限的启动被拒绝。`test/portable.test.mjs` 的配置断言同步为新值。
+- 验收方式：`.local/` 下的临时脚本在隔离 `DSH_HOME` 启动 desktop profile，用真实模型驱动；凭据只在进程内存中从本机凭据文件转发，不落盘、不打印。未使用 computer-use，也不需要桌面窗口。
+- 结果（`SUBAGENT_ACCEPTANCE_PASS`）：父会话工具含 `subagent`、`subagent_fork`、`send_message`、`list_agents`、`interrupt_agent`；`maxDepth` 解析为 3；首轮回复正确；`listChildren` 返回 `mode: continuable`，`listDescendants` 中深度为 1；对空闲子代理 `sendMessage` 直接开新回合；`dispose()` 之后再发消息，子会话冷恢复且累计 3 个回合（没有新建会话）；子代理用 `send_message` 把消息投进父会话 inbox；以祖先身份 `interrupt` 使运行中的回合以 `aborted` 结束；子代理再用自己的 `subagent` 工具派出孙代理，`listDescendants` 出现深度 2。
+- 部署：`install --dry-run` 预览 65 个受管文件后安装到默认 `DSH_HOME`（备份 `backups/portable-harness-2026-10-22T15-44-40-493Z`），`status` 无漂移；`node --test test/portable.test.mjs` 13 项通过。
+- 未验证：Team 包装层（`spawn_teammate` / Team 自带 `send_message`）未单独跑真实模型验收，本次覆盖的是它依赖的原生子代理服务；成员级原生计划模式与原生 Hook 事件仍未对齐——原生 `exit_plan_mode` 的评审只能由运行时根会话发起，被在线 Agent 拥有的子会话无法打开评审。
+- 隔离环境安装提示：pnpm 在无 TTY 时会中止删除 `node_modules`，需设置 `CI=true`；中途失败后要先 `rollback --home` 再重装。
+
 ## 2026-10-22 技能与部署环境对齐
 
 - 新增 `scripts/align-skills.mjs` 与 `docs/SKILLS-ALIGNMENT.md`，把 `skills/dynamic-ui`、`skills/think`、`skills/pua` 复制到 agent 全局技能目录；`skills/think`、`skills/pua` 从本机副本入仓，仓库成为唯一来源。`package.json` 测试清单加入 `test/align-skills.test.mjs`。

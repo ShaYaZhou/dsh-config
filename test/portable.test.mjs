@@ -90,7 +90,7 @@ test('enhanced modules and skills deploy with bounded workflow and both browser 
  const workflow=preset.config.plugins.find(row=>row.id==='delegation').config.find(row=>row.id==='workflow-ptc');
  assert.deepEqual(workflow.config,{provider:'spawn',maxConcurrentAgents:16,maxTotalAgents:1000});
  const subagent=config.find(row=>row.id==='subagent');
- assert.deepEqual(subagent.config,{maxActiveSubagents:20});
+ assert.deepEqual(subagent.config,{maxActiveSubagents:20,maxDepth:3});
  const cc=config.flatMap(row=>row.insert??[]).find(row=>row.id==='preset-cc');
  assert(cc,'CC preset must be declared');
  assert.equal(cc.config.id,'cc');
