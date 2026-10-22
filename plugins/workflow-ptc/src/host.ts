@@ -22,7 +22,9 @@ interface ChildRecord {
   readonly callId: number
   /** The guest's 1-based `agent()` index, the journal's replay key. */
   readonly seq: number
-  readonly run?: SubagentActivation
+  /** The request this call published; a schema retry reuses it. Absent for a replayed call. */
+  readonly request?: ChildStartRequest
+  run?: SubagentActivation
   readonly replay?: JournalReplay
   disposal?: Promise<void>
 }
@@ -37,6 +39,17 @@ export interface PtcWorkflowRunDeps {
   readonly onChildActive?: (childId: SessionId, active: boolean) => void
   /** Caller cancellation (foreground step abort or job kill). */
   readonly signal?: AbortSignal
+  /**
+   * Total child activations one run may start; a schema retry spends one. The
+   * guest enforces the same cap on `agent()` calls.
+   */
+  readonly maxTotalAgents?: number
+  /**
+   * Retries for one `agent()` call that finished `completed` without the
+   * structured value its schema asked for (absent means 0). Each retry is a
+   * fresh child with the same request; only the final attempt is journaled.
+   */
+  readonly schemaRetries?: number
 }
 
 const GUEST_URL = `data:text/javascript,${encodeURIComponent(WORKFLOW_GUEST_SOURCE)}`
@@ -135,6 +148,8 @@ export class PtcWorkflowRun implements WorkflowRun {
   private readonly pending = new Set<Promise<unknown>>()
   private readonly liveAgents = new Map<number, WorkflowAgentInfo>()
   private started = 0
+  /** Schema retries so far; they start children outside the guest's `agent()` counter. */
+  private retries = 0
   private terminal = false
   private cancelReason: string | undefined
   private disposed: Promise<void> | undefined
@@ -215,17 +230,9 @@ export class PtcWorkflowRun implements WorkflowRun {
     return record
   }
 
-  private async startChild(request: ChildStartRequest): Promise<PtcJsonValue> {
-    this.requireActive()
-    const callId = ++this.started
-    // A resumable prefix never reaches the subagent seam: the recorded result
-    // is handed to the guest and the script cannot tell the difference.
-    const replay = this.deps.journal?.takeReplay(request, this.provider)
-    if (replay !== undefined) {
-      this.children.set(callId, { callId, seq: request.seq, replay })
-      return { callId, childId: replay.childId }
-    }
-    const run = await this.subagents.startActivation({
+  /** Publish one child activation for a call (the first attempt or a schema retry). */
+  private async activate(request: ChildStartRequest, callId: number): Promise<SubagentActivation> {
+    return await this.subagents.startActivation({
       provider: this.provider,
       label: `${this.meta.name} child ${callId}`,
       delivery: 'caller',
@@ -243,7 +250,20 @@ export class PtcWorkflowRun implements WorkflowRun {
         },
       },
     })
-    const record: ChildRecord = { callId, seq: request.seq, run }
+  }
+
+  private async startChild(request: ChildStartRequest): Promise<PtcJsonValue> {
+    this.requireActive()
+    const callId = ++this.started
+    // A resumable prefix never reaches the subagent seam: the recorded result
+    // is handed to the guest and the script cannot tell the difference.
+    const replay = this.deps.journal?.takeReplay(request, this.provider)
+    if (replay !== undefined) {
+      this.children.set(callId, { callId, seq: request.seq, replay })
+      return { callId, childId: replay.childId }
+    }
+    const run = await this.activate(request, callId)
+    const record: ChildRecord = { callId, seq: request.seq, request, run }
     this.children.set(callId, record)
     this.deps.journal?.recordCall(request, this.provider, run.childId)
     this.deps.onChildActive?.(run.childId, true)
@@ -257,21 +277,52 @@ export class PtcWorkflowRun implements WorkflowRun {
 
   private async childResult(record: ChildRecord): Promise<PtcJsonValue> {
     if (record.replay !== undefined) return json(record.replay.result)
-    const run = record.run
-    /* v8 ignore next -- a record always owns either a replay or an activation */
-    if (run === undefined) throw new Error('workflow child record has no activation')
     const signal = this.controller.signal
     signal.throwIfAborted()
     const aborted = Promise.withResolvers<never>()
     const onAbort = (): void => { aborted.reject(signal.reason) }
     signal.addEventListener('abort', onAbort, { once: true })
     try {
-      const result = await Promise.race([run.result, aborted.promise])
-      const payload: ChildResult = {
-        output: result.output,
-        stopReason: result.stopReason,
-        ...result.structured === undefined ? {} : { structured: result.structured },
-        tokens: await this.childTokens(run.childId),
+      /* v8 ignore next -- a live record always carries its request */
+      if (record.request === undefined) throw new Error('workflow child record has no request')
+      const request = record.request
+      const maxRetries = request.schema === undefined ? 0 : this.deps.schemaRetries ?? 0
+      let run = record.run
+      /* v8 ignore next -- a record always owns either a replay or an activation */
+      if (run === undefined) throw new Error('workflow child record has no activation')
+      let tokens = 0
+      let payload: ChildResult
+      for (let attempt = 0; ; attempt += 1) {
+        const result = await Promise.race([run.result, aborted.promise])
+        tokens += await this.childTokens(run.childId)
+        payload = {
+          output: result.output,
+          stopReason: result.stopReason,
+          ...result.structured === undefined ? {} : { structured: result.structured },
+          tokens,
+        }
+        // A provider that finished cleanly without the requested structured
+        // value gets a fresh child; a failed or cancelled child is not retried.
+        if (payload.structured !== undefined || payload.stopReason !== 'completed' || attempt >= maxRetries) break
+        const cap = this.deps.maxTotalAgents
+        if (cap !== undefined && this.started + this.retries >= cap) {
+          this.observer.log(`workflow: agent #${record.seq} finished without structured output; total agent cap (${cap}) reached, not retrying`)
+          break
+        }
+        this.retries += 1
+        this.observer.log(`workflow: agent #${record.seq} finished without structured output; retry ${attempt + 1}/${maxRetries}`)
+        await this.disposeChild(record)
+        this.requireActive()
+        run = await this.activate(request, record.callId)
+        if (this.controller.signal.aborted) {
+          await run.dispose()
+          this.deps.onChildActive?.(run.childId, false)
+          throw new Error('workflow child started after cancellation')
+        }
+        record.run = run
+        record.disposal = undefined
+        this.children.set(record.callId, record)
+        this.deps.onChildActive?.(run.childId, true)
       }
       this.deps.journal?.recordResult(record.seq, payload)
       return json(payload)

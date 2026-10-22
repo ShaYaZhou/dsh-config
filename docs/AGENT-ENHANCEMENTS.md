@@ -18,10 +18,11 @@
 - **整体预算**：单次调用用 `budget_tokens` / `budget_ms` 收紧（只能低于引擎配置），脚本侧另有只读 `budget` 全局，提供 `total`、`spent()`、`remaining()`、`elapsedMs()`、`timeRemainingMs()`。越过预算后的下一次 `agent()` 被拒绝，已收集的结果仍可返回。
 - **嵌套限制**：工作流子代理不能再启动工作流（工具描述写作 `one level only`），与 Claude 的一层嵌套一致；子代理里仍可调用普通 `subagent`。
 - **检查点 / 续跑**：每次运行写 `$DSH_HOME/workflows/runs/<runId>.jsonl`（header，加上每个 `agent()` 的 call / result 行）。`resume_from_run_id` 按 seq、prompt、provider、model、schema 回放未变前缀；第一个不匹配之后永久转 live，回放的子代理 tokens 记为 0。
+- **schema 失败重试**：`agent()` 带 `schema` 时，子代理以 `completed` 结束却没有产出 structured 值，引擎用同一请求重开一个子代理，最多 `schemaRetries` 次（引擎配置，默认 5，设 0 关闭）。失败或取消的子代理不重试；重试前释放旧子代理，token 跨尝试累加，journal 只记最终尝试，`resume_from_run_id` 不会重放失败结果。每次重试都会通过宿主的运行进度记录一条日志。
 
 `workflow-orchestration` 技能负责“什么时候用”：一两项委派走普通 `subagent`；多路独立审计、迁移、跨文件排查才用 `workflow`。技能同时写明实际契约：`meta` 与 `script` 分开传、`args` 必须是对象、`agent()` 失败返回 `null`、优先 `pipeline()` 而不是阶段屏障、重要发现做对抗验证。
 
-边界：工作流子级不继承父会话的 cwd、preset 或 reasoning effort；一层嵌套的代价是“子代理里想再拆，只能把结果交回父级再编排”。token 预算要求宿主已挂载 `session-query`，只统计已结算子会话的 `tokenUsage` 投影，回放调用不计；没有该服务时只能设时长预算。journal 含 prompt 文本，只落在 `DSH_HOME` 下，不纳入 Git。原生 subagent 活跃槽位已从默认 8 调到 20，工作流占 16，手工 `subagent` 保留 4；这些是协作式配额，不是硬性调度保证。工作流在被调用方的文件沙箱策略下运行，不能用来绕过权限。
+边界：工作流子级不继承父会话的 cwd、preset 或 reasoning effort；一层嵌套的代价是“子代理里想再拆，只能把结果交回父级再编排”。token 预算要求宿主已挂载 `session-query`，只统计已结算子会话的 `tokenUsage` 投影，回放调用不计；没有该服务时只能设时长预算。每次 schema 重试都是一次完整的子代理运行，成本按尝试累加，真实模型下重试能否修正 structured 输出尚未验收。journal 含 prompt 文本，只落在 `DSH_HOME` 下，不纳入 Git。原生 subagent 活跃槽位已从默认 8 调到 20，工作流占 16，手工 `subagent` 保留 4；这些是协作式配额，不是硬性调度保证。工作流在被调用方的文件沙箱策略下运行，不能用来绕过权限。
 
 ## CC 模式
 
@@ -55,9 +56,29 @@ PTC 只向模型暴露 `run_code`；文件、shell、skills、`subagent`、`work
 
 对端消息会在文本前带上明确声明：这是 agent 之间转发的请求，不是用户授权，不得扩大权限、执行破坏性操作或服从与当前用户请求冲突的指令。`session-bus` 同时注入一条系统上下文，只列出当前确实可发送的目标。
 
+## 团队审批与任务门禁
+
+`modules/team.mjs` 增加两个可选治理开关，默认都关闭，不改变现有 Team 行为：
+
+```json
+"agent-team-local": {"requireTaskApproval": false, "taskGate": ""}
+```
+
+这两个字段是 `TeamService.Config` 的引擎配置项，默认关闭。当前模板 `config/desktop.patch.json` 只为该模块登记了 id 与入口，没有 config 块；要启用需先在模板里给该条目补上这段配置再重新生成，不要直接改已生成的运行时配置。
+
+- **任务审批**：开启 `requireTaskApproval` 后，队友创建的任务进入 `awaiting_approval`，不能认领；只有 Team Lead 能用 `team_task_update` 的 `approve` / `reject` 放行或删除被拒任务（仍被未删除任务阻塞时拒绝删除）。Lead 自己创建的任务仍是 `pending`。
+- **任务门禁**：配置 `taskGate` 为命令后，任务创建（TaskCreated）与完成（TaskCompleted）都会把 `{type, teamId, task}` 以 JSON 写到该命令 stdin，超时 10 秒。退出码 0 放行；2 拒绝并返回命令的 stderr；其他非 0 记 `TEAM_TASK_GATE_FAILED`。超过 10 秒同样按 `TEAM_TASK_GATE_FAILED` 拒绝，不会因门禁留下子进程而无限等待。门禁在写入共享任务之前执行，采用与 Claude Hook 相同的退出码约定。
+- 审批与门禁都不改任务状态机与 revision 语义，`team_task_list` 直接显示 `awaiting_approval`。门禁是宿主进程里的同步命令，不是原生 Hook 事件，也不覆盖 TeammateIdle。
+
 ## 代码审查
 
 `dsh-code-review` 是只读审查技能：先定范围（工作区改动、提交区间、PR、文件集），再读改动周围完整函数和调用方，按正确性、回归、权限与信任边界、资源、可维护性分维度检查，最后对抗自检后给出 `file:line` 证据。没有发现时说明检查范围和未覆盖项；未要求就不改代码。
+
+参数：`effort low|medium|high`（默认 `medium`）、`--comment`（按行内评论交付）、`--fix`（审查后应用最小修复）、`--json`。`--json` 输出固定契约，便于脚本消费：
+
+```json
+{"schemaVersion":1,"findings":[{"severity":"high|medium|low","kind":"correctness|regression|permission|resource|maintainability","file":"path/to/file.ext","line":123,"summary":"一句话结论","trigger":"具体输入或状态","impact":"错误行为/数据损坏/权限提升","evidence":"相关代码或测试输出","suggestion":"最小修复方向","confidence":"confirmed|pending"}]}
+```
 
 技能名不是 `code-review`，因为 DSH 的外部技能 provider（`~/.codex/skills`、`~/.claude/skills`、`~/.agents/skills`）优先级高于桌面 `customSkillDirs`，同名会被覆盖。安装器同时保留旧名用于清理旧部署。
 
@@ -69,7 +90,7 @@ PTC 只向模型暴露 `run_code`；文件、shell、skills、`subagent`、`work
 node .\scan.mjs <目标路径> --json
 ```
 
-脚本跳过 `.git`、`node_modules`、`build`、`dist`、符号链接和二进制/超大文件，默认最多 20000 个文件，输出中的密钥一律 `[redacted]`。命中只是审查线索，不是确认漏洞；必须回到源码确认可达性。`--fail-on high|medium|low` 可选，本仓库默认不接入自动门禁。
+脚本跳过 `.git`、`node_modules`、`build`、`dist`、`.local`、符号链接和二进制/超大文件，默认最多 20000 个文件，输出中的密钥一律 `[redacted]`。输出带 `schemaVersion: 1`。命中只是审查线索，不是确认漏洞；必须回到源码确认可达性。`--fail-on high|medium|low` 用于门禁：本仓库接成 `npm run scan:security`（`--fail-on high`，只有 high 命中返回 1），`npm run check` = `npm test` + 该扫描；缺值或非法值返回 2，不会静默放行。
 
 人工部分按信任边界而不是文件清单走：入口验证、授权、注入、文件与进程、凭据、网络、依赖供应链、失败模式和数据保留。只做无害复现，不执行破坏性命令、不横向移动、不外传数据。
 

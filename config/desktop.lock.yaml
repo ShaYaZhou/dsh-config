@@ -355,7 +355,7 @@ packages:
 
   '@local/dsh-workflow-ptc@file:../../local-plugins/${WORKFLOW-PTC_TGZ}':
     resolution: {integrity: ${WORKFLOW-PTC_INTEGRITY}, tarball: file:../../local-plugins/${WORKFLOW-PTC_TGZ}}
-    version: 0.2.1-rc.2-local.1
+    version: 0.2.1-rc.2-local.2
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.1
       '@deepseek-ai/dsh-agent': 0.2.1-rc.2

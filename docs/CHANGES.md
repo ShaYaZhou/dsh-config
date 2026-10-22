@@ -27,8 +27,8 @@
 | `modules/compaction-basic.mjs` | 在原生 compactNow 增加可选摘要区间与关注点，保留原事务、锁和错误处理 |
 | `modules/range-commands.mjs` | 将用户消息锚点映射到 before/from 区间 |
 | `modules/role-policy.mjs` | 角色权限、项目范围独立记忆和写入 guard |
-| `modules/team.mjs` | 传递角色、模型、cwd，并在队友启动前创建 worktree |
-| `modules/team-tools.mjs` | 暴露和校验新增 Team 参数 |
+| `modules/team.mjs` | 传递角色、模型、cwd，并在队友启动前创建 worktree；新增 `awaiting_approval` 状态、Lead 的 `approve`/`reject`、可选 `requireTaskApproval` 与 `taskGate`（TaskCreated/TaskCompleted 同步执行，退出码 2 拒绝） |
+| `modules/team-tools.mjs` | 暴露和校验新增 Team 参数；策略串补充共享任务流程（list→get→claim→complete）与任务审批语义 |
 | `modules/worktree.mjs`、`modules/worktree-tools.mjs` | 从当前官方桌面包提取的原生模块，作为可挂载本地副本；主体未改写 |
 | `modules/claude-context.mjs` | 读取并注入 `~/.claude/CLAUDE.md`、项目 `.claude/CLAUDE.md` 与 `.claude/rules/*.md`，过滤 Claude 专用 RTK 段落和 `@import`；记忆只给索引路径 |
 | `modules/usage-report.mjs` | 从原生会话投影汇总 token、缓存命中、上下文压力与耗时；价格只来自配置费率，缺省为 null |
@@ -37,7 +37,7 @@
 | `plugins/memory/lib/index.js` | headless 结束前等待记忆写回；移除固定十分钟合并门槛 |
 | `plugins/btw/lib/index.js` | 最近 20 对旁问历史、跨进程保存、转有工具的后台会话 |
 | `plugins/rewind/lib/index.js` | 文件独立回退，复用原快照日志和原生维护锁 |
-| `plugins/workflow-ptc/lib/index.js` | 由 0.2.1-rc.2 源码构建：规模告警、整体 token/时长预算、一层嵌套守卫、每运行 journal 与前缀续跑；构造函数归一化 schemastery 丢弃的 `default(null)` 预算字段 |
+| `plugins/workflow-ptc/lib/index.js` | 由 0.2.1-rc.2 源码构建：规模告警、整体 token/时长预算、一层嵌套守卫、每运行 journal 与前缀续跑、`schemaRetries`（默认 5，仅最终尝试入 journal）；构造函数归一化 schemastery 丢弃的 `default(null)` 预算字段 |
 | `plugins/tool-workflow/lib/index.js` | 由 0.2.1-rc.2 源码构建：工具描述补规模指引、预算、嵌套与续跑说明，并转发 `resume_from_run_id` / `budget_*` / `warnAboveAgents` |
 
 三个插件都保留原浏览器模块、类型文件、资源和许可证。`package.json` 记录本地构建来源与版本；原生能力绑定 0.2.1-rc.2。记忆独立 MCP 启动文件中的上游机器路径示例改为了相对路径注释，不改变运行行为。

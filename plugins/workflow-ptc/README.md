@@ -18,6 +18,13 @@ change is reviewable here. `lib/index.js` is the bundle the harness loads.
 - Per-run JSONL journal (`journal`, `journalRoot`) and prefix replay behind
   `resume_from_run_id`: matched calls return their recorded result without
   starting a subagent, and replay stops permanently at the first mismatch.
+- `schemaRetries` (engine config, default 5): when a child finishes
+  `completed` without the structured value its schema asked for, it is
+  replaced by a fresh child with the same request. Failed or cancelled
+  children are not retried, tokens accumulate across attempts, and each retry
+  spends one more slot of the run's `maxTotalAgents` budget. The call journal
+  row keeps the first attempt's session id; only the final result is recorded,
+  so resume returns that result without restarting the call.
 
 ## Rebuild
 

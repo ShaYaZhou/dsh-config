@@ -26,7 +26,7 @@ node ./scan.mjs <目标路径> --json
 - 只读扫描，跳过 `.git`、`node_modules`、`build`、`dist`、`.local`、符号链接和二进制/超大文件；默认最多 20000 个文件。
 - 输出里的密钥一律为 `[redacted]`。不要把扫描结果中的任何原值复制到回复、日志或新文件。
 - 每条命中只是**审查线索**，不是确认漏洞。必须回到源码确认可达性和影响，再决定是否报告。
-- 可选 `--fail-on high|medium|low` 用于 CI 门禁；本仓库默认不把它接入自动流程。
+- 可选 `--fail-on high|medium|low` 用于门禁：本仓库接成 `npm run scan:security`（`--fail-on high`，只有 high 命中返回 1），`npm run check` = `npm test` + 该扫描。缺值或非法值返回 2，不会静默放行。
 
 ## 第二步：人工审查
 

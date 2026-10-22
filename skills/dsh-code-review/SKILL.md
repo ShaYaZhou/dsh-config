@@ -7,6 +7,13 @@ description: Review a working-tree diff, commit range, PR, or file set for corre
 
 目标是把“看起来对”变成“有证据是对的”。默认只读；用户明确要求修复时才改代码。
 
+## 参数
+
+- `effort low|medium|high`：low 只看 diff 与直接调用方；medium 加完整函数、配置入口与错误分支；high 再加跨调用点搜索、回滚路径与对抗自检。默认 medium。
+- `--comment`：仅当目标是 PR 且用户明确要求时，用 `gh pr review --comment` 逐条回评；默认不写回。
+- `--fix`：仅当用户明确要求时先出报告再改代码，只改发现对应的行；安全类发现交给 `security-review`。
+- `--json`：按下面“输出”里的结构给出机器可读结果；默认输出文本。
+
 ## 先定范围
 
 - 工作区改动：`git status`、`git diff`，区分已暂存和未暂存；先确认没有会被覆盖的用户修改。
@@ -49,6 +56,28 @@ description: Review a working-tree diff, commit range, PR, or file set for corre
 后果：错误行为/数据损坏/权限提升
 证据：相关代码或测试输出（可截断）
 建议：最小修复方向（可选）
+```
+
+`--json` 时改为输出同一批发现的 JSON（字段固定，消费方可依赖）：
+
+```json
+{
+  "schemaVersion": 1,
+  "findings": [
+    {
+      "severity": "high | medium | low",
+      "kind": "correctness | regression | permission | resource | maintainability",
+      "file": "path/to/file.ext",
+      "line": 123,
+      "summary": "一句话结论",
+      "trigger": "具体输入或状态",
+      "impact": "错误行为/数据损坏/权限提升",
+      "evidence": "相关代码或测试输出",
+      "suggestion": "最小修复方向",
+      "confidence": "confirmed | pending"
+    }
+  ]
+}
 ```
 
 - 没有发现时直接说“未发现可确认的问题”，并列出实际检查过的范围和未覆盖项。

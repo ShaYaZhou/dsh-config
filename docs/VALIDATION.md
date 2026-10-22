@@ -1,5 +1,16 @@
 # 可迁移性验收
 
+## 2026-10-22 团队审批、审查门禁与 schema 重试
+
+- 团队治理：`modules/team.mjs` 新增 `awaiting_approval` 状态、Lead 的 `approve`/`reject`、可选 `requireTaskApproval`（默认关闭）与 `taskGate`（TaskCreated/TaskCompleted 同步执行）。门禁走 stdin 传 `{type, teamId, task}`，10 s 超时，退出码 0 通过、2 拒绝为 `TEAM_TASK_BLOCKED`、其他为 `TEAM_TASK_GATE_FAILED`。默认关闭不改变现有 Team 行为。
+- 审查治理：`skills/security-review/scan.mjs` 输出带 `schemaVersion: 1`，`--fail-on` 缺值或非法值返回 2（此前会静默放行）；扫描跳过 `.local`。仓库接入 `npm run scan:security`（`--fail-on high`）与 `npm run check`（`npm test` + 扫描）。同时修复了重复命中：`redactLine` 复用带 `g` 的扫描正则做 `replace`，会把 `lastIndex` 归零，导致同一命中被记录两次；改为新建正则后，全仓扫描摘要由 `0 high, 6 medium, 29 low` 降为 `0 high, 3 medium, 15 low`，退出码仍为 0，并补了两条计数断言。
+- 工作流 schema 重试：`schemaRetries`（默认 5）在子代理 `completed` 但缺少 schema 要求的 structured 值时，以同一请求替换为新子代理；失败或取消不重试；token 跨尝试累加；只有最终尝试写入 journal。改动在宿主编排层（`src/host.ts`、`src/index.ts`），guest 源码未改。
+- 本地验收：以 stub 宿主直接驱动构建产物 `lib/index.js`，取得 `SCHEMA_RETRY_ACCEPTANCE_PASS`：默认值为 5；无 structured 时重试；旧尝试被 dispose；三次尝试 token 合计 30；journal 只出现一条 call 与一条 result；失败与无 schema 的调用不重试；重试次数有上限。运行该验收需要给引擎配置 `budgetTokens`，否则宿主不会注入 `readTokens`，token 读数恒为 0。
+- 清理与审查后修复：schema 重试的旧子代理释放统一走 `disposeChild` 并清空其 disposal 记忆，避免重复释放或新子代理漏释放；`taskGate` 补 stdin `EPIPE` 监听（门禁不读 stdin 时不再抛未处理 stream 错误）与 64 KiB stderr 上限；任务创建/完成各只计算一次投影；`reject` 与 `delete` 共用同一依赖检查。复审后另修两处：门禁超时改由计时器直接以 `TEAM_TASK_GATE_FAILED` 结算（此前只 kill shell，孙进程持有 stderr 时 `close` 不触发，会无限挂起并占住 Lead 的事务）；schema 重试占用一次 `maxTotalAgents` 名额，不再绕过该上限，`agentsStarted` 仍只统计 `agent()` 调用数。修复后重跑 `npm test` 145 项通过与 `SCHEMA_RETRY_ACCEPTANCE_PASS`。
+- 完整 `npm test` 通过，`npm run scan:security` 在高危 0 命中时退出 0。
+- 未验证：真实宿主中的 Team 审批与 `taskGate`（本次只做了源码检查与 `npm test`，未在隔离 `DSH_HOME` 启动宿主开启该配置）；真实模型下的 schema 重试能否修正 structured 输出；子代理恢复与消息、MCP 授权、浏览器真实登录均未做真实会话验收。
+- 回滚限制：把 `modules/team.mjs` 换回旧版本后，含 `awaiting_approval` 任务的会话会被旧枚举 schema 拒绝读取（`team/task` 事件数据未丢失，重新升级即可恢复）。`stateVersion` 仍为 4；提升它只会丢弃缓存行，无法让旧代码接受新状态。
+
 ## 2026-10-22 工作流治理：续跑、预算、嵌套与规模指引
 
 - 新增两个本地包 `plugins/workflow-ptc` 与 `plugins/tool-workflow`，由 `.local/src/deepseek-harness` 的 `dsh-v0.2.1-rc.2` tag 源码构建；`provenance.json` 继续绑定 0.2.1-rc.2 原生运行时，升级宿主必须重新验收。

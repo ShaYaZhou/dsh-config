@@ -151,7 +151,7 @@
     {
       "id": "workflow-ptc",
       "package": "@local/dsh-workflow-ptc",
-      "version": "0.2.1-rc.2-local.1",
+      "version": "0.2.1-rc.2-local.2",
       "license": "MIT",
       "upstream": "https://github.com/deepseek-ai/deepseek-harness",
       "localChanges": {
@@ -162,7 +162,8 @@
           "Token and elapsed-time budgets per run, lowerable per call; an exhausted budget refuses further agent() calls while the script still returns gathered results.",
           "Size-guideline warning when a run starts more agents than the deployment's threshold.",
           "One-level nesting guard: a workflow child session may not start another workflow.",
-          "Per-run JSONL journal and prefix replay behind resume_from_run_id, stopping at the first changed agent() call."
+          "Per-run JSONL journal and prefix replay behind resume_from_run_id, stopping at the first changed agent() call.",
+          "schemaRetries (default 5): a child that finished completed without the structured value its schema asked for is replaced by a fresh child with the same request; failed or cancelled children are not retried, tokens accumulate, and only the final attempt is journaled."
         ]
       }
     },

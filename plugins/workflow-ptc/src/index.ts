@@ -53,6 +53,13 @@ export interface Config {
   journal?: boolean
   /** Journal directory; empty (default) resolves `dshHomePath('workflows','runs')`, and is off when the host provides no home path. */
   journalRoot?: string
+  /**
+   * Retries for one `agent()` call that finished `completed` without the
+   * structured value its schema asked for (default 5; `0` disables). Each
+   * retry is a fresh child with the same request, and only the final attempt
+   * is journaled so `resume_from_run_id` replays the outcome the script saw.
+   */
+  schemaRetries?: number
 }
 
 /** Per-call governance fields the model-facing tool passes beside the seam request. */
@@ -171,6 +178,7 @@ class PtcWorkflowEngine extends WorkflowEngine {
     warnAboveAgents: z.natural().default(0),
     journal: z.boolean().default(true),
     journalRoot: z.string().default(''),
+    schemaRetries: z.natural().default(5),
   })
 
   private readonly config: ResolvedConfig
@@ -311,6 +319,8 @@ class PtcWorkflowEngine extends WorkflowEngine {
       {
         ...journal === undefined ? {} : { journal },
         ...budgetTokens === null || readTokens === undefined ? {} : { readTokens },
+        schemaRetries: this.config.schemaRetries,
+        maxTotalAgents,
         onChildActive: (childId, active) => {
           if (active) this.workflowChildren.add(childId)
           else this.workflowChildren.delete(childId)

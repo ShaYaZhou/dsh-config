@@ -26,7 +26,7 @@ The Team Lead and all teammates share the same working directory and filesystem.
 
 Prefer read/edit/write for file changes. If a file operation returns FS_STALE_VERSION, read the current file, rebase your intended change onto the new content, and retry. Bash, formatters, code generators, and scripts are not fully protected by the filesystem version guard; coordinate them explicitly and have the Lead review the final diff and run tests.
 
-Use the target returned by spawn_teammate or list_agents for send_message${interrupt ? " and interrupt_agent" : ""}, or as owner when assigning or filtering shared tasks. send_message steers a running target at its nearest step boundary and starts or resumes an inactive target. inactive means no turn is executing; it does not describe task completion, success, failure, or waiting for other agents. provisioning means member creation is in progress; failed means member creation failed. A peer message starts with its sender name. A successful send does not mean the recipient has processed it. Shared-task workflow is list, get, claim with the current revision, perform the work, then complete. Task readiness never starts an owner. Before wait_agent, use list_agents and make sure another required member is running or provisioning; use send_message first when the required member is inactive. wait_agent observes only changes after that call starts, never wakes a member, and returns noProgress immediately when no other member can produce a change. Re-list after wakeup or timeout. The Lead must wait for required teammates before giving the final answer.`;
+Use the target returned by spawn_teammate or list_agents for send_message${interrupt ? " and interrupt_agent" : ""}, or as owner when assigning or filtering shared tasks. send_message steers a running target at its nearest step boundary and starts or resumes an inactive target. inactive means no turn is executing; it does not describe task completion, success, failure, or waiting for other agents. provisioning means member creation is in progress; failed means member creation failed. A peer message starts with its sender name. A successful send does not mean the recipient has processed it. Shared-task workflow is list, get, claim with the current revision, perform the work, then complete. Task readiness never starts an owner. When the deployment requires Lead approval, a task a teammate creates stays awaiting_approval until the Lead resolves it with approve or reject. Before wait_agent, use list_agents and make sure another required member is running or provisioning; use send_message first when the required member is inactive. wait_agent observes only changes after that call starts, never wakes a member, and returns noProgress immediately when no other member can produce a change. Re-list after wakeup or timeout. The Lead must wait for required teammates before giving the final answer.`;
 }
 const ACTIVE_WAIT_STATUSES = new Set(["running", "provisioning"]);
 const NO_ACTIVE_PEER_MESSAGE = "No other Team member is running or provisioning. wait_agent cannot make progress or wake inactive teammates. Re-list with list_agents and team_task_list, then use send_message to wake each required inactive teammate before waiting again.";
@@ -106,6 +106,7 @@ const TASK_VIEW_SCHEMA = {
 			required: true,
 			enum: [
 				"pending",
+				"awaiting_approval",
 				"in_progress",
 				"completed",
 				"deleted"
@@ -416,6 +417,7 @@ To message another teammate, use send_message({ target: "<teammate name>", messa
 					type: "string",
 					enum: [
 						"pending",
+						"awaiting_approval",
 						"in_progress",
 						"completed"
 					],
@@ -490,9 +492,11 @@ To message another teammate, use send_message({ target: "<teammate name>", messa
 						"complete",
 						"reopen",
 						"reassign",
+						"approve",
+						"reject",
 						"delete"
 					],
-					description: "Task transition to apply."
+					description: "Task transition to apply. approve and reject require the Team Lead and an awaiting_approval task."
 				},
 				subject: {
 					type: "string",

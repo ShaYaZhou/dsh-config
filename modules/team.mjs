@@ -461,6 +461,7 @@ const teamTaskSnapshotSchema = z$1.object({
 	description: z$1.string(),
 	status: z$1.enum([
 		"pending",
+		"awaiting_approval",
 		"in_progress",
 		"completed",
 		"deleted"
@@ -664,6 +665,7 @@ const teamTaskViewSchema = z$1.object({
 	description: z$1.string(),
 	status: z$1.enum([
 		"pending",
+		"awaiting_approval",
 		"in_progress",
 		"completed",
 		"deleted"
@@ -1206,13 +1208,59 @@ const TASK_GRAPH_ERROR_CODES = {
 var TeamTaskBoard = class {
 	journal;
 	maxTasks;
+	requireApproval;
+	gate;
 	/**
 	* @param journal - authoritative Lead-log transaction owner.
 	* @param maxTasks - maximum non-deleted tasks retained by one Team.
+	* @param options - lead approval for member-created tasks and an optional gate command.
 	*/
-	constructor(journal, maxTasks) {
+	constructor(journal, maxTasks, options = {}) {
 		this.journal = journal;
 		this.maxTasks = maxTasks;
+		this.requireApproval = options.requireApproval === true;
+		this.gate = typeof options.gate === "string" ? options.gate.trim() : "";
+	}
+	/**
+	* Run the configured gate command before a committed transition; exit code 2 blocks it.
+	* @param type - TaskCreated or TaskCompleted.
+	* @param root - Lead session the event belongs to.
+	* @param view - task view the gate inspects.
+	*/
+	async runGate(type, root, view) {
+		if (this.gate.length === 0) return;
+		const { spawn } = await import("node:child_process");
+		const child = spawn(this.gate, { shell: true, stdio: ["pipe", "ignore", "pipe"] });
+		let stderr = "";
+		child.stderr.on("data", (chunk) => {
+			if (stderr.length < 65536) stderr += String(chunk).slice(0, 65536 - stderr.length);
+		});
+		// A gate that exits without reading stdin makes the write fail with EPIPE.
+		child.stdin.on("error", () => {});
+		child.stdin.end(JSON.stringify({
+			type,
+			teamId: TeamId(root.id),
+			task: view
+		}));
+		const code = await new Promise((resolve, reject) => {
+			// ponytail: kills the shell, not its children; a gate leaving a descendant
+			// holding stderr never emits close, so the timeout settles the wait itself.
+			const timer = setTimeout(() => {
+				child.kill();
+				reject(new TeamError(`${type} task gate timed out after 10 s`, "TEAM_TASK_GATE_FAILED"));
+			}, 10000);
+			child.on("error", (error) => {
+				clearTimeout(timer);
+				reject(error);
+			});
+			child.on("close", (exitCode) => {
+				clearTimeout(timer);
+				resolve(exitCode);
+			});
+		});
+		if (code === 0) return;
+		if (code === 2) throw new TeamError(`${type} blocked by task gate: ${stderr.trim() || "no reason given"}`, "TEAM_TASK_BLOCKED");
+		throw new TeamError(`${type} task gate failed with exit code ${code}: ${stderr.trim()}`, "TEAM_TASK_GATE_FAILED");
 	}
 	/**
 	* Create one unowned pending task in the Team Lead log.
@@ -1232,17 +1280,19 @@ var TeamTaskBoard = class {
 				revision: 1,
 				subject: requiredText(request.subject, "subject", 200),
 				description: requiredText(request.description, "description", 16384),
-				status: "pending",
+				status: this.requireApproval && membership.role !== "lead" ? "awaiting_approval" : "pending",
 				blockedBy: this.dependencies(request.blockedBy ?? [], state),
 				writeScopes: this.writeScopes(request.writeScopes ?? [])
 			};
 			this.assertTaskGraph(state, task);
+			const view = projectTaskView(state, task);
+			await this.runGate("TaskCreated", root, view);
 			await this.journal.appendAndFlush(root, "team/task", {
 				version: 2,
 				teamId: TeamId(root.id),
 				task
 			});
-			return projectTaskView(state, task);
+			return view;
 		});
 	}
 	/**
@@ -1360,10 +1410,28 @@ var TeamTaskBoard = class {
 					};
 					break;
 				}
+				case "approve": {
+					if (!lead) throw new TeamError("only the Team Lead can approve tasks", "TEAM_LEAD_REQUIRED");
+					if (current.status !== "awaiting_approval") throw new TeamError("only a task awaiting approval can be approved", "TEAM_TASK_INVALID_TRANSITION");
+					next = {
+						...current,
+						status: "pending"
+					};
+					break;
+				}
+				case "reject": {
+					if (!lead) throw new TeamError("only the Team Lead can reject tasks", "TEAM_LEAD_REQUIRED");
+					if (current.status !== "awaiting_approval") throw new TeamError("only a task awaiting approval can be rejected", "TEAM_TASK_INVALID_TRANSITION");
+					this.assertNoDependents(state, current);
+					next = {
+						...current,
+						status: "deleted"
+					};
+					break;
+				}
 				case "delete": {
 					authorizeOwner();
-					const dependent = state.tasks.find((task) => task.status !== "deleted" && task.id !== current.id && task.blockedBy.includes(current.id));
-					if (dependent !== void 0) throw new TeamError(`team task "${current.id}" still blocks "${dependent.id}"`, "TEAM_TASK_HAS_DEPENDENTS");
+					this.assertNoDependents(state, current);
 					next = {
 						...current,
 						status: "deleted"
@@ -1378,13 +1446,20 @@ var TeamTaskBoard = class {
 				revision: current.revision + 1
 			};
 			this.assertTaskGraph(state, task);
+			const view = projectTaskView(state, task);
+			if (request.action === "complete") await this.runGate("TaskCompleted", root, view);
 			await this.journal.appendAndFlush(root, "team/task", {
 				version: 2,
 				teamId: TeamId(root.id),
 				task
 			});
-			return projectTaskView(state, task);
+			return view;
 		});
+	}
+	/** Refuse a transition that would leave live tasks blocked by a deleted task. */
+	assertNoDependents(state, current) {
+		const dependent = state.tasks.find((task) => task.status !== "deleted" && task.id !== current.id && task.blockedBy.includes(current.id));
+		if (dependent !== void 0) throw new TeamError(`team task "${current.id}" still blocks "${dependent.id}"`, "TEAM_TASK_HAS_DEPENDENTS");
 	}
 	/** Validate and de-duplicate dependency ids against the current task graph. */
 	dependencies(values, state, self) {
@@ -1446,7 +1521,9 @@ var TeamService = class extends Service {
 		maxMembers: z.number().step(1).min(1).default(DEFAULT_MAX_MEMBERS),
 		maxTasks: z.number().step(1).min(1).default(DEFAULT_MAX_TASKS),
 		maxMessageBytes: z.number().step(1).min(1).default(DEFAULT_MAX_MESSAGE_BYTES),
-		disposalTimeoutMs: z.number().step(1).min(1).default(DEFAULT_DISPOSAL_TIMEOUT_MS)
+		disposalTimeoutMs: z.number().step(1).min(1).default(DEFAULT_DISPOSAL_TIMEOUT_MS),
+		requireTaskApproval: z.boolean().default(false),
+		taskGate: z.string().default("")
 	});
 	/** Validated deployment limits used by every Team operation. */
 	config;
@@ -1461,7 +1538,9 @@ var TeamService = class extends Service {
 			maxMembers: positiveLimit("maxMembers", config.maxMembers ?? DEFAULT_MAX_MEMBERS),
 			maxTasks: positiveLimit("maxTasks", config.maxTasks ?? DEFAULT_MAX_TASKS),
 			maxMessageBytes: positiveLimit("maxMessageBytes", config.maxMessageBytes ?? DEFAULT_MAX_MESSAGE_BYTES),
-			disposalTimeoutMs: positiveLimit("disposalTimeoutMs", config.disposalTimeoutMs ?? DEFAULT_DISPOSAL_TIMEOUT_MS)
+			disposalTimeoutMs: positiveLimit("disposalTimeoutMs", config.disposalTimeoutMs ?? DEFAULT_DISPOSAL_TIMEOUT_MS),
+			requireTaskApproval: config.requireTaskApproval === true,
+			taskGate: typeof config.taskGate === "string" ? config.taskGate.trim() : ""
 		};
 		this.activity = new TeamActivity();
 		this.lifecycle = new TeamRuntimeLifecycle(this.config.disposalTimeoutMs);
@@ -1469,7 +1548,10 @@ var TeamService = class extends Service {
 			this.activity.notify(TeamId(root.id));
 		});
 		this.roster = new TeamRoster(ctx, this.journal, this.lifecycle, this.config.maxMembers);
-		this.tasks = new TeamTaskBoard(this.journal, this.config.maxTasks);
+		this.tasks = new TeamTaskBoard(this.journal, this.config.maxTasks, {
+			requireApproval: this.config.requireTaskApproval,
+			gate: this.config.taskGate
+		});
 		ctx.on("agent/created", ({ agent }) => {
 			this.scheduleRecovery(agent);
 		});

@@ -4,7 +4,7 @@ import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 
 const SKIP_DIRS = new Set([
-  '.git', '.hg', '.svn', 'node_modules', 'build', 'dist', 'out', 'coverage',
+  '.git', '.hg', '.svn', 'node_modules', 'build', 'dist', 'out', 'coverage', '.local',
   '.next', '.nuxt', '.cache', '.venv', 'venv', 'target', '__pycache__',
 ]);
 const SKIP_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.pdf', '.zip', '.gz', '.7z', '.exe', '.dll', '.so', '.dylib', '.wasm', '.woff', '.woff2', '.ttf', '.mp4', '.mp3']);
@@ -53,7 +53,9 @@ function isPlaceholder(value) {
 }
 
 function redactLine(line, rule) {
-  return line.replace(rule.re, (...args) => {
+  // A fresh regex: replace() resets lastIndex on the shared scanner regex.
+  const re = new RegExp(rule.re.source, rule.re.flags);
+  return line.replace(re, (...args) => {
     if (rule.id === 'hardcoded-secret') {
       const value = args[1];
       if (isPlaceholder(value)) return args[0];
@@ -158,6 +160,7 @@ export function scanPath(target, options = {}) {
     findings.push(...scanText(text, path.relative(root, file) || path.basename(file)));
   }
   return {
+    schemaVersion: 1,
     root,
     filesScanned: files.length,
     truncated: files.length >= maxFiles,
@@ -183,6 +186,7 @@ function parseArgs(argv) {
     if (arg === '--json') options.json = true;
     else if (arg === '--help' || arg === '-h') options.help = true;
     else if (arg === '--fail-on') {
+      if (index + 1 >= argv.length) throw new Error('--fail-on requires low, medium or high');
       options.failOn = argv[index + 1];
       index += 1;
     } else if (arg.startsWith('--fail-on=')) options.failOn = arg.slice('--fail-on='.length);
@@ -193,7 +197,7 @@ function parseArgs(argv) {
     else if (arg.startsWith('-')) throw new Error(`Unknown option: ${arg}`);
     else options.paths.push(arg);
   }
-  if (options.failOn && !SEVERITY_ORDER[options.failOn]) throw new Error(`Invalid --fail-on: ${options.failOn}`);
+  if (options.failOn !== null && !SEVERITY_ORDER[options.failOn]) throw new Error(`Invalid --fail-on: ${options.failOn}`);
   if (!Number.isInteger(options.maxFiles) || options.maxFiles <= 0) throw new Error('--max-files must be a positive integer');
   return options;
 }
@@ -218,6 +222,7 @@ export function main(argv = process.argv.slice(2)) {
   const reports = targets.map((target) => scanPath(target, {maxFiles: options.maxFiles}));
   const findings = reports.flatMap((row) => row.findings);
   const report = reports.length === 1 ? reports[0] : {
+    schemaVersion: 1,
     root: process.cwd(),
     filesScanned: reports.reduce((sum, row) => sum + row.filesScanned, 0),
     truncated: reports.some((row) => row.truncated),

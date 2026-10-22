@@ -23,6 +23,8 @@ export interface Config {
   journal?: boolean
   /** Journal directory; empty (default) resolves `dshHomePath('workflows','runs')`. */
   journalRoot?: string
+  /** Retries for one `agent()` call that finished without its structured value (default 5). */
+  schemaRetries?: number
 }
 
 /** PTC-backed workflow engine (upstream seam implementation, locally patched). */
