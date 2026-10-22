@@ -23,6 +23,8 @@ import { homedir } from 'node:os'
 import z from '@deepseek-ai/schemastery'
 import { BlockAssembler, createUserMessage } from '@deepseek-ai/dsh-llm'
 import { defineTool } from '@deepseek-ai/dsh-tools'
+import { appendPluginRecord } from '@deepseek-ai/dsh-session'
+import { MemoryWritePolicy } from './write-policy.js'
 import {
   SUMMARY_FILE,
   SUMMARY_HEADER,
@@ -355,6 +357,17 @@ export function apply(ctx, config = {}) {
   const disposers = []
   const lastSummarized = new Map()
   const summarizing = new Set()
+  const writePolicy = new MemoryWritePolicy(async (session) => {
+    if (typeof session !== 'string') return {
+      events: await readTurnEvents({ session }, 0, { sessionQuery, logger: ctx.logger }),
+      header: session.header
+    }
+    if (!sessionQuery) throw new Error('memory: parent query unavailable')
+    const observation = await sessionQuery.observeSession(session, { projectionMode: 'none' })
+    try { return { events: observation.events, header: observation.meta } }
+    finally { observation.dispose?.() }
+  }, appendPluginRecord)
+  disposers.push(ctx.provide('memoryWritePolicy', writePolicy))
   const state = { lastConsolidatedAt: 0, version: 0, journalCursor: 0, rolloutConsumed: {} }
   const stateRef = { state }
 
@@ -395,12 +408,15 @@ export function apply(ctx, config = {}) {
     return runtime
   }
 
-  function ensureRuntime(runtime) {
+  async function ensureRuntime(runtime, session) {
     if (runtime.key === 'global') return globalRuntimeReady !== null ? globalRuntimeReady : store.chain
+    if (session && !await writeAllowed(session, runtime.key)) return
     if (runtime.ready !== null) return runtime.ready
     runtime.ready = runtime.store.chain.then(async () => {
       Object.assign(runtime.state, await runtime.store.readState())
+      if (session && !await writeAllowed(session, runtime.key)) { runtime.ready = null; return }
       await runtime.store.ensureJournalBackfill()
+      if (session && !await writeAllowed(session, runtime.key)) { runtime.ready = null; return }
       await runtime.store.seedSummary('', resolved.scopeMaxBytes)
     })
     return runtime.ready
@@ -536,11 +552,18 @@ export function apply(ctx, config = {}) {
     get summarizeSkipCounts() { return { ...telemetry.summarizeSkipCounts } },
     get lastSummarizeSkip() { return telemetry.lastSummarizeSkip }
   }
-  const requestConsolidation = (runtime) => {
+  async function writeAllowed(session, key) {
+    const readOnly = resolved.readOnlyScopes.includes('*') || resolved.readOnlyScopes.includes(key.toLowerCase())
+    if (!readOnly && await writePolicy.allowed(session)) return true
+    recordSummarizeSkip(readOnly ? 'read-only-scope' : 'memory-write-policy', { session: typeof session === 'object' ? session : { id: session } })
+    return false
+  }
+  const requestConsolidation = (runtime, session) => {
     if (lifecycle.signal.aborted) return
     Promise.resolve().then(async () => {
-      await ensureRuntime(runtime)
-      await maybeConsolidate(runtime)
+      if (!await writeAllowed(session, runtime.key)) return
+      await ensureRuntime(runtime, session)
+      await maybeConsolidate(runtime, session)
     }).catch((error) => {
       recordError('consolidation-request', error)
       ctx.logger.warn('dsh-memory: consolidation request failed: %o', error)
@@ -555,7 +578,7 @@ export function apply(ctx, config = {}) {
     const toolErrors = []
     let definitions
     try {
-      definitions = toolDefinitions(store, resolved, requestConsolidation, runtimeStats, stateRef, routeScope, ensureRuntime, runtimes)
+      definitions = toolDefinitions(store, resolved, requestConsolidation, runtimeStats, stateRef, routeScope, ensureRuntime, runtimes, (session) => writePolicy.assertWritable(session))
     } catch (error) {
       recordError('tool-definitions', error)
       toolsCtx.logger.error('dsh-memory: toolDefinitions failed: %o', error)
@@ -683,7 +706,8 @@ export function apply(ctx, config = {}) {
       // scopedMemory is enabled; otherwise they must feed the global summary
       // (otherwise the injected global memory never sees any rollout).
       const runtime = runtimeForScope(resolved.scopedMemory ? scopeFromSession(agent.session) : 'global')
-      await ensureRuntime(runtime)
+      if (!await writeAllowed(agent.session, runtime.key)) return
+      await ensureRuntime(runtime, agent.session)
       const messages = [createUserMessage({
         content: [{ type: 'text', text: `Distill the following conversation excerpt into durable memory-worthy facts.\n\n${text}` }],
         // Producer-named source, matching first-party ephemeral calls
@@ -692,6 +716,7 @@ export function apply(ctx, config = {}) {
         // generic `plugin` kind no longer exists in the message-source map.
         source: { kind: name }
       })]
+      if (!await writeAllowed(agent.session, runtime.key)) return
       const result = await llmText({
         kind: 'summarize',
         provider: route.provider,
@@ -705,22 +730,25 @@ export function apply(ctx, config = {}) {
       const summary = result.text
       if (summary.length === 0) return
       await runtime.store.withLock(async () => {
+        if (!await writeAllowed(agent.session, runtime.key)) return
         await runtime.store.appendRolloutSummary(agent.session.id, summary)
       })
+      if (!await writeAllowed(agent.session, runtime.key)) return
       lastSummarized.set(agent.session.id, { at: Date.now(), seq: lastSeq })
       pruneLastSummarized()
-      await maybeConsolidate(runtime)
+      await maybeConsolidate(runtime, agent.session)
     } catch (error) {
       recordError('summarize', budgetHint(error, resolved, 'summarize'))
       ctx.logger.warn('dsh-memory: turn summarization failed: %o', budgetHint(error, resolved, 'summarize'))
     }
   }
 
-  async function maybeConsolidate(runtime) {
+  async function maybeConsolidate(runtime, session) {
+    if (!await writeAllowed(session, runtime.key)) return
     if (runtime.consolidating) return
     runtime.consolidating = true
     try {
-      await consolidateNow(runtime)
+      await consolidateNow(runtime, session)
     } finally {
       runtime.consolidating = false
       // Post-restart verification reads diagnostics.json: merge the live
@@ -736,7 +764,7 @@ export function apply(ctx, config = {}) {
     }
   }
 
-  async function consolidateNow(runtime) {
+  async function consolidateNow(runtime, session) {
     if (llm === undefined || lifecycle.signal.aborted) return
     const target = runtime.store
     const targetState = runtime.state
@@ -772,6 +800,7 @@ export function apply(ctx, config = {}) {
 
     const route = await resolveRoute()
     if (route === undefined) return
+    if (!await writeAllowed(session, runtime.key)) return
     try {
       const current = (await target.readSummary()).trim()
       const nextVersion = summaryVersion(current) + 1
@@ -788,6 +817,7 @@ export function apply(ctx, config = {}) {
         content: [{ type: 'text', text: input }],
         source: { kind: name }
       })]
+      if (!await writeAllowed(session, runtime.key)) return
       const result = await llmText({
         kind: 'consolidate',
         provider: route.provider,
@@ -815,6 +845,7 @@ export function apply(ctx, config = {}) {
         return
       }
       await target.withLock(async () => {
+        if (!await writeAllowed(session, runtime.key)) return
         await target.archiveCurrentSummary(resolved.keepSummaryVersions)
         targetState.lastConsolidatedAt = Date.now()
         targetState.version = nextVersion
@@ -838,7 +869,8 @@ export function apply(ctx, config = {}) {
     await runSummarize(agent, text, lastSeq)
   }
 
-  function scheduleSummarize(agent) {
+  async function scheduleSummarize(agent) {
+    if (!await writeAllowed(agent.session, resolved.scopedMemory ? scopeFromSession(agent.session) : 'global')) return
     if (!resolved.autoSummarize || llm === undefined || lifecycle.signal.aborted) {
       recordSummarizeSkip('disabled', agent)
       return
@@ -918,12 +950,14 @@ export function apply(ctx, config = {}) {
    */
   async function appendRolloutExcerpt(session, body) {
     const runtime = runtimeForScope(resolved.scopedMemory ? scopeFromSession(session) : 'global')
-    await ensureRuntime(runtime)
+    if (!await writeAllowed(session, runtime.key)) return false
+    await ensureRuntime(runtime, session)
     if (!runtime.store.lockOwner) return false
-    await runtime.store.withLock(async () => {
+    return runtime.store.withLock(async () => {
+      if (!await writeAllowed(session, runtime.key)) return false
       await runtime.store.appendRolloutSummary(session.id, body)
+      return true
     })
-    return true
   }
 
   async function captureSubagentResult(parent, info) {
@@ -1072,14 +1106,15 @@ export function apply(ctx, config = {}) {
   ctx.logger.info('dsh-memory ready (dir=%s, maxBytes=%d, consolidateMaxBytes=%d, keepSummaryVersions=%d, rawArchiveMaxBytes=%d, summaryMaxTokens=%d, consolidateMaxTokens=%d, llmRetries=%d, maxActiveSummaries=%d, scopedMemory=%s, captureSubagents=%s, injectTokens=%d, scopeMaxBytes=%d, redactSecrets=%s, autoSummarize=%s)', configuredDir, resolved.maxBytes, resolved.consolidateMaxBytes, resolved.keepSummaryVersions, resolved.rawArchiveMaxBytes, resolved.summaryMaxTokens, resolved.consolidateMaxTokens, resolved.llmRetries, resolved.maxActiveSummaries, String(resolved.scopedMemory), String(resolved.captureSubagents), resolved.injectTokens, resolved.scopeMaxBytes, String(resolved.redactSecrets), String(resolved.autoSummarize))
 }
 
-export function toolDefinitions(store, resolved, requestConsolidation, runtimeStats, stateRef, routeScope, ensureRuntime, runtimes) {
+export function toolDefinitions(store, resolved, requestConsolidation, runtimeStats, stateRef, routeScope, ensureRuntime, runtimes, assertSessionWrite = async () => {}) {
   const textOutput = (text) => [{ type: 'text', text }]
   const isReadOnlyScope = (key) => {
     const normalized = String(key).toLowerCase()
     return resolved.readOnlyScopes.includes('*') || resolved.readOnlyScopes.includes(normalized)
   }
-  const assertWritableScope = (route) => {
+  const assertWritableScope = async (route, exec) => {
     if (isReadOnlyScope(route.key)) throw new Error(`memory: scope ${route.key} is read-only`)
+    await assertSessionWrite(exec?.agent?.session)
   }
   return [
     defineTool({
@@ -1106,7 +1141,7 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
       async execute(args, exec) {
         if (exec.signal.aborted) throw new Error('memory_read: aborted')
         const route = await routeScope(args, exec)
-        await ensureRuntime(route.runtime)
+        await ensureRuntime(route.runtime, exec.agent?.session)
         const target = route.store
         const text = await target.readSummary()
         const budget = route.key === 'global' ? resolved.maxBytes : Math.min(resolved.maxBytes, resolved.scopeMaxBytes)
@@ -1148,8 +1183,8 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
       async execute(args, exec) {
         if (exec.signal.aborted) throw new Error('memory_add: aborted')
         const route = await routeScope(args, exec)
-        assertWritableScope(route)
-        await ensureRuntime(route.runtime)
+        await assertWritableScope(route, exec)
+        await ensureRuntime(route.runtime, exec.agent?.session)
         const content = validateContent(args && args.content !== undefined ? args.content : '')
         if (resolved.redactSecrets && args && args.allowSecret !== true) {
           const secrets = detectSecrets(content)
@@ -1159,6 +1194,7 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
         const importance = Number.isFinite(args && args.importance) ? Math.min(3, Math.max(0, Math.trunc(args.importance))) : 1
         const allowDuplicate = args && args.allowDuplicate === true
         const result = await route.store.withLock(async () => {
+          await assertWritableScope(route, exec)
           if (!allowDuplicate) {
             const existing = await route.store.findDuplicate(content)
             if (existing !== undefined) return { id: existing.id, ts: existing.ts, duplicate: true }
@@ -1167,7 +1203,7 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
           await route.store.appendJournal({ op: 'add', id: entry.id, ts: entry.ts, entry })
           return { id: entry.id, ts: entry.ts, duplicate: false }
         })
-        if (!result.duplicate) requestConsolidation(route.runtime)
+        if (!result.duplicate) requestConsolidation(route.runtime, exec.agent?.session)
         return result
       }
     }),
@@ -1195,7 +1231,7 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
       async execute(args, exec) {
         if (exec.signal.aborted) throw new Error('memory_update: aborted')
         const route = await routeScope(args, exec)
-        assertWritableScope(route)
+        await assertWritableScope(route, exec)
         const id = String(args && args.id !== undefined ? args.id : '').trim()
         if (id.length === 0) throw new Error('memory_update: id is required')
         const patch = {}
@@ -1203,11 +1239,12 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
         if (args.tags !== undefined) patch.tags = normalizeTags(args.tags)
         if (args.importance !== undefined) patch.importance = Math.min(3, Math.max(0, Math.trunc(args.importance)))
         const result = await route.store.withLock(async () => {
+          await assertWritableScope(route, exec)
           const entry = await route.store.updateRawEntry(id, patch)
           await route.store.appendJournal({ op: 'update', id: entry.id, ts: entry.ts, entry })
           return { id: entry.id, content: entry.content }
         })
-        requestConsolidation(route.runtime)
+        requestConsolidation(route.runtime, exec.agent?.session)
         return result
       }
     }),
@@ -1231,15 +1268,16 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
       async execute(args, exec) {
         if (exec.signal.aborted) throw new Error('memory_delete: aborted')
         const route = await routeScope(args, exec)
-        assertWritableScope(route)
+        await assertWritableScope(route, exec)
         const id = String(args && args.id !== undefined ? args.id : '').trim()
         if (id.length === 0) throw new Error('memory_delete: id is required')
         const result = await route.store.withLock(async () => {
+          await assertWritableScope(route, exec)
           const entry = await route.store.deleteRawEntry(id)
           await route.store.appendJournal({ op: 'delete', id: entry.id, ts: entry.ts, entry })
           return { id }
         })
-        requestConsolidation(route.runtime)
+        requestConsolidation(route.runtime, exec.agent?.session)
         return result
       }
     }),
@@ -1338,18 +1376,19 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
       async execute(args, exec) {
         if (exec.signal.aborted) throw new Error('memory_merge: aborted')
         const route = await routeScope(args, exec)
-        assertWritableScope(route)
-        await ensureRuntime(route.runtime)
+        await assertWritableScope(route, exec)
+        await ensureRuntime(route.runtime, exec.agent?.session)
         const ids = Array.isArray(args && args.ids) ? args.ids.map((id) => String(id).trim()).filter(Boolean) : []
         if (ids.length < 2) throw new Error('memory_merge: at least two entry ids are required')
         const keepId = String(args && args.keepId !== undefined ? args.keepId : ids[0]).trim()
         const result = await route.store.withLock(async () => {
+          await assertWritableScope(route, exec)
           const { kept, removed } = await route.store.mergeRawEntries(ids, keepId)
           await route.store.appendJournal({ op: 'update', id: kept.id, ts: kept.ts, entry: kept })
           for (const entry of removed) await route.store.appendJournal({ op: 'delete', id: entry.id, ts: entry.ts, entry })
           return { id: kept.id, mergedIds: [kept.id, ...removed.map((entry) => entry.id)], content: kept.content }
         })
-        requestConsolidation(route.runtime)
+        requestConsolidation(route.runtime, exec.agent?.session)
         return result
       }
     }),
@@ -1406,7 +1445,7 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
       async execute(args, exec) {
         if (exec.signal.aborted) throw new Error('memory_review: aborted')
         const route = await routeScope(args, exec)
-        await ensureRuntime(route.runtime)
+        await ensureRuntime(route.runtime, exec.agent?.session)
         const limit = Number.isFinite(args && args.limit) ? Math.min(Math.max(1, Math.trunc(args.limit)), 100) : 20
         const olderThanDays = Number.isFinite(args && args.olderThanDays) ? Math.max(0, args.olderThanDays) : 0
         const entries = (await route.store.readRawEntries()).concat(await route.store.readArchivedEntries())
@@ -1446,8 +1485,9 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
       },
       async execute(args, exec) {
         if (exec.signal.aborted) throw new Error('memory_export: aborted')
+        await assertSessionWrite(exec.agent?.session)
         const route = await routeScope(args, exec)
-        await ensureRuntime(route.runtime)
+        await ensureRuntime(route.runtime, exec.agent?.session)
         const rawTarget = String(args && args.targetDir !== undefined ? args.targetDir : '').trim()
         if (rawTarget.length === 0) throw new Error('memory_export: targetDir is required')
         const targetDir = resolve(rawTarget)
@@ -1457,12 +1497,15 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
         if (!overwrite && (existsSync(summaryPath) || existsSync(rawPath))) {
           throw new Error('memory_export: target files already exist; pass overwrite: true')
         }
-        await mkdir(targetDir, { recursive: true })
         const summary = await route.store.readSummary()
         const active = await route.store.readRawEntries()
         const archived = await route.store.readArchivedEntries()
         const entries = active.concat(archived)
+        await assertSessionWrite(exec.agent?.session)
+        await mkdir(targetDir, { recursive: true })
+        await assertSessionWrite(exec.agent?.session)
         await writeFile(summaryPath, summary.length > 0 ? summary : '', 'utf8')
+        await assertSessionWrite(exec.agent?.session)
         await writeFile(rawPath, serializeRaw(entries), 'utf8')
         return { targetDir, scope: route.key, entries: entries.length, summaryBytes: byteLength(summary) }
       }
@@ -1489,8 +1532,8 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
       async execute(args, exec) {
         if (exec.signal.aborted) throw new Error('memory_import: aborted')
         const route = await routeScope(args, exec)
-        assertWritableScope(route)
-        await ensureRuntime(route.runtime)
+        await assertWritableScope(route, exec)
+        await ensureRuntime(route.runtime, exec.agent?.session)
         const rawSource = String(args && args.sourceDir !== undefined ? args.sourceDir : '').trim()
         if (rawSource.length === 0) throw new Error('memory_import: sourceDir is required')
         const sourceDir = resolve(rawSource)
@@ -1504,6 +1547,7 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
         const replace = args && args.merge === false
         let imported = 0
         await route.store.withLock(async () => {
+          await assertWritableScope(route, exec)
           if (replace) await route.store.writeAtomic(RAW_FILE, serializeRaw([]))
           for (const entry of entries) {
             const saved = await route.store.appendRawEntry(entry)
@@ -1511,7 +1555,7 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
             imported += 1
           }
         })
-        requestConsolidation(route.runtime)
+        requestConsolidation(route.runtime, exec.agent?.session)
         return { scope: route.key, imported }
       }
     }),
@@ -1650,7 +1694,7 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
         ])
         const scopeEntries = []
         for (const runtime of runtimes.values()) {
-          await ensureRuntime(runtime)
+          await ensureRuntime(runtime, exec.agent?.session)
           const [scopedSummary, scopedState, scopedRaw] = await Promise.all([
             runtime.store.readSummary(),
             runtime.store.readState(),
@@ -1725,6 +1769,7 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
       },
       async execute(args, exec) {
         if (exec.signal.aborted) throw new Error('memory_browse: aborted')
+        await assertSessionWrite(exec.agent?.session)
         const rawTarget = String(args && args.targetDir !== undefined ? args.targetDir : '').trim()
         if (rawTarget.length === 0) throw new Error('memory_browse: targetDir is required')
         const targetDir = resolve(rawTarget)
@@ -1732,7 +1777,7 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
         if (existsSync(file) && args && args.overwrite !== true) throw new Error('memory_browse: memory-browser.html already exists; pass overwrite: true')
         const scopes = []
         for (const runtime of runtimes.values()) {
-          await ensureRuntime(runtime)
+          await ensureRuntime(runtime, exec.agent?.session)
           const summary = await runtime.store.readSummary()
           const raw = (await runtime.store.readRawEntries()).concat(await runtime.store.readArchivedEntries())
           const history = await runtime.store.listSummaryHistory()
@@ -1744,7 +1789,9 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
           })
         }
         const snapshot = buildBrowserSnapshot({ memoryDir: store.dir, generatedAt: new Date().toISOString(), scopes })
+        await assertSessionWrite(exec.agent?.session)
         await mkdir(targetDir, { recursive: true })
+        await assertSessionWrite(exec.agent?.session)
         await writeFile(file, renderMemoryHtml(snapshot), 'utf8')
         const entryCount = scopes.reduce((sum, scope) => sum + scope.raw.length, 0)
         return { file, scopeCount: scopes.length, entryCount }
@@ -1788,7 +1835,7 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
       async execute(args, exec) {
         if (exec.signal.aborted) throw new Error('memory_history: aborted')
         const route = await routeScope(args, exec)
-        await ensureRuntime(route.runtime)
+        await ensureRuntime(route.runtime, exec.agent?.session)
         const history = await route.store.listSummaryHistory()
         return {
           scope: route.key,
@@ -1816,12 +1863,13 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
       },
       async execute(args, exec) {
         if (exec.signal.aborted) throw new Error('memory_rollback: aborted')
-        assertWritableScope({ key: 'global' })
+        await assertWritableScope({ key: 'global' }, exec)
         const version = Number.isFinite(args && args.version) ? Math.trunc(args.version) : 0
         if (version < 1) throw new Error('memory_rollback: version must be a positive integer')
         const match = await store.latestSummaryHistory(version)
         if (match === null) throw new Error(`memory_rollback: no retained summary version ${version}`)
         return store.withLock(async () => {
+          await assertWritableScope({ key: 'global' }, exec)
           await store.archiveCurrentSummary(resolved.keepSummaryVersions)
           const bounded = truncateUtf8Markdown(match.text, resolved.maxBytes)
           const restoredVersion = summaryVersion(bounded)
@@ -1852,7 +1900,7 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
       },
       async execute(_args, exec) {
         if (exec.signal.aborted) throw new Error('memory_sync: aborted')
-        assertWritableScope({ key: 'global' })
+        await assertWritableScope({ key: 'global' }, exec)
         if (!resolved.seedFromAgentsMd) throw new Error('memory_sync: seedFromAgentsMd is disabled')
         const agentsMd = join(dshHome(), 'AGENTS.md')
         const seed = await readFile(agentsMd, 'utf8').catch(() => '')
@@ -1864,6 +1912,7 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
         const currentVersion = summaryVersion(summary)
         if (baselineSource === undefined || baselineSummary === undefined) {
           return store.withLock(async () => {
+            await assertWritableScope({ key: 'global' }, exec)
             stateRef.state.agentsMdFingerprint = sourceFingerprint
             stateRef.state.seededSummaryFingerprint = summaryFingerprint
             await store.writeState(stateRef.state)
@@ -1878,6 +1927,7 @@ export function toolDefinitions(store, resolved, requestConsolidation, runtimeSt
         }
         const nextVersion = currentVersion + 1
         return store.withLock(async () => {
+          await assertWritableScope({ key: 'global' }, exec)
           await store.writeSeedSummary(seed, resolved.maxBytes, nextVersion)
           const newSummary = await store.readSummary()
           stateRef.state.agentsMdFingerprint = sourceFingerprint

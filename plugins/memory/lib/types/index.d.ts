@@ -5,6 +5,18 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type z from '@deepseek-ai/schemastery'
+import type { Session } from '@deepseek-ai/dsh-session'
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    /** Session-owned write boundary; children cannot relax parent restrictions. */
+    memoryWritePolicy: {
+      inherit(parent: Session, child: Session): void
+      allowed(session: Session | string): Promise<boolean>
+      assertWritable(session: Session): Promise<void>
+    }
+  }
+}
 
 /** Loader configuration for the dsh-memory plugin. */
 export interface MemoryConfig {
@@ -51,7 +63,7 @@ export interface MemoryConfig {
   scopeMaxBytes?: number
   /** Redact detected credential patterns from injected summaries (default true). */
   redactSecrets?: boolean
-  /** Scope keys that are read-only for write tools ('global', exact ws/project keys, or '*' for all). */
+  /** Scope keys that are read-only for tools and automatic capture ('global', exact ws/project keys, or '*' for all). */
   readOnlyScopes?: string[]
   /** OpenAI-compatible embedding base URL used when `vector:true` (empty = local hashed vectors). */
   embeddingBaseURL?: string

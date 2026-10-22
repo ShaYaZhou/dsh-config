@@ -217,12 +217,13 @@ packages:
 
   '@dsh-external/dsh-memory@file:../../local-plugins/${MEMORY_TGZ}':
     resolution: {integrity: ${MEMORY_INTEGRITY}, tarball: file:../../local-plugins/${MEMORY_TGZ}}
-    version: 0.5.1
+    version: 0.5.1-local.1
     engines: {node: '>=20.3.0'}
     hasBin: true
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.1
       '@deepseek-ai/dsh-llm': ^0.1.7-rc.1 || ^0.2.0-rc.1
+      '@deepseek-ai/dsh-session': 0.2.1-rc.2
       '@deepseek-ai/dsh-settings': ^0.1.7-rc.1 || ^0.2.0-rc.1
       '@deepseek-ai/dsh-tools': ^0.1.7-rc.1 || ^0.2.0-rc.1
       '@deepseek-ai/schemastery': ^3.18.0
@@ -323,7 +324,7 @@ packages:
 
   '@local/dsh-nested-sessions@file:../../local-plugins/${NESTED-SESSIONS_TGZ}':
     resolution: {integrity: ${NESTED-SESSIONS_INTEGRITY}, tarball: file:../../local-plugins/${NESTED-SESSIONS_TGZ}}
-    version: 1.3.3
+    version: 1.3.4
     peerDependencies:
       '@deepseek-ai/dsh-llm': 0.2.1-rc.2
       '@deepseek-ai/dsh-storage-domain': 0.2.1-rc.2

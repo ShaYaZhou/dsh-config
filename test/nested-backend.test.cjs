@@ -615,6 +615,10 @@ nativeTest(
   "agent-chosen child models are session-local and inherit the parent permission",
   async () => {
     const f = fixture();
+    const inherited = [];
+    f.ctx.get = (name) => name === "memoryWritePolicy" ? {
+      inherit(parent, child) { inherited.push([parent.id, child.id]); },
+    } : undefined;
     f.agents.get("root").session.permission = "read-only";
     const child = await f.service.start({
       sessionId: "root",
@@ -625,6 +629,7 @@ nativeTest(
       reason: "独立审查",
     });
     const agent = f.agents.get(child.sessionId);
+    assert.deepEqual(inherited, [["root", child.sessionId]]);
     assert.equal(agent.session.permission, "read-only");
     assert.equal(child.selection.model, "small");
     assert.equal(f.ctx.agentDefaultModel.currentSelection().model, "current");

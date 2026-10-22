@@ -625,6 +625,7 @@ export class NestedSessions extends TypertRemoteService {
         title: input.title,
       });
       const child = await this.agent(created.sessionId);
+      this.ctx.get?.("memoryWritePolicy")?.inherit(parentAgent.session, child.session);
       this.ctx.permissionPresets.set(child.session, permissions);
       child.session.append("model/selection", selection);
       this.routeAgent(child, selection);

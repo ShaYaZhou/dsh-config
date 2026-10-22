@@ -1,6 +1,6 @@
 {
   "name": "@dsh-external/dsh-memory",
-  "version": "0.5.1",
+  "version": "0.5.1-local.1",
   "description": "Codex-like persistent memory for DeepSeek Harness: auto-injected memory summary, raw memory tools, and per-session rollout summaries distilled into a bounded global memory file.",
   "keywords": [
     "deepseek",
@@ -62,6 +62,7 @@
     "@deepseek-ai/dsh-llm": "^0.1.7-rc.1 || ^0.2.0-rc.1",
     "@deepseek-ai/dsh-settings": "^0.1.7-rc.1 || ^0.2.0-rc.1",
     "@deepseek-ai/dsh-tools": "^0.1.7-rc.1 || ^0.2.0-rc.1",
+    "@deepseek-ai/dsh-session": "0.2.1-rc.2",
     "@deepseek-ai/schemastery": "^3.18.0"
   },
   "license": "MIT",
@@ -75,7 +76,8 @@
     "baseCommit": "15de1c791bbcb5be2c9b0c2096eddedcaa61cc17",
     "changes": [
       "Await one-shot headless write-back before disposal.",
-      "Remove the hardcoded ten-minute gate on summary updates."
+      "Remove the hardcoded ten-minute gate on summary updates.",
+      "Enforce session memory-write restrictions across automatic capture, explicit tools and inherited linked sessions."
     ]
   }
 }

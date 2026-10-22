@@ -47,7 +47,7 @@
     {
       "id": "memory",
       "package": "@dsh-external/dsh-memory",
-      "version": "0.5.1",
+      "version": "0.5.1-local.1",
       "license": "MIT",
       "upstream": "https://github.com/haitang1/dsh-memory",
       "localChanges": {
@@ -56,7 +56,8 @@
         "baseCommit": "15de1c791bbcb5be2c9b0c2096eddedcaa61cc17",
         "changes": [
           "Await one-shot headless write-back before disposal.",
-          "Remove the hardcoded ten-minute gate on summary updates."
+          "Remove the hardcoded ten-minute gate on summary updates.",
+          "Enforce session memory-write restrictions across automatic capture, explicit tools and inherited linked sessions."
         ]
       }
     },
@@ -114,7 +115,7 @@
     {
       "id": "nested-sessions",
       "package": "@local/dsh-nested-sessions",
-      "version": "1.3.3",
+      "version": "1.3.4",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
@@ -130,7 +131,8 @@
           "Global session status groups use a native terminal-event projection and bounded read-only metadata RPC; a native sidebar footer popover preserves the workspace hierarchy without restoring a global collaboration page or making model calls.",
           "Trusted linked dispatch propagates caller cancellation across queued admission and target resolution; remote send keeps its existing wire schema.",
           "Cross-cwd sidebar lineage uses disposable navigation aliases and native status/navigation; native workspace ownership and history remain unchanged, with archive/view-switch restoration.",
-          "Alias row menus reuse live native registered components, business injections, locale and shortcuts through an owned slot and native Menu portal; original entry lifecycle is respected without duplicating CRUD."
+          "Alias row menus reuse live native registered components, business injections, locale and shortcuts through an owned slot and native Menu portal; original entry lifecycle is respected without duplicating CRUD.",
+          "Fresh and forked workers inherit the parent's memory-write boundary through the memory plugin's public service before dispatch."
         ]
       }
     },
