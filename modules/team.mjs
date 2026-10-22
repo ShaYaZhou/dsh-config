@@ -6,6 +6,7 @@ import { inspect } from "node:util";
 import { z as z$1 } from "zod/v4";
 import { brandString } from "@deepseek-ai/dsh-brand";
 import { randomUUID } from "node:crypto";
+import { spawn } from "node:child_process";
 import { foldSubagentDescriptor } from "@deepseek-ai/dsh-subagent";
 //#region lib/types/error.js
 /** Typed Agent Teams failures. */
@@ -1229,7 +1230,6 @@ var TeamTaskBoard = class {
 	*/
 	async runGate(type, root, view) {
 		if (this.gate.length === 0) return;
-		const { spawn } = await import("node:child_process");
 		const child = spawn(this.gate, { shell: true, stdio: ["pipe", "ignore", "pipe"] });
 		let stderr = "";
 		child.stderr.on("data", (chunk) => {

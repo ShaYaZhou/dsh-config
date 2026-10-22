@@ -52,9 +52,15 @@ function isPlaceholder(value) {
     || /^<.*>$/.test(value);
 }
 
+// One private clone per rule: replace() would otherwise share lastIndex with the scanner's exec loop.
+const redactRes = new Map();
+
 function redactLine(line, rule) {
-  // A fresh regex: replace() resets lastIndex on the shared scanner regex.
-  const re = new RegExp(rule.re.source, rule.re.flags);
+  let re = redactRes.get(rule);
+  if (re === undefined) {
+    re = new RegExp(rule.re.source, rule.re.flags);
+    redactRes.set(rule, re);
+  }
   return line.replace(re, (...args) => {
     if (rule.id === 'hardcoded-secret') {
       const value = args[1];
