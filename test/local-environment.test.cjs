@@ -168,7 +168,17 @@ async function fixture(platform = process.platform) {
     .readFileSync(path.join(library, "index.js"), "utf8")
     .replace(/^import.*;\r?\n/gm, "")
     .replace(/^export /gm, "");
+  const definitions = { z, checkedVariables };
+  vm.runInNewContext(
+    fs
+      .readFileSync(path.join(library, "definition.js"), "utf8")
+      .replace(/^import.*;\r?\n/gm, "")
+      .replace(/^export /gm, "") +
+      "\nthis.shared={environmentId,repositoryKey,requiredVariables};",
+    definitions,
+  );
   const box = {
+    ...definitions.shared,
     Service: class {
       constructor(context) {
         this.ctx = context;

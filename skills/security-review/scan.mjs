@@ -41,11 +41,9 @@ const RULES = [
 const SEVERITY_ORDER = {low: 1, medium: 2, high: 3};
 
 function countSeverities(findings) {
-  return {
-    high: findings.filter((row) => row.severity === 'high').length,
-    medium: findings.filter((row) => row.severity === 'medium').length,
-    low: findings.filter((row) => row.severity === 'low').length,
-  };
+  const counts = {high: 0, medium: 0, low: 0};
+  for (const row of findings) if (row.severity in counts) counts[row.severity]++;
+  return counts;
 }
 
 function isPlaceholder(value) {

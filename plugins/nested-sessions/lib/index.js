@@ -571,7 +571,6 @@ export class NestedSessions extends TypertRemoteService {
       if (this.disposed) throw new Error("Session status reader was unloaded");
       rows.push({ sessionId, status });
     }
-    for (const sessionId of ids) this.assertAccess(sessionId);
     return { rows };
   }
   async start(request) {

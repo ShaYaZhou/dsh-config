@@ -1389,14 +1389,18 @@ window.__ModuleLoader__.load({
         currentLinks = links.filter(
           (link) => rootFor(tree.parents, link.sessionId) === root,
         );
-      const refresh = async () => {
-        const value = await call(ctx, "list", {
-          ...(current ? { sessionId: current } : {}),
-        });
+      const applyList = (value) => {
         setLinks(value.links);
         setAutomatic(value.automatic);
         setRequested(value.requested);
         setLocalHistoryEnabled(value.localHistoryEnabled === true);
+      };
+      const refresh = async () => {
+        applyList(
+          await call(ctx, "list", {
+            ...(current ? { sessionId: current } : {}),
+          }),
+        );
       };
       React.useEffect(() => {
         let disposed = false;
@@ -1404,10 +1408,7 @@ window.__ModuleLoader__.load({
           call(ctx, "list", { ...(current ? { sessionId: current } : {}) })
             .then((value) => {
               if (!disposed) {
-                setLinks(value.links);
-                setAutomatic(value.automatic);
-                setRequested(value.requested);
-                setLocalHistoryEnabled(value.localHistoryEnabled === true);
+                applyList(value);
                 setLoadError("");
               }
             })

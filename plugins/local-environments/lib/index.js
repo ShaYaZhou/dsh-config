@@ -3,6 +3,7 @@ import { credentialKey } from "@deepseek-ai/dsh-credentials";
 import { appendPluginRecord } from "@deepseek-ai/dsh-session";
 import { z } from "zod";
 import { checkedVariables } from "./values.js";
+import { environmentId, repositoryKey, requiredVariables } from "./definition.js";
 
 export const name = "local-environments";
 export const inject = [
@@ -13,53 +14,27 @@ export const inject = [
   "nestedSessions",
   "systemPrompt",
 ];
-const environmentId = z
-  .string()
-  .min(1)
-  .max(80)
-  .regex(/^[a-z][a-z0-9-]*$/);
-const selectionSchema = z
-  .strictObject({
-    id: environmentId,
-    name: z.string().trim().min(1).max(160),
-    repositories: z
-      .array(
-        z.strictObject({
-          key: z
-            .string()
-            .min(1)
-            .max(64)
-            .regex(/^[a-z][a-z0-9-]*$/),
-          sourceRoot: z.string().min(1).max(4000),
-          cwd: z.string().min(1).max(4000),
-          branch: z.string().max(300).optional(),
-          worktree: z.boolean(),
-        }),
-      )
-      .min(1)
-      .max(8),
-    requiredVariables: z.array(z.string().min(1).max(128)).max(64).default([]),
-  })
-  .refine(
-    (value) =>
-      new Set(value.repositories.map((repo) => repo.key)).size ===
-      value.repositories.length,
-    "Repository keys must be unique",
-  )
-  .refine((value) => {
-    if (
-      new Set(value.requiredVariables).size !== value.requiredVariables.length
+const selectionSchema = z.strictObject({
+  id: environmentId,
+  name: z.string().trim().min(1).max(160),
+  repositories: z
+    .array(
+      z.strictObject({
+        key: repositoryKey,
+        sourceRoot: z.string().min(1).max(4000),
+        cwd: z.string().min(1).max(4000),
+        branch: z.string().max(300).optional(),
+        worktree: z.boolean(),
+      }),
     )
-      return false;
-    try {
-      checkedVariables(
-        Object.fromEntries(value.requiredVariables.map((key) => [key, ""])),
-      );
-      return true;
-    } catch {
-      return false;
-    }
-  }, "Required variable names must be valid and unique");
+    .min(1)
+    .max(8)
+    .refine(
+      (repos) => new Set(repos.map((repo) => repo.key)).size === repos.length,
+      "Repository keys must be unique",
+    ),
+  requiredVariables,
+});
 
 export class LocalEnvironments extends Service {
   constructor(ctx) {
@@ -77,10 +52,12 @@ export class LocalEnvironments extends Service {
       wire: { viewSchema: stateSchema, view: (state) => state },
     });
     ctx.on("system-prompt/assemble", async (_assembly, context, next) => {
-      const selected = context.agent
-        ? await this.selectionFor(context.agent.id, context.signal)
-        : undefined;
-      const result = await next();
+      const [selected, result] = await Promise.all([
+        context.agent
+          ? this.selectionFor(context.agent.id, context.signal)
+          : undefined,
+        next(),
+      ]);
       if (!selected) return result;
       return {
         ...result,

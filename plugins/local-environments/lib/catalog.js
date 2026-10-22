@@ -241,15 +241,12 @@ export class LocalEnvironmentCatalog extends TypertRemoteService {
           await this.ctx.workspaceRegistry.archiveSession(sessionId);
         return { sessionId: created.sessionId, repositories };
       } catch (error) {
-        const hint = /Filename too long/i.test(error.message)
-          ? " Windows Git 路径过长；请在该仓库显式配置 core.longpaths=true，或绑定较短的目录后重试。"
-          : "";
+        const retained = error.preparationSessionIds ?? prepared;
         throw new Error(
           "Environment launch failed; retained session IDs: " +
-            prepared.join(", ") +
+            retained.join(", ") +
             ". " +
-            error.message +
-            hint,
+            error.message,
         );
       }
     });

@@ -290,15 +290,18 @@ function runtimeCheck(home,script,marker,logFile='automatic-session-runtime.log'
  console.log(safe.split(/\r?\n/).filter(x=>x.startsWith(marker)).join('\n'));
 }
 export function smoke(home){runtimeCheck(home,'smoke.cjs','PORTABLE_SMOKE_PASS','smoke-runtime.log');}
-export function automaticTest(home){testHome.assertIsolatedHome(home);runtimeCheck(home,'test-automatic-sessions.cjs','AUTOMATIC_SESSIONS_PASS');}
-export function specTest(home){testHome.assertIsolatedHome(home);runtimeCheck(home,'test-spec-delivery.cjs','SPEC_DELIVERY_PASS','spec-delivery-runtime.log');}
-export function idleTest(home){testHome.assertIsolatedHome(home);runtimeCheck(home,'test-idle-compaction.cjs','IDLE_COMPACTION_PASS','idle-compaction-runtime.log');}
-export function worktreeTest(home){testHome.assertIsolatedHome(home);runtimeCheck(home,'test-worktree-delivery.cjs','WORKTREE_DELIVERY_PASS','worktree-delivery-runtime.log');}
-export function lifecycleTest(home){testHome.assertIsolatedHome(home);runtimeCheck(home,'test-session-lifecycle.cjs','SESSION_LIFECYCLE_PASS','session-lifecycle-runtime.log');}
-export function btwTest(home){testHome.assertIsolatedHome(home);runtimeCheck(home,'test-btw-concurrency.cjs','BTW_CONCURRENCY_PASS','btw-concurrency-runtime.log');}
-export function attentionTest(home){testHome.assertIsolatedHome(home);runtimeCheck(home,'test-global-attention.cjs','GLOBAL_ATTENTION_PASS','global-attention-runtime.log');}
-export function environmentExecutionTest(home){testHome.assertIsolatedHome(home);runtimeCheck(home,'test-local-environment-execution.cjs','LOCAL_ENVIRONMENT_EXECUTION_PASS','local-environment-execution-runtime.log');}
-export function followUpsTest(home){testHome.assertIsolatedHome(home);runtimeCheck(home,'test-follow-ups.cjs','FOLLOW_UPS_PASS','follow-ups-runtime.log');}
+const RUNTIME_TESTS={
+ 'automatic-test':['test-automatic-sessions.cjs','AUTOMATIC_SESSIONS_PASS'],
+ 'spec-test':['test-spec-delivery.cjs','SPEC_DELIVERY_PASS','spec-delivery-runtime.log'],
+ 'idle-test':['test-idle-compaction.cjs','IDLE_COMPACTION_PASS','idle-compaction-runtime.log'],
+ 'worktree-test':['test-worktree-delivery.cjs','WORKTREE_DELIVERY_PASS','worktree-delivery-runtime.log'],
+ 'lifecycle-test':['test-session-lifecycle.cjs','SESSION_LIFECYCLE_PASS','session-lifecycle-runtime.log'],
+ 'btw-test':['test-btw-concurrency.cjs','BTW_CONCURRENCY_PASS','btw-concurrency-runtime.log'],
+ 'attention-test':['test-global-attention.cjs','GLOBAL_ATTENTION_PASS','global-attention-runtime.log'],
+ 'environment-execution-test':['test-local-environment-execution.cjs','LOCAL_ENVIRONMENT_EXECUTION_PASS','local-environment-execution-runtime.log'],
+ 'follow-ups-test':['test-follow-ups.cjs','FOLLOW_UPS_PASS','follow-ups-runtime.log'],
+};
+function runtimeTest(home,command){testHome.assertIsolatedHome(home);runtimeCheck(home,...RUNTIME_TESTS[command]);}
 export function migrateLiangshen(home,{dryRun=false}={}){
  const command=runner();
  return JSON.parse(execute(command.executable,['--expose-internals',path.join(repository,'scripts/migrate-liangshen.cjs'),...(dryRun?[]:['--apply'])],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1',DSH_HOME:home,DSH_NATIVE_ROOT:path.resolve(path.dirname(command.cli),'..','..')}}));
@@ -314,15 +317,7 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
   else if(options.command==='rollback')rollback(options.home);
   else if(options.command==='lock')saveLocks(options.home);
   else if(options.command==='smoke')smoke(options.home);
-  else if(options.command==='automatic-test')automaticTest(options.home);
-  else if(options.command==='spec-test')specTest(options.home);
-  else if(options.command==='idle-test')idleTest(options.home);
-  else if(options.command==='worktree-test')worktreeTest(options.home);
-  else if(options.command==='lifecycle-test')lifecycleTest(options.home);
-  else if(options.command==='btw-test')btwTest(options.home);
-  else if(options.command==='attention-test')attentionTest(options.home);
-  else if(options.command==='environment-execution-test')environmentExecutionTest(options.home);
-  else if(options.command==='follow-ups-test')followUpsTest(options.home);
+  else if(RUNTIME_TESTS[options.command])runtimeTest(options.home,options.command);
   else if(options.command==='migrate-liangshen')console.log(json(migrateLiangshen(options.home,options)));
   else throw new Error('Unknown command: '+options.command);
  }catch(error){let message=error.message;if(process.env.OPENAI_API_KEY)message=message.replaceAll(process.env.OPENAI_API_KEY,'<redacted>');console.error(message.replace(/([?&]token=)[^\s]+/g,'$1<redacted>'));process.exitCode=1;}

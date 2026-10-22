@@ -217,27 +217,22 @@ export class FollowUps extends TypertRemoteService {
     const input = proposalInput.parse(request),
       signal = this.signal(toolSignal);
     await this.assertRoot(agent, signal);
-    const previous = this.ownState(agent.session);
-    if (
-      previous.offer?.owner === agent.id &&
-      previous.offer.epoch === previous.epoch
-    )
-      return {
-        offered: true,
-        id: previous.offer.id,
-        alreadyOffered: true,
-        humanApprovalRequired: true,
-      };
+    const existing = (state) =>
+      state.offer?.owner === agent.id && state.offer.epoch === state.epoch
+        ? {
+            offered: true,
+            id: state.offer.id,
+            alreadyOffered: true,
+            humanApprovalRequired: true,
+          }
+        : undefined;
+    const repeated = existing(this.ownState(agent.session));
+    if (repeated) return repeated;
     return this.serialize(agent.id, signal, async () => {
       this.assertAvailable(agent.id);
       const state = this.ownState(agent.session);
-      if (state.offer?.owner === agent.id && state.offer.epoch === state.epoch)
-        return {
-          offered: true,
-          id: state.offer.id,
-          alreadyOffered: true,
-          humanApprovalRequired: true,
-        };
+      const again = existing(state);
+      if (again) return again;
       const pending = [
         ...(agent.inbox?.nextTurn ?? []),
         ...(agent.inbox?.nextStep ?? []),
