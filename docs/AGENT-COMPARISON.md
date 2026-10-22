@@ -71,7 +71,7 @@
 | 权限 | ◐ 3 预设（模板默认 workspace-write；只读 / 工作区写 / 完全访问） | ✅ 6 模式 + allow/deny/ask + 分类器 + dontAsk | **弱** |
 | 沙箱 | ◐ sandbox-policy 三档，OS 级隔离未见验收 | ✅ macOS/Linux/WSL2 OS 级文件+网络代理；原生 Windows 无沙箱 | **弱（证据不足）** |
 | Hooks | ◐ 兼容层按目标机器上 Hook 文件是否存在启用，仓库不含 Hook 内容 | ✅ 30+ 事件、5 类执行器 | **弱** |
-| 技能 | ✅ 原生 `skill-filesystem` + `tool-skill`；13 个受管技能（7 个本地 + 6 个 OpenSpec），安装器自动发现 `SKILL.md` 与同目录资源；技能的实际模型调用未验收 | ✅ 渐进披露、`context: fork`、插件/账号同步 | 接近 |
+| 技能 | ✅ 原生 `skill-filesystem` + `tool-skill`；16 个受管技能（10 个本地 + 6 个 OpenSpec），安装器自动发现 `SKILL.md` 与同目录资源；技能的实际模型调用未验收 | ✅ 渐进披露、`context: fork`、插件/账号同步 | 接近 |
 | 插件生态 | ◐ 市场 UI 存在，模型侧工具禁用；无评测/治理 | ✅ 市场、mods、插件评测、企业策略 | **弱** |
 | MCP | ✅ 客户端（含两个 Playwright 服务） | ✅ 三种传输 + OAuth + tool search + 大结果落盘 | **弱（未验证认证）** |
 | 回退 / 检查点 | ✅ rewind：会话/文件/两者，code-only 走快照日志 | ✅ 100 个检查点、定向摘要、明确排除项 | 接近，语义不同 |

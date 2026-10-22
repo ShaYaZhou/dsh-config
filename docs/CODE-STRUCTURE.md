@@ -32,6 +32,8 @@
 
 文件路径交互集中在 `plugins/file-links`：只包装原生 `chatFileMentions.forClosing`，让助手消息里出现的普通工作区路径复用既有的侧边栏预览，产出/交付文件的匹配仍然优先。识别是纯语法判断，不探磁盘、不读会话；不注册同名服务（Cordis 会拒绝重复 `provide`）、不改 Markdown 渲染器或 CSS。该接缝固定宿主 0.2.1-rc.2 的 `chatFileMentions` 形状，升级须重新验收。
 
+技能来源统一在 `skills/`：DSH 侧由 `scripts/harness.mjs` 整棵复制，agent 全局侧由 `scripts/align-skills.mjs` 幂等复制。后者只做文件比较与复制，拒绝覆盖目标里仓库没有的文件，并把 `SKILL.md` 全文写进 `docs/SKILLS-ALIGNMENT.md` 的附录块；不建软链接或目录联接，不接管 DSH 部署，也不读写会话与记忆。
+
 `modules/claude-context.mjs` 只做有界读取和格式过滤：`readBounded`、`stripClaudeOnlySyntax`、`claudeProjectSlug` 都是纯函数，`apply` 只注册一个 `systemPrompt.context`；不写 `~/.claude`，不解析记忆内容，只注入索引路径。`modules/usage-report.mjs` 把原生 `sessionController.projections` 的四类投影映射为纯计算 `summarizeUsage`，费率只来自模块配置，不内置价格表，单个会话读取失败只标记不可用。`modules/session-bus.mjs` 的授权、停止和列表是服务层，发送只经原生 `followup` 和 `createUserMessage`；`resolveSessionPrefix` 等状态判断可独立测试，不读取目标会话内容或其他插件私有状态。三个模块都挂在顶层全局 insert：preset 会按 Agent 重复实例化插件，`session-bus` 重复打开同一 storage domain 会失败；只有工具按 Agent 注册，子代理不获得发送入口。详见 [六项能力增强](AGENT-ENHANCEMENTS.md)。
 
 2026-10-21，针对本仓库此前提交的本地增强与本次批注修复。范围是自写功能和上游发布产物中的本地补丁，不把上游整包宣称为重新审计过的自写源码。

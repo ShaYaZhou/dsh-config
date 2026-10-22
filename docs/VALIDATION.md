@@ -1,5 +1,13 @@
 # 可迁移性验收
 
+## 2026-10-22 技能与部署环境对齐
+
+- 新增 `scripts/align-skills.mjs` 与 `docs/SKILLS-ALIGNMENT.md`，把 `skills/dynamic-ui`、`skills/think`、`skills/pua` 复制到 agent 全局技能目录；`skills/think`、`skills/pua` 从本机副本入仓，仓库成为唯一来源。`package.json` 测试清单加入 `test/align-skills.test.mjs`。
+- 行为：默认目标为用户主目录下的 `.claude/skills`；目标不存在则全量复制；目标为目录联接时删除链接并写入真实副本；文件内容不同则覆盖为仓库版本；目标含仓库没有的文件时跳过该技能并以退出码 1 结束；`--check` 只读。文档附录由脚本从各 `SKILL.md` 生成，`--check` 一并比较。
+- 本机验收：`--check` 首次报告 `dynamic-ui` 为目录联接、文档附录不一致（退出码 1）；执行后 `dynamic-ui` 变为真实目录（22 个文件），`think` 4 个、`pua` 1 个，再跑 `--check` 三项技能与附录均为「已一致」。
+- 测试：`node --test test/align-skills.test.mjs` 4 项通过（逐字节复制、拒绝覆盖本机独有文件、目录联接替换、附录一致）；`node --test test/portable.test.mjs` 13 项通过；完整 `npm test` 153 项通过。
+- 未验证：WorkBuddy 等不能运行脚本的 agent 按文档第四节手工核对未实跑；`think`、`pua` 尚未在真实 DSH 会话中加载验证。
+
 ## 2026-10-22 消息内文件路径链接
 
 - 新增本地客户端包 `plugins/file-links`（`@local/dsh-file-links`），同步 `provenance.json`、`config/desktop.package.json`（dependencies 与 `dsh.profile.bundles`）、锁模板和部署漂移清单；`dsh.client.inject` 固定先加载原生 deliverables 客户端。

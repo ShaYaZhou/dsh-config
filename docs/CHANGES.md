@@ -40,6 +40,8 @@
 | `plugins/file-links/lib/client.js` | 包装原生 `chatFileMentions.forClosing`，把消息中的普通工作区路径（含 `:行号`、`#L` 锚点）接入既有侧边栏预览；不注册同名服务、不改 CSS |
 | `plugins/workflow-ptc/lib/index.js` | 由 0.2.1-rc.2 源码构建：规模告警、整体 token/时长预算、一层嵌套守卫、每运行 journal 与前缀续跑、`schemaRetries`（默认 5，仅最终尝试入 journal）；构造函数归一化 schemastery 丢弃的 `default(null)` 预算字段 |
 | `plugins/tool-workflow/lib/index.js` | 由 0.2.1-rc.2 源码构建：工具描述补规模指引、预算、嵌套与续跑说明，并转发 `resume_from_run_id` / `budget_*` / `warnAboveAgents` |
+| `scripts/align-skills.mjs` | 从 `skills/` 幂等复制 agent 全局技能；目标为目录联接时替换成真实副本；拒绝覆盖本机独有文件；同步生成 `docs/SKILLS-ALIGNMENT.md` 附录 |
+| `skills/think`、`skills/pua` | 从本机全局技能入仓，作为唯一来源；来源与许可证见 `docs/SKILLS-ALIGNMENT.md` |
 
 三个插件都保留原浏览器模块、类型文件、资源和许可证。`package.json` 记录本地构建来源与版本；原生能力绑定 0.2.1-rc.2。记忆独立 MCP 启动文件中的上游机器路径示例改为了相对路径注释，不改变运行行为。
 
