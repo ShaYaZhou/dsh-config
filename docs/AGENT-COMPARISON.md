@@ -1,7 +1,7 @@
 # DSH 与 Claude Code Agent 能力对照
 
 - 对照对象：DeepSeek Harness 0.2.1-rc.2 + 本仓库 `tuned` 配置（deepseek-harness-config）
-- Claude 侧基线：Anthropic Claude Code / Claude agent 公开文档与官方博客，抓取日期 2026-10-21（文档版本约 v2.1.30x），此后未重新抓取
+- Claude 侧基线：Anthropic Claude Code / Claude agent 公开文档与官方博客，抓取日期 2026-10-22（文档版本约 v2.1.30x）；agent-teams、workflows、memory、sub-agents 四页于同日重新核对
 - DSH 侧数据：2026-10-22，仓库提交 `13748ac`
 - 结论口径：只描述本仓库当前启用、且有源码、配置或验收记录支撑的能力；不评价模型质量，不把上游 DSH 的全部潜力算作已具备
 
@@ -50,12 +50,12 @@
 | Shell / 文件 / 搜索 | ✅ bash/pwsh、fs、fs-search | ✅ Bash/PowerShell、文件工具 | 持平 |
 | 计划模式 | ✅ plan mode + planner 预设 | ✅ plan mode + Plan 子代理 | 持平 |
 | 目标保持 / 长任务 | ✅ goal 工具 + 命令，带执行时权限检查 | ✅ `/goal` 可验证完成条件，小模型判停 | 接近 |
-| 子代理 | ✅ subagent / fork / list-agents / control | ✅ 子代理，可按 ID 恢复、可互发消息 | **弱（恢复/互发未验证）** |
-| 多代理团队 | ✅ 本地 Team：共享任务（CAS/依赖/认领/改派）、`send_message`、`list_agents`、`wait_agent`、worktree 隔离 | ✅ Agent Teams：共享任务 + mailbox + 计划审批 + 门禁 hook + 分屏 | **接近，弱在审批动作与任务 hook** |
+| 子代理 | ✅ subagent / fork / list-agents / control | ✅ 子代理，可按 ID 恢复、可互发消息，默认嵌套 3 层、20 并发 | **弱（恢复/互发未验证）** |
+| 多代理团队 | ✅ 本地 Team：共享任务（CAS/依赖/认领/改派）、`send_message`、`list_agents`、`wait_agent`、worktree 隔离 | ✅ Agent Teams（实验，默认关闭）：共享任务 + mailbox + 计划审批 + 门禁 hook + 分屏 | **接近，弱在审批动作与任务 hook** |
 | 嵌套会话 / 状态总览 | ✅ 两层父子会话、并排分屏、待审批/计划待审/问题/停止/失败状态、跨工作区分组（元数据，20 条/批） | ✅ 子代理 + agent view 全局状态、按 ID 恢复 | 接近 |
 | 本地环境 / 多仓库 | ✅ 保存多仓库 + worktree + 只写变量，便携定义导入导出，启动独立会话 | ◐ worktree、`--add-dir`、Projects；无同等环境定义与变量管理 | **DSH 更强** |
 | 后续建议 / 确认式派发 | ✅ `propose_followups` 只提议；owner 确认后独立 worktree 启动或排入当前会话，Tab 采纳草稿 | ✅ 桌面建议提示、采纳后排入 | 接近（DSH 强在确认前不执行） |
-| 工作流编排 | ◐ 原生 `workflow-ptc`：`provider: spawn`、并发 6、单次最多 64 个子代理（配置与单测已固定），`agent()` 支持 `schema`；无检查点、续跑、嵌套、整体时长/token 预算，运行时未验收 | ✅ JS 编排、schema、断点续跑、16 并发、1000 代理 | **弱（规模已固定，治理未验证）** |
+| 工作流编排 | ◐ 原生 `workflow-ptc`：`provider: spawn`、并发 6、单次最多 64 个子代理（配置与单测已固定），`agent()` 支持 `schema`；无检查点、续跑、嵌套、整体时长/token 预算，运行时未验收 | ✅ JS 编排、schema（失败重试 5 次）、同会话断点续跑、默认 16 并发（可调 1–256）、单次最多 1000 代理 | **弱（规模已固定，治理未验证）** |
 | 程序化工具调用 | ✅ PTC 运行时（`dsh-ptc-runtime`、`workflow-ptc`） | ✅ programmatic tool calling + code execution 组合 | 接近 |
 | 会话间消息 | ◐ Team / 任务家族内部 + `session-bus` 同机逐对授权（目标须运行、非子代理、未归档、未被用户停止；单条 16000 字符） | ✅ 本机/跨机/云，accept/hold/refuse | **部分缺失（跨机器）** |
 | 后台任务 | ✅ jobs + 后台完成通知 | ✅ agent view、`--bg`、独立配额、JSON 状态 | 接近 |
@@ -66,7 +66,7 @@
 | 代码审查 / 安全 | ◐ 只读技能 `dsh-code-review`；`security-review` + 12 条正则规则扫描；无命令参数分级、无结构化 findings、无 CI 门禁 | ✅ `/code-review`（可调 effort、`--comment`/`--fix`）、ultrareview、Claude Security（SARIF）、security-guidance | **弱（本地能力已有，治理与证据不足）** |
 | Computer use | ✅ Windows 原生 UIA + Playwright 隔离浏览器 | ✅ macOS CLI + 桌面（macOS/Win），逐应用授权 | 各有侧重 |
 | 浏览器 | ◐ 两条 Playwright 链路（隔离 / 独立持久 profile）；内置批注（CSS 定位 + 计算样式 + 编号截图） | ✅ Claude in Chrome（真实登录态） | **弱在真实登录态，强在批注交付** |
-| 记忆 | ✅ 14 个 `memory_*` 工具、三级作用域、BM25 + 可选向量、MCP 服务；会话级禁写强制覆盖自动摘要与写工具并继承到子会话；`claude-context` 镜像注入 Claude 侧 CLAUDE.md 与 rules（有截断与过滤） | ✅ CLAUDE.md 分层 + `.claude/rules` + auto memory 25KB；无同等会话级禁写开关 | **接近；DSH 强在禁写边界，弱在注入预算与跨域检索** |
+| 记忆 | ✅ 14 个 `memory_*` 工具、三级作用域、BM25 + 可选向量、MCP 服务；会话级禁写强制覆盖自动摘要与写工具并继承到子会话；`claude-context` 镜像注入 Claude 侧 CLAUDE.md 与 rules（有截断与过滤） | ✅ 四层 CLAUDE.md + `.claude/rules` 路径规则 + `@import` 递归 4 层 + 按仓库自动记忆（`MEMORY.md` 前 200 行/25KB）；无同等会话级禁写开关 | **接近；DSH 强在禁写边界，弱在注入预算与跨域检索** |
 | 权限 | ◐ 3 预设（模板默认 workspace-write；只读 / 工作区写 / 完全访问） | ✅ 6 模式 + allow/deny/ask + 分类器 + dontAsk | **弱** |
 | 沙箱 | ◐ sandbox-policy 三档，OS 级隔离未见验收 | ✅ macOS/Linux/WSL2 OS 级文件+网络代理；原生 Windows 无沙箱 | **弱（证据不足）** |
 | Hooks | ◐ 兼容层按目标机器上 Hook 文件是否存在启用，仓库不含 Hook 内容 | ✅ 30+ 事件、5 类执行器 | **弱** |
@@ -125,7 +125,7 @@ Claude 可把 Telegram / Discord / iMessage / webhook 事件作为会话输入�
 
 ### 4.9 团队计划审批与任务门禁
 
-Claude Agent Teams 支持 teammate 先进入只读计划模式、由 lead 自动放行计划；并由 TeammateIdle / TaskCreated / TaskCompleted 三个 hook 做质量门禁。DSH 的本地 Team 已有共享任务（`team_task_create/list/get/update`，带 revision CAS、依赖、认领/完成/重开/改派、建议写范围），但**没有计划审批动作，也没有任务级 hook**。嵌套会话一侧已能把子会话的"待审批 / 计划待审"呈现到侧栏并打开决策卡片，也能记录拒绝结果，但这是把原生审批状态**展示出来**，不是给 Team 任务增加审批门禁。**影响**：任务可以分工，但不能在"动手前"强制卡一道审批，也无法在任务完成时自动跑校验。
+Claude Agent Teams 支持 teammate 先进入只读计划模式：计划完成后向 lead 发审批请求，默认由 Claude Code 直接放行（用户手动把该成员切进计划模式时改由 lead 审阅）；并由 TeammateIdle / TaskCreated / TaskCompleted 三个 hook 做质量门禁。DSH 的本地 Team 已有共享任务（`team_task_create/list/get/update`，带 revision CAS、依赖、认领/完成/重开/改派、建议写范围），但**没有计划审批动作，也没有任务级 hook**。嵌套会话一侧已能把子会话的"待审批 / 计划待审"呈现到侧栏并打开决策卡片，也能记录拒绝结果，但这是把原生审批状态**展示出来**，不是给 Team 任务增加审批门禁。**影响**：任务可以分工，但不能在"动手前"强制卡一道审批，也无法在任务完成时自动跑校验。
 
 ### 4.10 桌面级功能面
 
@@ -143,10 +143,17 @@ Claude 把会话产出发布为 claude.ai 上的 Artifacts（原地更新、版�
 
 ### 5.1 多代理编排：协议接近，治理与规模落后
 
-- DSH 的本地 Team 已有相当完整的协议：共享任务带 revision CAS、依赖、认领/完成/重开/改派、建议写范围（advisory，不是锁）；`send_message` 可在步边界 steer 或唤醒，`wait_agent` 观察变化，`spawn_teammate` 支持独立 model / preset / worktree。默认上限 16 名成员、256 个任务、单条消息 64 KiB。**这比"只有一个父子树"强得多**，但只在 desktop profile、只有 lead 能 spawn、`wait_agent` 超时限制 10 秒–1 小时；Team 成员是 subagent，不会出现在嵌套会话树里（两套服务）。
-- 与 Claude 的差距集中在三处：**计划审批**（teammate 先只读规划、lead 批准）、**任务级 hook**（TeammateIdle / TaskCreated / TaskCompleted）、**界面与恢复**（tmux/iTerm 分屏、UI 里直接和某个 teammate 对话、按 ID 恢复 teammate）。嵌套会话一侧已补上并排分屏、待审批/计划待审状态、跨工作区分组和取消传播，但 Team 成员仍不进这棵树，也不支持按 ID 恢复 teammate。
-- 工作流侧：原生 `workflow-ptc` 配置为 `provider: spawn`、并发上限 6、单次运行最多 64 个子代理，`agent()` 支持 `schema`；这些上限已由配置与单测固定。但它不提供检查点、恢复、保存或嵌套工作流，也没有整体时长与 token 预算；工作流子级不继承父会话的 cwd、preset 或 reasoning effort；运行时行为没有仓库内验收。Claude 的动态工作流有 schema、断点续跑、16 并发与 1000 代理的明文约束，并配对抗验证与成本语义。
-- 嵌套会话（父子）与 Team 是两套机制：前者用于"派一个可见会话去做独立任务"，最多两层，`wait_for_sessions` 最多等 60 秒，`read_session` 默认取最后 12 条（最多 40 条、正文截 16K 字符）；后者用于"同一个目标下的多人分工"。嵌套会话还提供跨工作区状态分组（仅元数据、每批 20 条）、跨 cwd 的侧栏血缘、原生菜单复用、取消传播，并让新鲜/分叉子会话通过记忆插件的公开服务继承父会话的禁写边界。Claude 的 subagent / Agent Teams / dynamic workflows 是三层递进，DSH 目前仍是两套并列。
+三层能力逐项对照：
+
+| 层 | DSH | Claude Code |
+|---|---|---|
+| 子代理 | `subagent` / `fork` / `list-agents` / `control`；按 ID 恢复与子代理之间互发消息未验收 | 可按 ID 恢复（`SendMessage`）、可按名字互发消息；默认向下嵌套 3 层（`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`，设为 1 关闭），默认 20 个并发 |
+| 团队 | 本地 Team：共享任务带 revision CAS、依赖、认领/完成/重开/改派、建议写范围（advisory，非锁）；`send_message` 在步边界 steer 或唤醒、`wait_agent`、`spawn_teammate` 支持独立 model / preset / worktree；默认 16 名成员、256 个任务、单条消息 64 KiB | Agent Teams（实验，默认关闭，需 `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`）：共享任务列表 + mailbox + 计划审批 + `TeammateIdle` / `TaskCreated` / `TaskCompleted` 门禁 hook + in-process/分屏两种显示；成员无硬上限（建议 3–5）；限制：每会话一支团队、团队不能嵌套、不能转移 lead、`/resume` 不恢复 in-process 成员 |
+| 工作流 | 原生 `workflow-ptc`：`provider: spawn`、并发 6、单次最多 64 个子代理、`agent()` 支持 `schema`；无检查点、恢复、嵌套，无整体时长/token 预算 | 动态工作流：JS 脚本（`agent` / `pipeline` / `parallel` / `phase` / `args`）、`schema` 校验失败重试 5 次、单次调用最多 4096 项、默认 16 并发（可调 1–256）、单次最多 1000 个代理、同一会话内断点续跑、超过 25 个代理或预估 150 万 token 时提示 Large workflow |
+
+- **DSH**：Team 只在 desktop profile 提供，只有 lead 能 spawn，`wait_agent` 超时限制 10 秒–1 小时；Team 成员是 subagent，不会出现在嵌套会话树里。嵌套会话是另一套机制，最多两层，`wait_for_sessions` 最多等 60 秒，`read_session` 默认取最后 12 条（最多 40 条、正文截 16K 字符），并带跨工作区状态分组（仅元数据、每批 20 条）、跨 cwd 的侧栏血缘、取消传播，以及经记忆插件公开服务继承的禁写边界。工作流的上限已由配置与单测固定，但运行时行为没有仓库内验收，子级也不继承父会话的 cwd、preset 或 reasoning effort。
+- **Claude**：subagent / Agent Teams / dynamic workflows 是三层递进，各有明确的规模与中断语义；工作流把中间结果留在脚本变量里，不占主上下文，对抗验证、多角度评审这类质量模式可以写进脚本复用；Team 的成员是独立会话，可在 UI 里直接对话、按名字互发消息。
+- **差距性质**：协议层（共享任务、消息、worktree 隔离）DSH 已接近；差距集中在两处——**治理**（计划审批、任务级 hook、按 ID 恢复、成员级 UI 与分屏）与**规模**（工作流没有断点续跑和预算收敛，上限 64 而非 1000）。成熟度是反向的：Claude 的 Teams 仍是实验特性、默认关闭；DSH 的 Team 是常规配置。但 DSH 的 Team 与嵌套会话仍是两套并列机制，Claude 已是三层递进。
 
 ### 5.2 权限与审批粒度
 
@@ -162,12 +169,10 @@ Claude 把会话产出发布为 claude.ai 上的 Artifacts（原地更新、版�
 
 ### 5.4 记忆与 Claude 指令注入
 
-- DSH memory（本地补丁 0.5.1-local.1）实际能力比"摘要注入"完整：14 个 `memory_*` 工具（读/写/改/删/搜/合并/审阅/导出/导入/统计/浏览/历史/回滚/同步）、global/workspace/project 三级作用域、BM25 + 字符 bigram 容错 + 可选远端 embedding、独立 MCP stdio 服务、注入前脱敏。`memoryWritePolicy` 让"本任务不写记忆"成为**执行约束**而不是提示词约定：自动摘要、子代理摘录、压缩、合并与全部写工具都会检查，子会话继承父限制且不能放宽，后台生成结果写前复查，只读工具不会借作用域初始化写入。
-- 新增 `claude-context` 模块，把 Claude 侧的指令文件镜像进系统提示：用户级 `~/.claude/CLAUDE.md`、项目级 `<cwd>/.claude/CLAUDE.md`、`<cwd>/.claude/rules/*.md`（只读直接 `.md`、按文件名排序）；预算分别为 24000、24000、合计 24000，单条规则 8000。它过滤 RTK 标题段和单独成行的 `@import`，项目记忆只注入 `MEMORY.md` 的索引路径，不注入内容。原生 `dsh-agent-instructions` 另读项目根到 cwd 的 `AGENTS.md` / `CLAUDE.md`。
-- **这不等价于 Claude 的完整指令层级**：镜像会按上限截断，过滤 Claude 专用语法，只处理 home 与当前 cwd，不展开 `@import`，也不读取 Claude 的其它配置。它是"不完全等价的镜像注入"，不是同一套解析器。
-- 注入侧仍偏紧：只自动拼接 global 与 workspace；开启 `scopedMemory` 后 global 预算变成 `maxBytes - scopeMaxBytes` = **2000 bytes**，再受 `injectTokens: 2400` 限制；project 记忆必须由 agent 显式检索，且作用域之间不能互查；摘要回滚只支持 global；原始存储仍是明文，脱敏是启发式。
-- Claude 侧是**文件即记忆**：CLAUDE.md 四层（托管/用户/项目/本地）+ `.claude/rules` 按路径生效 + 自动记忆每仓库 25KB。它没有 DSH 那样的检索工具，但胜在确定、可审查、可进 Git。
-- **差距性质**：DSH 的检索、作用域与**写入边界**更强；Claude 的注入完整性与可审查性更强。长期项目如果依赖"每次会话自动带上更多上下文"，DSH 可以调大 `maxBytes`/`injectTokens`、把关键约定写进 AGENTS.md，或利用 `claude-context` 的镜像注入。
+- **DSH**：本地补丁 0.5.1-local.1 提供 14 个 `memory_*` 工具（读/写/改/删/搜/合并/审阅/导出/导入/统计/浏览/历史/回滚/同步）、global/workspace/project 三级作用域、BM25 + 字符 bigram 容错 + 可选远端 embedding、独立 MCP stdio 服务、注入前脱敏。`memoryWritePolicy` 让"本任务不写记忆"成为**执行约束**而不是提示词约定：自动摘要、子代理摘录、压缩、合并与全部写工具都会检查，子会话继承父限制且不能放宽，后台生成结果写前复查，只读工具不会借作用域初始化写入。注入侧偏紧：只自动拼接 global 与 workspace；开启 `scopedMemory` 后 global 预算变成 `maxBytes - scopeMaxBytes` = **2000 bytes**，再受 `injectTokens: 2400` 限制；project 记忆必须显式检索，作用域之间不能互查；摘要回滚只支持 global；原始存储仍是明文，脱敏是启发式。原生 `dsh-agent-instructions` 另读项目根到 cwd 的 `AGENTS.md` / `CLAUDE.md`。
+- **DSH 的 `claude-context` 镜像**：把 Claude 侧指令文件注入系统提示——用户级 `~/.claude/CLAUDE.md`、项目级 `<cwd>/.claude/CLAUDE.md`、`<cwd>/.claude/rules/*.md`（只读直接 `.md`、按文件名排序），预算 24000 / 24000 / 合计 24000，单条规则 8000；过滤 RTK 标题段和单独成行的 `@import`，项目记忆只注入 `MEMORY.md` 索引路径。它是**不完全等价的镜像**：会按上限截断、不展开 `@import`、只处理 home 与当前 cwd、不读托管层，也不加载子目录里的文件。
+- **Claude**：指令文件分四层（托管策略 / `~/.claude/CLAUDE.md` / `./CLAUDE.md` 或 `./.claude/CLAUDE.md` / `./CLAUDE.local.md`），启动时把根到 cwd 的文件按层级拼接载入，子目录文件在首次读到那里的文件时按需加载；`@path` 导入最多递归 4 层；`.claude/rules/*.md` 可用 `paths` glob 只对匹配文件生效，个人规则放 `~/.claude/rules/`；建议单文件 200 行以内，超过 4 MiB 直接跳过；`/context` 列出实际载入的文件，`InstructionsLoaded` hook 可审计加载过程，`claudeMdExcludes` 可排除祖先目录的文件。自动记忆按仓库存储（同仓库的 worktree 共享、仅本机），每次会话只载入 `MEMORY.md` 前 200 行或 25KB，其余主题文件按需读取；子代理不继承主会话的自动记忆（fork 除外），子代理自己的记忆用 `memory: user|project|local` 单独开启。
+- **差距性质**：DSH 强在**检索、作用域与写入边界**——Claude 把 CLAUDE.md 与自动记忆明确定位为"上下文，不是强制配置"，需要硬阻断时要另配 PreToolUse hook；DSH 的 `memoryWritePolicy` 是执行层约束。Claude 强在**层级完整性与可审查性**——四层指令、路径规则、递归导入、子目录按需加载，加上 `/memory`、`/context`、`InstructionsLoaded` 的可视化与审计，全部是明文进 Git 的文件。继续对齐的方向：DSH 补 `@import` 展开与子目录按需加载，并调大 `maxBytes` / `injectTokens`；`claude-context` 只能算过渡镜像，不是同一套解析器。
 
 ### 5.5 可观测性与成本
 
