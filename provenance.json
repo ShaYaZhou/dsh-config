@@ -147,6 +147,40 @@
           "Viewport-contained annotation send controls and independent region screenshot cropping; native click/drag and input regression."
         ]
       }
+    },
+    {
+      "id": "workflow-ptc",
+      "package": "@local/dsh-workflow-ptc",
+      "version": "0.2.1-rc.2-local.1",
+      "license": "MIT",
+      "upstream": "https://github.com/deepseek-ai/deepseek-harness",
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "baseVersion": "0.2.1-rc.2",
+        "baseCommit": "687f282e8625c6b8d11ff58211a90524be2e4317",
+        "changes": [
+          "Token and elapsed-time budgets per run, lowerable per call; an exhausted budget refuses further agent() calls while the script still returns gathered results.",
+          "Size-guideline warning when a run starts more agents than the deployment's threshold.",
+          "One-level nesting guard: a workflow child session may not start another workflow.",
+          "Per-run JSONL journal and prefix replay behind resume_from_run_id, stopping at the first changed agent() call."
+        ]
+      }
+    },
+    {
+      "id": "tool-workflow",
+      "package": "@local/dsh-tool-workflow",
+      "version": "0.2.1-rc.2-local.1",
+      "license": "MIT",
+      "upstream": "https://github.com/deepseek-ai/deepseek-harness",
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "baseVersion": "0.2.1-rc.2",
+        "baseCommit": "687f282e8625c6b8d11ff58211a90524be2e4317",
+        "changes": [
+          "sizeGuideline config states the expected agent scale in the tool description and forwards the matching warning threshold to the engine.",
+          "resume_from_run_id, budget_tokens, and budget_ms parameters forwarded to the engine on both foreground and background starts."
+        ]
+      }
     }
   ],
   "flavor": "tuned",

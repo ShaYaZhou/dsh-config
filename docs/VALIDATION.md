@@ -1,5 +1,13 @@
 # 可迁移性验收
 
+## 2026-10-22 工作流治理：续跑、预算、嵌套与规模指引
+
+- 新增两个本地包 `plugins/workflow-ptc` 与 `plugins/tool-workflow`，由 `.local/src/deepseek-harness` 的 `dsh-v0.2.1-rc.2` tag 源码构建；`provenance.json` 继续绑定 0.2.1-rc.2 原生运行时，升级宿主必须重新验收。
+- 修复一个会中断全部工作流的默认值问题：schemastery 会丢弃 `default(null)`，导致 `budgetTokens` / `budgetMs` 变成 `undefined`，任何运行在 `begin` 阶段就以 “binding value must be lossless JSON” 失败。引擎构造函数现按 `config.budgetTokens ?? null` 归一化。
+- 隔离 `DSH_HOME` 重新安装后，用安装版同一 Electron 运行时启动 desktop profile，取得 `WORKFLOW_ACCEPTANCE_PASS`：`workflow` 工具参数含 `resume_from_run_id`、`budget_tokens`、`budget_ms`；描述含 medium 规模指引、续跑与 `one level only`；引擎为并发 16 / 总量 1000 / journal 开启；一次真实运行的 journal 含 header、call（带 childId）与 result；`resume_from_run_id` 的新运行只写 header 且值与旧运行相同；在活跃工作流子会话（childId）上再启动工作流被拒绝；`maxDurationMs: 300` 的两次 `agent()` 在 604 ms 时拒绝第二次，journal 只有一条 call；`tokenUsage` 投影确认含四项数字字段。
+- 限制：隔离 home 没有模型凭据，子代理通过宿主注册的 stub provider 启动，因此没有真实模型的 token 预算触发记录；token 与时间预算共用 `assertBudget`，token 读取形状已单独确认。完整 `npm test` 143 项通过，锁模板已按修复后的安装重新生成。
+- 未部署到用户日常 home、未重启桌面进程。
+
 ## 2026-10-22 六项能力、CC 模式与 Claude 上下文注入
 
 - 完整 `npm test` 143 项通过，无跳过；新增断言覆盖三个模块的全局挂载（且不在 preset 内）、workflow 16/1000 上限与 `subagent` 活跃槽位 20、两个 Playwright 服务、session-bus 授权/前缀/停止/去重、usage 计算与无价格、安全扫描脱敏与目录跳过、claude-context 过滤与 project slug。

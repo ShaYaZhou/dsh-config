@@ -474,7 +474,7 @@
             },
             {
               "id": "workflow-ptc",
-              "name": "@deepseek-ai/dsh-workflow-ptc",
+              "name": "@local/dsh-workflow-ptc",
               "config": {
                 "provider": "spawn",
                 "maxConcurrentAgents": 16,
@@ -483,7 +483,10 @@
             },
             {
               "id": "tool-workflow",
-              "name": "@deepseek-ai/dsh-tool-workflow"
+              "name": "@local/dsh-tool-workflow",
+              "config": {
+                "sizeGuideline": "medium"
+              }
             }
           ]
         },
@@ -531,7 +534,7 @@
         "config": {
           "id": "explore",
           "name": "explore",
-          "description": "You investigate code and return concise evidence with file paths. Do not change project files.",
+          "description": "调查代码，只返回带文件路径的简明证据；不修改项目文件。",
           "plugins": [
             {
               "id": "persona",
@@ -604,7 +607,7 @@
         "config": {
           "id": "planner",
           "name": "planner",
-          "description": "You produce concrete implementation plans after reading relevant code. Do not implement changes or wait for approval inside this delegated planning task.",
+          "description": "阅读相关代码后给出具体的实施方案；在该委派任务中不实现改动，也不等待批准。",
           "plugins": [
             {
               "id": "persona",
@@ -677,7 +680,7 @@
         "config": {
           "id": "reviewer",
           "name": "reviewer",
-          "description": "You review correctness using concrete source evidence and caller impact. Report only demonstrated issues, with file paths and lines. Do not invent requirements or change project files.",
+          "description": "依据源码证据与调用方影响审查正确性；只报告有据可查的问题，并给出文件路径和行号。不臆造需求，也不改动项目文件。",
           "plugins": [
             {
               "id": "persona",
@@ -750,7 +753,7 @@
         "config": {
           "id": "cc",
           "name": "CC 模式",
-          "description": "PTC presentation of the standard preset: every standard tool, skill and workflow capability is available through run_code. Use when you prefer code-style tool orchestration; standard stays the default.",
+          "description": "标准模式的 PTC 呈现：全部标准工具、技能和工作流能力都通过 run_code 调用。适合偏好代码式工具编排的场景；默认仍是标准模式。",
           "order": 2,
           "plugins": [
             {
@@ -923,7 +926,7 @@
                 },
                 {
                   "id": "workflow-ptc",
-                  "name": "@deepseek-ai/dsh-workflow-ptc",
+                  "name": "@local/dsh-workflow-ptc",
                   "config": {
                     "provider": "spawn",
                     "maxConcurrentAgents": 16,
@@ -932,7 +935,10 @@
                 },
                 {
                   "id": "tool-workflow",
-                  "name": "@deepseek-ai/dsh-tool-workflow"
+                  "name": "@local/dsh-tool-workflow",
+                  "config": {
+                    "sizeGuideline": "medium"
+                  }
                 }
               ]
             },

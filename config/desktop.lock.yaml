@@ -41,6 +41,12 @@ importers:
       '@local/dsh-nested-sessions':
         specifier: file:../../local-plugins/${NESTED-SESSIONS_TGZ}
         version: file:../../local-plugins/${NESTED-SESSIONS_TGZ}(zod@4.4.3)
+      '@local/dsh-tool-workflow':
+        specifier: file:../../local-plugins/${TOOL-WORKFLOW_TGZ}
+        version: file:../../local-plugins/${TOOL-WORKFLOW_TGZ}(@deepseek-ai/dsh-util-values@0.2.1-rc.2)(@deepseek-ai/schemastery@3.18.5)
+      '@local/dsh-workflow-ptc':
+        specifier: file:../../local-plugins/${WORKFLOW-PTC_TGZ}
+        version: file:../../local-plugins/${WORKFLOW-PTC_TGZ}(@deepseek-ai/dsh-util-values@0.2.1-rc.2)(@deepseek-ai/schemastery@3.18.5)
       '@michengai/dsh-btw':
         specifier: file:../../local-plugins/${BTW_TGZ}
         version: file:../../local-plugins/${BTW_TGZ}
@@ -331,6 +337,40 @@ packages:
       '@deepseek-ai/dsh-tools': 0.2.1-rc.2
       '@deepseek-ai/dsh-typert-protocol': 0.2.1-rc.2
       zod: ^4.0.0
+
+  '@local/dsh-tool-workflow@file:../../local-plugins/${TOOL-WORKFLOW_TGZ}':
+    resolution: {integrity: ${TOOL-WORKFLOW_INTEGRITY}, tarball: file:../../local-plugins/${TOOL-WORKFLOW_TGZ}}
+    version: 0.2.1-rc.2-local.1
+    peerDependencies:
+      '@deepseek-ai/cordis': ^4.0.1
+      '@deepseek-ai/dsh-agent': 0.2.1-rc.2
+      '@deepseek-ai/dsh-jobs': 0.2.1-rc.2
+      '@deepseek-ai/dsh-llm': 0.2.1-rc.2
+      '@deepseek-ai/dsh-session': 0.2.1-rc.2
+      '@deepseek-ai/dsh-system-prompt': 0.2.1-rc.2
+      '@deepseek-ai/dsh-tools': 0.2.1-rc.2
+      '@deepseek-ai/dsh-util-values': 0.2.1-rc.2
+      '@deepseek-ai/dsh-workflow': 0.2.1-rc.2
+      '@deepseek-ai/schemastery': ^3.18.0
+
+  '@local/dsh-workflow-ptc@file:../../local-plugins/${WORKFLOW-PTC_TGZ}':
+    resolution: {integrity: ${WORKFLOW-PTC_INTEGRITY}, tarball: file:../../local-plugins/${WORKFLOW-PTC_TGZ}}
+    version: 0.2.1-rc.2-local.1
+    peerDependencies:
+      '@deepseek-ai/cordis': ^4.0.1
+      '@deepseek-ai/dsh-agent': 0.2.1-rc.2
+      '@deepseek-ai/dsh-brand': 0.2.1-rc.2
+      '@deepseek-ai/dsh-llm': 0.2.1-rc.2
+      '@deepseek-ai/dsh-ptc-runtime': 0.2.1-rc.2
+      '@deepseek-ai/dsh-sandbox': 0.2.1-rc.2
+      '@deepseek-ai/dsh-sandbox-policy': 0.2.1-rc.2
+      '@deepseek-ai/dsh-session': 0.2.1-rc.2
+      '@deepseek-ai/dsh-subagent': 0.2.1-rc.2
+      '@deepseek-ai/dsh-tools': 0.2.1-rc.2
+      '@deepseek-ai/dsh-util-values': 0.2.1-rc.2
+      '@deepseek-ai/dsh-workflow': 0.2.1-rc.2
+      '@deepseek-ai/dsh-working-directory': 0.2.1-rc.2
+      '@deepseek-ai/schemastery': ^3.18.0
 
   '@marijn/find-cluster-break@1.0.4':
     resolution: {integrity: sha512-Wy0V7+SGUjnF9/TkiM1hKVDPj7jKXduPNboMVtHTA8dySMURWqfg/JZ9E2Sq8JgSJmkl7k7Qe9FLeMSrSraWmQ==}
@@ -1437,6 +1477,16 @@ snapshots:
   '@local/dsh-nested-sessions@file:../../local-plugins/${NESTED-SESSIONS_TGZ}(zod@4.4.3)':
     dependencies:
       zod: 4.4.3
+
+  '@local/dsh-tool-workflow@file:../../local-plugins/${TOOL-WORKFLOW_TGZ}(@deepseek-ai/dsh-util-values@0.2.1-rc.2)(@deepseek-ai/schemastery@3.18.5)':
+    dependencies:
+      '@deepseek-ai/dsh-util-values': 0.2.1-rc.2
+      '@deepseek-ai/schemastery': 3.18.5
+
+  '@local/dsh-workflow-ptc@file:../../local-plugins/${WORKFLOW-PTC_TGZ}(@deepseek-ai/dsh-util-values@0.2.1-rc.2)(@deepseek-ai/schemastery@3.18.5)':
+    dependencies:
+      '@deepseek-ai/dsh-util-values': 0.2.1-rc.2
+      '@deepseek-ai/schemastery': 3.18.5
 
   '@marijn/find-cluster-break@1.0.4': {}
 

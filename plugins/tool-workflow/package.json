@@ -1,0 +1,47 @@
+{
+  "name": "@local/dsh-tool-workflow",
+  "version": "0.2.1-rc.2-local.1",
+  "description": "Model-facing workflow tool: run a JavaScript orchestration script over ctx.workflowEngine — local build adding the size guideline, resume_from_run_id, and budget parameters.",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "lib",
+    "src",
+    "locale/*.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-agent": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-jobs": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-llm": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-session": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-system-prompt": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-tools": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-workflow": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-util-values": "0.2.1-rc.2",
+    "@deepseek-ai/schemastery": "^3.18.0"
+  },
+  "harnessTuning": {
+    "unpublishedLocalBuild": true,
+    "upstream": "https://github.com/deepseek-ai/deepseek-harness",
+    "baseVersion": "0.2.1-rc.2",
+    "baseCommit": "687f282e8625c6b8d11ff58211a90524be2e4317",
+    "changes": [
+      "sizeGuideline config states the expected agent scale in the tool description and forwards the matching warning threshold to the engine.",
+      "resume_from_run_id, budget_tokens, and budget_ms parameters forwarded to the engine on both foreground and background starts."
+    ]
+  }
+}

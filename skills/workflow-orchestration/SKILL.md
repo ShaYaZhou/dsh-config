@@ -9,9 +9,9 @@ description: Orchestrate many DSH subagents with the native workflow tool for au
 
 ## 调用契约
 
-- 工具参数是 `meta`、`script`、`args`、`run_in_background`。`meta` 单独传，包含 `name`、`description`、可选 `whenToUse` 和 `phases`；`script` 只放脚本体，**不要**写 `export const meta`。
+- 工具参数是 `meta`、`script`、`args`、`run_in_background`，以及可选的 `resume_from_run_id`、`budget_tokens`、`budget_ms`。`meta` 单独传，包含 `name`、`description`、可选 `whenToUse` 和 `phases`；`script` 只放脚本体，**不要**写 `export const meta`。
 - `args` 必须是对象。要传列表时包一层，例如 `{items:[...]}`，不要直接传顶层数组。
-- 脚本可用顶层 `await`，钩子包括 `agent()`、`parallel()`、`pipeline()`、`phase()`、`log()`。以当前工具 schema 的钩子说明为准。
+- 脚本可用顶层 `await`，钩子包括 `agent()`、`parallel()`、`pipeline()`、`phase()`、`log()`，以及只读的 `budget`（`total`、`spent()`、`remaining()`、`elapsedMs()`、`timeRemainingMs()`）。以当前工具 schema 的钩子说明为准。
 - `agent()` 返回子代理的文本或 schema 校验后的对象；普通子代理失败返回 `null`，不是抛异常。用 `.filter(Boolean)`，并在汇总里说明缺失项。
 - 长任务用 `run_in_background: true`。返回 `jobId` 后不要忙等；用 `job_output` 查看状态，完成通知会带回最终返回值。取消用 `job_kill`。
 
@@ -19,8 +19,10 @@ description: Orchestrate many DSH subagents with the native workflow tool for au
 
 - 并发 `agent()` 16 个，单次运行最多 1000 个子代理，单次 `parallel()`/`pipeline()` 最多 4096 项。超过 16 的调用会排队，不要一次塞几百个短任务来“提速”。
 - 原生 subagent 的活跃槽位在本部署调到 20；工作流占 16，给手工 subagent 留 4。出现 `ACTIVATION_LIMIT_REACHED` 时降低并发或分批，不要重试同一波。
-- 没有整体运行时长截止，也没有 token 预算。`syncTimeoutMs` 只限制脚本最初同步片段（5 秒）；不要把长循环写成同步代码。费用由你自行控制，必要时用 `usage_report` 查看消耗。
-- 工作流不提供检查点、恢复、保存或嵌套工作流。每个 `agent()` 的输出要自包含；跨阶段需要的中间结果写进返回值或文件，别指望运行中断后还能续上。
+- 整体预算默认不限，可用 `budget_tokens` / `budget_ms` 按单次调用收紧（只能低于部署配置）。越过预算后的下一次 `agent()` 被拒绝，已收集的结果照常返回；脚本里可读 `budget` 提前停手。`syncTimeoutMs` 只限制脚本最初同步片段（5 秒）；不要把长循环写成同步代码。费用仍以 `usage_report` 为准。
+- 规模阈值按部署配置（本机 medium：约 10 个代理），越过时引擎发出告警；任务确实更大就明确说明，不要悄悄截断覆盖范围。
+- 每次运行写 journal 到 `$DSH_HOME/workflows/runs/<runId>.jsonl`。脚本、provider/model 与前面调用未变时，传 `resume_from_run_id` 可回放已完成前缀，第一个变化的 `agent()` 起转 live；回放不启动子代理，也不计 token。改动较前的 prompt 会让后续全部重跑。
+- 工作流只允许一层嵌套：工作流子代理不能再启动工作流。每个 `agent()` 的输出要自包含；跨阶段需要的中间结果写进返回值或文件。
 - 工作流子级不继承父会话的 `cwd`、agent preset 或 reasoning effort。需要独立的目录或角色时，在提示词里写清，或改用普通 linked session 的 `subagent`/`start_session`。
 - 工作流在调用方的文件沙箱策略下运行。`read-only` 或 `workspace-write` 需要 PTC 运行时支持相应约束；不安全的组合会在执行前失败。不要靠工作流绕过权限。
 

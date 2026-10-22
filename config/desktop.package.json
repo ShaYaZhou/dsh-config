@@ -21,7 +21,9 @@
     "@local/dsh-browser-review": "@artifact/browser-review",
     "@local/dsh-idle-settings": "@artifact/idle-settings",
     "@local/dsh-local-environments": "@artifact/local-environments",
-    "@local/dsh-follow-ups": "@artifact/follow-ups"
+    "@local/dsh-follow-ups": "@artifact/follow-ups",
+    "@local/dsh-workflow-ptc": "@artifact/workflow-ptc",
+    "@local/dsh-tool-workflow": "@artifact/tool-workflow"
   },
   "dsh": {
     "profile": {

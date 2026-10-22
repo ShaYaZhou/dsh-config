@@ -6,15 +6,22 @@
 
 ## 工作流编排
 
-使用原生 `@deepseek-ai/dsh-workflow-ptc` 与 `dsh-tool-workflow`，没有新引擎。配置为 `provider: spawn`、并发 16、单次运行最多 1000 个子代理：
+工作流不再只挂上游包。`plugins/workflow-ptc` 与 `plugins/tool-workflow` 从 0.2.1-rc.2 tag 的源码构建（`provenance.json` 绑定该原生运行时），只增加治理字段，不改既有脚本语义。配置仍为 `provider: spawn`、并发 16、单次运行最多 1000 个子代理：
 
 ```json
 "workflow-ptc": {"provider": "spawn", "maxConcurrentAgents": 16, "maxTotalAgents": 1000}
 ```
 
+四项对齐能力：
+
+- **规模指引**：`tool-workflow` 的 `sizeGuideline`（默认 `medium`）按 small / medium / large 在工具描述里写明预期规模，并把对应的 5 / 10 / 25 个代理作为运行告警阈值；越过阈值时引擎告警，单次调用可通过 `warnAboveAgents` 覆盖。
+- **整体预算**：单次调用用 `budget_tokens` / `budget_ms` 收紧（只能低于引擎配置），脚本侧另有只读 `budget` 全局，提供 `total`、`spent()`、`remaining()`、`elapsedMs()`、`timeRemainingMs()`。越过预算后的下一次 `agent()` 被拒绝，已收集的结果仍可返回。
+- **嵌套限制**：工作流子代理不能再启动工作流（工具描述写作 `one level only`），与 Claude 的一层嵌套一致；子代理里仍可调用普通 `subagent`。
+- **检查点 / 续跑**：每次运行写 `$DSH_HOME/workflows/runs/<runId>.jsonl`（header，加上每个 `agent()` 的 call / result 行）。`resume_from_run_id` 按 seq、prompt、provider、model、schema 回放未变前缀；第一个不匹配之后永久转 live，回放的子代理 tokens 记为 0。
+
 `workflow-orchestration` 技能负责“什么时候用”：一两项委派走普通 `subagent`；多路独立审计、迁移、跨文件排查才用 `workflow`。技能同时写明实际契约：`meta` 与 `script` 分开传、`args` 必须是对象、`agent()` 失败返回 `null`、优先 `pipeline()` 而不是阶段屏障、重要发现做对抗验证。
 
-边界：工作流子级不继承父会话的 cwd、preset 或 reasoning effort；不提供检查点、恢复或嵌套；没有整体时长和 token 预算。原生 subagent 活跃槽位已从默认 8 调到 20，工作流占 16，手工 `subagent` 保留 4；这些是协作式配额，不是硬性调度保证。工作流在被调用方的文件沙箱策略下运行，不能用来绕过权限。
+边界：工作流子级不继承父会话的 cwd、preset 或 reasoning effort；一层嵌套的代价是“子代理里想再拆，只能把结果交回父级再编排”。token 预算要求宿主已挂载 `session-query`，只统计已结算子会话的 `tokenUsage` 投影，回放调用不计；没有该服务时只能设时长预算。journal 含 prompt 文本，只落在 `DSH_HOME` 下，不纳入 Git。原生 subagent 活跃槽位已从默认 8 调到 20，工作流占 16，手工 `subagent` 保留 4；这些是协作式配额，不是硬性调度保证。工作流在被调用方的文件沙箱策略下运行，不能用来绕过权限。
 
 ## CC 模式
 
@@ -28,7 +35,7 @@ PTC 只向模型暴露 `run_code`；文件、shell、skills、`subagent`、`work
 
 原生 preset 没有继承机制，插件列表必须复制；单测断言“CC = standard + presentation 行”，standard 改动后忘记同步 CC 会直接失败。PTC 需要宿主已组装 `ctx.ptcRuntime`（base 的 `ptc-runtime` 行），缺失时 preset 在挂载阶段拒绝，不会拖到第一条消息；每个 agent 只能声明一次呈现方式。
 
-不设为默认：PTC 改变模型调用工具的方式，普通交互任务用 native 形态更直接；需要代码式编排时再选 CC。PTC 只改变工具呈现，不改变权限、沙箱和子代理继承边界，也不补上工作流引擎缺失的续跑与预算语义。
+不设为默认：PTC 改变模型调用工具的方式，普通交互任务用 native 形态更直接；需要代码式编排时再选 CC。PTC 只改变工具呈现，不改变权限、沙箱和子代理继承边界；工作流的续跑、预算与一层嵌套由本地引擎提供，与是否选择 CC 无关。
 
 ## 会话间消息
 
@@ -101,6 +108,7 @@ Claude 专用的 `RTK` 段落和单独成行的 `@import` 会被过滤：前者�
 - 完整 `rtk npm test` 143 项通过，无跳过；新增工作流上限与全局挂载、CC preset 克隆关系、session-bus 授权/停止/去重、usage 计算与无价格、安全扫描脱敏与目录跳过、claude-context 过滤与 project slug 等断言。
 - 隔离 DSH_HOME 完整安装后，用安装版同一 Electron 运行时启动桌面 profile：`ENHANCED_ACCEPTANCE_PASS`，确认 `usage_report`、`message_session`、`list_authorized_sessions` 三个工具注册，两个 Playwright 服务前缀都存在，五个技能解析到 `agent-capabilities/skills/`，`/session-bus list` 返回 success，装配后的系统提示含 `claude-context`（含合成标记）与 `session-bus`。
 - CC 模式：隔离 `DSH_HOME` 重新安装后，standard 会话解析为 `native` 且 `workflow` 直接可见；`agentPreset: "cc"` 会话解析为 `ptc`，模型可见工具只有 `run_code`，输出 `CC_PRESET_ACCEPTANCE_PASS`。
+- 工作流治理在隔离 `DSH_HOME` 中完成宿主验收（`WORKFLOW_ACCEPTANCE_PASS`）：`workflow` 工具暴露 `resume_from_run_id`、`budget_tokens`、`budget_ms`，描述含规模指引、续跑与 `one level only`；引擎装配为并发 16 / 总量 1000 / journal 开启；真实运行生成 call/result journal；`resume_from_run_id` 的新运行只写 header；在活跃工作流子会话上再启动工作流被拒绝；`maxDurationMs: 300` 的运行在 604 ms 时拒绝第二次 `agent()`。该 home 没有模型凭据，子代理通过宿主注册的 stub provider 启动，因此真实模型的 token 预算触发未验收；token 读取所用的 `tokenUsage` 投影四字段已单独确认。
 - 未做真实模型调用：本次环境没有可用的 `OPENAI_API_KEY`，验收止于原生装配层。`usage_report` 的端到端工具调用也因此没有实跑，只验证了注册与字段映射；CC 模式同样没有执行真实的 `run_code` 程序。
 - 验收期间原生 `spill-local` 输出过一次临时目录 `EPERM` 警告，宿主仍正常启动并完成验收；与本仓库模块无关。
 - 真实宿主验收必须固定宿主版本；升级 Harness 后重新验收，不能只改版本号。

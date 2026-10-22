@@ -55,7 +55,7 @@
 | 嵌套会话 / 状态总览 | ✅ 两层父子会话、并排分屏、待审批/计划待审/问题/停止/失败状态、跨工作区分组（元数据，20 条/批） | ✅ 子代理 + agent view 全局状态、按 ID 恢复 | 接近 |
 | 本地环境 / 多仓库 | ✅ 保存多仓库 + worktree + 只写变量，便携定义导入导出，启动独立会话 | ◐ worktree、`--add-dir`、Projects；无同等环境定义与变量管理 | **DSH 更强** |
 | 后续建议 / 确认式派发 | ✅ `propose_followups` 只提议；owner 确认后独立 worktree 启动或排入当前会话，Tab 采纳草稿 | ✅ 桌面建议提示、采纳后排入 | 接近（DSH 强在确认前不执行） |
-| 工作流编排 | ◐ 原生 `workflow-ptc`：本仓库配置并发 16、单次最多 1000 个子代理（并发 16 对齐 Claude，总量取原生默认），`agent()` 支持 `schema`；无检查点、续跑、嵌套、整体时长/token 预算，装配已验收、真实并发行为未验收 | ✅ JS 编排、schema（失败重试 5 次）、同会话断点续跑、默认 16 并发（可调 1–256）、单次最多 1000 代理 | **弱（治理未验证：无续跑/预算）** |
+| 工作流编排 | ✅ 本地扩展 `workflow-ptc` / `tool-workflow`（上游 0.2.1-rc.2 源码）：并发 16、单次最多 1000 个子代理、单次调用 4096 项、规模指引（5/10/25）、整体 `budget_tokens` / `budget_ms` 与只读 `budget`、一层嵌套、journal 断点续跑（前缀回放）；journal/resume/嵌套/时长预算已宿主验收，真实模型 token 触发未验收 | ✅ JS 编排、schema（失败重试 5 次）、同会话断点续跑、默认 16 并发（可调 1–256）、单次最多 1000 代理 | **接近（缺 schema 自动重试与真实 token 验收）** |
 | 程序化工具调用 | ✅ PTC 运行时（`dsh-ptc-runtime`、`workflow-ptc`） | ✅ programmatic tool calling + code execution 组合 | 接近 |
 | 会话间消息 | ◐ Team / 任务家族内部 + `session-bus` 同机逐对授权（目标须运行、非子代理、未归档、未被用户停止；单条 16000 字符） | ✅ 本机/跨机/云，accept/hold/refuse | **部分缺失（跨机器）** |
 | 后台任务 | ✅ jobs + 后台完成通知 | ✅ agent view、`--bg`、独立配额、JSON 状态 | 接近 |
@@ -149,11 +149,11 @@ Claude 把会话产出发布为 claude.ai 上的 Artifacts（原地更新、版�
 |---|---|---|
 | 子代理 | `subagent` / `fork` / `list-agents` / `control`；按 ID 恢复与子代理之间互发消息未验收 | 可按 ID 恢复（`SendMessage`）、可按名字互发消息；默认向下嵌套 3 层（`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`，设为 1 关闭），默认 20 个并发 |
 | 团队 | 本地 Team：共享任务带 revision CAS、依赖、认领/完成/重开/改派、建议写范围（advisory，非锁）；`send_message` 在步边界 steer 或唤醒、`wait_agent`、`spawn_teammate` 支持独立 model / preset / worktree；默认 16 名成员、256 个任务、单条消息 64 KiB | Agent Teams（实验，默认关闭，需 `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`）：共享任务列表 + mailbox + 计划审批 + `TeammateIdle` / `TaskCreated` / `TaskCompleted` 门禁 hook + in-process/分屏两种显示；成员无硬上限（建议 3–5）；限制：每会话一支团队、团队不能嵌套、不能转移 lead、`/resume` 不恢复 in-process 成员 |
-| 工作流 | 原生 `workflow-ptc`：本仓库配置为 `provider: spawn`、并发 16、单次最多 1000 个子代理（并发取 Claude 默认量，总量为原生默认），`agent()` 支持 `schema`；无检查点、恢复、嵌套，无整体时长/token 预算 | 动态工作流：JS 脚本（`agent` / `pipeline` / `parallel` / `phase` / `args`）、`schema` 校验失败重试 5 次、单次调用最多 4096 项、默认 16 并发（可调 1–256）、单次最多 1000 个代理、同一会话内断点续跑、超过 25 个代理或预估 150 万 token 时提示 Large workflow |
+| 工作流 | 本地扩展 `workflow-ptc` + `tool-workflow`（上游 0.2.1-rc.2 源码）：`provider: spawn`、并发 16、单次最多 1000 个代理、单次调用 4096 项、规模指引（5/10/25）、`budget_tokens` / `budget_ms` 与只读 `budget`、一层嵌套、journal 断点续跑（前缀回放，失配后转 live） | 动态工作流：JS 脚本（`agent` / `pipeline` / `parallel` / `phase` / `args`）、`schema` 校验失败重试 5 次、单次调用最多 4096 项、默认 16 并发（可调 1–256）、单次最多 1000 个代理、同一会话内断点续跑、超过 25 个代理或预估 150 万 token 时提示 Large workflow |
 
-- **DSH**：Team 只在 desktop profile 提供，只有 lead 能 spawn，`wait_agent` 超时限制 10 秒–1 小时；Team 成员是 subagent，不会出现在嵌套会话树里。嵌套会话是另一套机制，最多两层，`wait_for_sessions` 最多等 60 秒，`read_session` 默认取最后 12 条（最多 40 条、正文截 16K 字符），并带跨工作区状态分组（仅元数据、每批 20 条）、跨 cwd 的侧栏血缘、取消传播，以及经记忆插件公开服务继承的禁写边界。工作流的上限（并发 16、单次 1000）已由配置、单测与隔离宿主装配验收固定，但没有做真实模型调用，16 路并发下的排队与限额行为未验收；子级也不继承父会话的 cwd、preset 或 reasoning effort。
+- **DSH**：Team 只在 desktop profile 提供，只有 lead 能 spawn，`wait_agent` 超时限制 10 秒–1 小时；Team 成员是 subagent，不会出现在嵌套会话树里。嵌套会话是另一套机制，最多两层，`wait_for_sessions` 最多等 60 秒，`read_session` 默认取最后 12 条（最多 40 条、正文截 16K 字符），并带跨工作区状态分组（仅元数据、每批 20 条）、跨 cwd 的侧栏血缘、取消传播，以及经记忆插件公开服务继承的禁写边界。工作流的规模、一层嵌套、journal 续跑、时长预算与工具 schema 已在隔离宿主验收（journal 生成、resume 只写 header、嵌套拒绝、604 ms 越过 300 ms 预算被拒）；并发 16 的排队行为与真实模型的 token 预算触发仍未验收。子级也不继承父会话的 cwd、preset 或 reasoning effort。
 - **Claude**：subagent / Agent Teams / dynamic workflows 是三层递进，各有明确的规模与中断语义；工作流把中间结果留在脚本变量里，不占主上下文，对抗验证、多角度评审这类质量模式可以写进脚本复用；Team 的成员是独立会话，可在 UI 里直接对话、按名字互发消息。
-- **差距性质**：协议层（共享任务、消息、worktree 隔离）DSH 已接近；差距集中在两处——**治理**（计划审批、任务级 hook、按 ID 恢复、成员级 UI 与分屏）与**规模语义**。规模数字已补上：工作流并发 16、单次 1000 对齐 Claude 的默认量与上限，原生 subagent 活跃槽位同步从默认 8 调到 20（工作流占 16，留 4 个给手工 subagent）。但引擎仍没有断点续跑、整体时长/token 预算和嵌套，这些是 `workflow-ptc` 内部语义，改配置补不了。成熟度是反向的：Claude 的 Teams 仍是实验特性、默认关闭；DSH 的 Team 是常规配置。但 DSH 的 Team 与嵌套会话仍是两套并列机制，Claude 已是三层递进。本部署另有额外可选 `cc` preset（CC 模式）：把 standard 的完整插件列表与 PTC 呈现组合，让模型用 `run_code` 调用工具；它改变的是工具呈现方式，不补上 `workflow-ptc` 的续跑、整体预算和嵌套语义。
+- **差距性质**：协议层（共享任务、消息、worktree 隔离）DSH 已接近；差距集中在两处——**治理**（计划审批、任务级 hook、按 ID 恢复、成员级 UI 与分屏）与**规模语义**。规模数字已补上：工作流并发 16、单次 1000 对齐 Claude 的默认量与上限，原生 subagent 活跃槽位同步从默认 8 调到 20（工作流占 16，留 4 个给手工 subagent）。本地引擎已补上断点续跑、整体时长/token 预算与一层嵌套；剩余差距是 `schema` 校验失败后的自动重试、超大规模提示的真实模型体验，以及 token 预算只在宿主挂载 `session-query` 时可用。成熟度是反向的：Claude 的 Teams 仍是实验特性、默认关闭；DSH 的 Team 是常规配置。但 DSH 的 Team 与嵌套会话仍是两套并列机制，Claude 已是三层递进。本部署另有额外可选 `cc` preset（CC 模式）：把 standard 的完整插件列表与 PTC 呈现组合，让模型用 `run_code` 调用工具；它改变的是工具呈现方式；续跑、整体预算与嵌套由本地引擎提供，与是否选择 CC 无关。
 
 ### 5.2 权限与审批粒度
 
