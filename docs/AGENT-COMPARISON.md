@@ -2,7 +2,7 @@
 
 - 对照对象：DeepSeek Harness 0.2.1-rc.2 + 本仓库 `tuned` 配置（deepseek-harness-config）
 - Claude 侧基线：Anthropic Claude Code / Claude agent 公开文档与官方博客，抓取日期 2026-10-22（文档版本约 v2.1.30x）；agent-teams、workflows、memory、sub-agents 四页于同日重新核对
-- DSH 侧数据：2026-10-22，仓库提交 `13748ac`
+- DSH 侧数据：2026-10-22，仓库提交 `d923e10`
 - 结论口径：只描述本仓库当前启用、且有源码、配置或验收记录支撑的能力；不评价模型质量，不把上游 DSH 的全部潜力算作已具备
 
 ## 一、结论摘要
@@ -10,7 +10,7 @@
 1. **整体定位不同。** Claude Code 是跨形态、云端延续的托管式 agent 产品：CLI、IDE、桌面、Web、手机与 CI 共用同一引擎，云会话、远程接管、定时任务和企业治理齐全。DSH 是本地优先、模型无关、可整体发行和回滚的桌面 agent 运行时。两者不是同类产品的强弱关系，而是**广度与可控性**的取舍。
 2. **DSH 仍然完全缺失的是服务与生态层**：云/多端延续、IDE 集成、CI 与托管审查服务、企业可观测与合规治理、Agent SDK、插件市场与评测、跨机器会话消息、可分享产物页与团队聊天（Artifacts / Projects / Claude Tag）、外部事件通道（Channels）。这些属于产品形态差距，不是配置能补齐的。代码审查与安全扫描已从"外部命令"变成仓库内的只读技能与启发式静态扫描，但仍没有 CI 入口和托管的多代理审查。
 3. **DSH 明显较弱的是多代理治理和权限/沙箱精细度**：Team 已有共享任务、依赖、认领、成员消息与 worktree 隔离，缺计划审批动作、任务级 hook 和成员分屏；嵌套会话固定两层。权限只有 3 个预设，模板默认 `workspace-write`，最松一档 `danger-full-access` 需要主动选择。
-4. **DSH 有若干 Claude 没有或做得更彻底的能力**：模型无关与按会话/子会话选模型、配置即代码的安装/回滚/漂移检测、本地优先不留云、可见父子会话树、跨工作区只读历史授权、持久旁问（btw）、空闲期压缩、内置浏览器批注、Windows 原生桌面控制、OpenSpec 规格交付闭环、本地环境定义、确认式后续任务、会话级记忆禁写。本次新增**会话间逐对授权消息**、**按会话的用量与成本汇总**、**Claude 指令文件镜像注入**，以及工作流、代码审查、安全审查、用量报告和 Claude 上下文五个技能。
+4. **DSH 有若干 Claude 没有或做得更彻底的能力**：模型无关与按会话/子会话选模型、配置即代码的安装/回滚/漂移检测、本地优先不留云、可见父子会话树、跨工作区只读历史授权、持久旁问（btw）、空闲期压缩、内置浏览器批注、Windows 原生桌面控制、OpenSpec 规格交付闭环、本地环境定义、确认式后续任务、会话级记忆禁写。本次新增**会话间逐对授权消息**、**按会话的用量与成本汇总**、**Claude 指令文件镜像注入**、**消息内普通文件路径的侧边栏预览**，以及工作流、代码审查、安全审查、用量报告和 Claude 上下文五个技能。
 5. **一句话判断**：日常本地开发与"可审计、可回滚的私人 agent 工作站"，DSH 已经够用且更可控；需要跨端接力、CI 自动化、组织治理或大规模多代理编排时，Claude Code 仍明显领先。差距的主因是产品层，而不是 harness 工具层。
 
 ## 二、评估范围与方法
@@ -66,6 +66,7 @@
 | 代码审查 / 安全 | ◐ 只读技能 `dsh-code-review`（`effort` 分级、`--comment`/`--fix`/`--json`、固定 findings JSON 契约）；`security-review` + 12 条正则规则扫描（`schemaVersion`、`--fail-on` 门禁，本仓库接成 `npm run check`）；无托管 PR 审查与 SARIF | ✅ `/code-review`（可调 effort、`--comment`/`--fix`）、ultrareview、Claude Security（SARIF）、security-guidance | **接近（缺 CI 集成与托管审查服务）** |
 | Computer use | ✅ Windows 原生 UIA + Playwright 隔离浏览器 | ✅ macOS CLI + 桌面（macOS/Win），逐应用授权 | 各有侧重 |
 | 浏览器 | ◐ 两条 Playwright 链路（隔离 / 独立持久 profile）；内置批注（CSS 定位 + 计算样式 + 编号截图） | ✅ Claude in Chrome（真实登录态） | **弱在真实登录态，强在批注交付** |
+| 消息内文件路径 | ✅ 助手消息的行内代码里，普通工作区路径（含 `:行号`、`#L` 锚点）按纯语法识别，点击在侧边栏打开原生预览；产出/交付文件的原匹配优先；链接色、悬停虚线与焦点环沿用原生样式 | ◐ `@` 提及片、工具头路径与「href 本身是路径」的 Markdown 链接可点；正文裸路径与行内代码不链接（2.1.238 实测） | **DSH 更强（识别面；视觉语言本就一致）** |
 | 记忆 | ✅ 14 个 `memory_*` 工具、三级作用域、BM25 + 可选向量、MCP 服务；会话级禁写强制覆盖自动摘要与写工具并继承到子会话；`claude-context` 镜像注入 Claude 侧 CLAUDE.md 与 rules（有截断与过滤） | ✅ 四层 CLAUDE.md + `.claude/rules` 路径规则 + `@import` 递归 4 层 + 按仓库自动记忆（`MEMORY.md` 前 200 行/25KB）；无同等会话级禁写开关 | **接近；DSH 强在禁写边界，弱在注入预算与跨域检索** |
 | 权限 | ◐ 3 预设（模板默认 workspace-write；只读 / 工作区写 / 完全访问） | ✅ 6 模式 + allow/deny/ask + 分类器 + dontAsk | **弱** |
 | 沙箱 | ◐ sandbox-policy 三档，OS 级隔离未见验收 | ✅ macOS/Linux/WSL2 OS 级文件+网络代理；原生 Windows 无沙箱 | **弱（证据不足）** |
@@ -272,7 +273,7 @@ OpenSpec 1.14.3 + `dsh-spec-delivery`：从提案到实现到归档的完整 ski
 
 | 风险 | 说明 | 建议 |
 |---|---|---|
-| 插件与宿主强绑定 | 原生 `plugin peers check` 仍返回 1；本地模块绑定 0.2.1-rc.2；本地环境的 PowerShell/PTY 适配器以薄子类接入原生类 | 升级前做真实宿主验收，不只看单测；重点复核适配器断言的实际运行类 |
+| 插件与宿主强绑定 | 原生 `plugin peers check` 仍返回 1；本地模块绑定 0.2.1-rc.2；本地环境的 PowerShell/PTY 适配器以薄子类接入原生类；`plugins/file-links` 包装固定版本的 `chatFileMentions.forClosing` | 升级前做真实宿主验收，不只看单测；重点复核适配器断言的实际运行类与 `chatFileMentions` 形状 |
 | 新能力只验收到装配层 | 三个模块与五个技能在隔离 `DSH_HOME` 中完成工具注册、技能解析与系统提示装配，但没有真实模型调用；`usage_report` 未端到端执行 | 用真实会话跑一次发送、用量汇总、审查与扫描，再写进能力承诺 |
 | 本地审查技能能力有限 | `dsh-code-review` 的 effort 分级、`--comment`、`--fix` 与 findings JSON 契约已补齐，但仍是会话内技能，没有托管 PR 审查；`scan.mjs` 是 12 条正则线索，没有依赖审计、污点分析或 SARIF | 当作第一道线索，不替代 SAST 或人工审查；不要宣称等价于 Claude 的托管审查 |
 | 扫描脱敏范围 | 仅密钥类规则把命中替换为 `[redacted]`；非密钥规则输出截断后的原始匹配 | 扫描结果按敏感输出处理，不要直接贴进共享渠道 |
@@ -320,7 +321,7 @@ OpenSpec 1.14.3 + `dsh-spec-delivery`：从提案到实现到归档的完整 ski
 本仓库：
 
 - `README.md`：定位、能力清单、两种历史层、安全边界
-- `docs/AGENT-ENHANCEMENTS.md`：工作流、会话间消息、代码/安全审查、双浏览器链路、用量成本与 Claude 指令注入
+- `docs/AGENT-ENHANCEMENTS.md`：工作流、会话间消息、代码/安全审查、双浏览器链路、用量成本、Claude 指令注入与消息内文件路径交互
 - `docs/CODE-STRUCTURE.md`：模块职责与依赖规则
 - `docs/NESTED-SESSIONS.md`：两层嵌套、消息、权限继承、跨工作区授权
 - `docs/WORKTREE-DELIVERY.md`：隔离、集成、验收
@@ -333,7 +334,7 @@ OpenSpec 1.14.3 + `dsh-spec-delivery`：从提案到实现到归档的完整 ski
 - `docs/MEMORY-WRITE-POLICY.md`：会话级禁写、子会话继承与异步复查
 - `docs/local-environment-execution.md`：多仓库环境、变量、便携定义与实测证据
 - `config/desktop.patch.json`：模型、预设、权限、插件装配
-- `modules/`、`skills/`：本地模块与受管技能源码
+- `modules/`、`plugins/`、`skills/`：本地模块、本地插件与受管技能源码（`plugins/file-links` 含路径识别与其回归）
 - `test/*.test.mjs`：回归断言（含全局挂载、workflow 上限、扫码脱敏）
 - `provenance.json`：运行时版本与本地模块记录
 
