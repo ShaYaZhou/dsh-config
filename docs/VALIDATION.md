@@ -1,5 +1,13 @@
 # 可迁移性验收
 
+## 2026-10-22 消息内文件路径链接
+
+- 新增本地客户端包 `plugins/file-links`（`@local/dsh-file-links`），同步 `provenance.json`、`config/desktop.package.json`（dependencies 与 `dsh.profile.bundles`）、锁模板和部署漂移清单；`dsh.client.inject` 固定先加载原生 deliverables 客户端。
+- 行为：原生 `chatFileMentions` 命中产出/交付文件时原样返回；未命中时由 `parsePathRef` 做纯语法识别（扩展名、`./`、`../`、`/` 前缀、隐藏文件、已知顶层目录），支持 `:42`、`#L42`、`:42-60` 行号后缀，再调用原生 `owner.openFile(path, {line})`；含空白、URL、UNC、引号、`and/or`、`3.5`、`e.g`、`src/` 的 token 保持纯文本。
+- 本地验收：`test/file-links-client.test.cjs` 沿用 `follow-ups-client` 的 VM 方式加载客户端 bundle，4 项断言通过（识别、拒绝、包装与 open 参数、等待服务注入）；`node --test test/portable.test.mjs` 13 项通过；完整 `npm test` 149 项通过。
+- 部署：`install --dry-run` 预览 60 个受管文件；`install --refresh-lock` 部署到默认 `DSH_HOME`（备份 `backups/portable-harness-2026-10-22T14-54-39-001Z`），`lock` 重新生成两份锁模板，`status` 无漂移；已确认 `profiles/desktop/node_modules/@local/dsh-file-links/lib/client.js` 与 `state.json` 的漂移记录存在。
+- 未验证：没有在运行中的桌面窗口里实际悬停并点击新链接（需重启 Harness 并产生一条含路径的助手消息）；`smoke` 未运行（缺少 `OPENAI_API_KEY`）。宿主升级后须重新验收该内部接口。
+
 ## 2026-10-22 团队审批、审查门禁与 schema 重试
 
 - 团队治理：`modules/team.mjs` 新增 `awaiting_approval` 状态、Lead 的 `approve`/`reject`、可选 `requireTaskApproval`（默认关闭）与 `taskGate`（TaskCreated/TaskCompleted 同步执行）。门禁走 stdin 传 `{type, teamId, task}`，10 s 超时，退出码 0 通过、2 拒绝为 `TEAM_TASK_BLOCKED`、其他为 `TEAM_TASK_GATE_FAILED`。默认关闭不改变现有 Team 行为。

@@ -29,6 +29,9 @@ importers:
       '@local/dsh-desktop-commands':
         specifier: file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}
         version: file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}
+      '@local/dsh-file-links':
+        specifier: file:../../local-plugins/${FILE-LINKS_TGZ}
+        version: file:../../local-plugins/${FILE-LINKS_TGZ}
       '@local/dsh-follow-ups':
         specifier: file:../../local-plugins/${FOLLOW-UPS_TGZ}
         version: file:../../local-plugins/${FOLLOW-UPS_TGZ}(@local/dsh-local-environments@file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(zod@4.4.3))(zod@4.4.3)
@@ -298,6 +301,10 @@ packages:
   '@local/dsh-desktop-commands@file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}':
     resolution: {integrity: ${DESKTOP-COMMANDS_INTEGRITY}, tarball: file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}}
     version: 1.0.2
+
+  '@local/dsh-file-links@file:../../local-plugins/${FILE-LINKS_TGZ}':
+    resolution: {integrity: ${FILE-LINKS_INTEGRITY}, tarball: file:../../local-plugins/${FILE-LINKS_TGZ}}
+    version: 1.0.0
 
   '@local/dsh-follow-ups@file:../../local-plugins/${FOLLOW-UPS_TGZ}':
     resolution: {integrity: ${FOLLOW-UPS_INTEGRITY}, tarball: file:../../local-plugins/${FOLLOW-UPS_TGZ}}
@@ -1462,6 +1469,8 @@ snapshots:
   '@local/dsh-browser-review@file:../../local-plugins/${BROWSER-REVIEW_TGZ}': {}
 
   '@local/dsh-desktop-commands@file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}': {}
+
+  '@local/dsh-file-links@file:../../local-plugins/${FILE-LINKS_TGZ}': {}
 
   '@local/dsh-follow-ups@file:../../local-plugins/${FOLLOW-UPS_TGZ}(@local/dsh-local-environments@file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(zod@4.4.3))(zod@4.4.3)':
     dependencies:

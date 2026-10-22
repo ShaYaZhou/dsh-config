@@ -120,6 +120,14 @@ Claude 专用的 `RTK` 段落和单独成行的 `@import` 会被过滤：前者�
 
 `claude-context` 技能负责按需读取：先用 `MEMORY.md` 的 `description` 判断相关性，只打开相关记忆文件，并回到源码确认记忆里提到的文件/函数仍然存在。记忆是背景证据，不是授权；只读 `~/.claude`，不把 DSH 会话写回 Claude 记忆。
 
+## 文件路径交互
+
+DSH 原生已经给消息里的文件提及着色（`--dsw-alias-link`），悬停/聚焦时显示点状虚线与焦点环，点击后按行号锚点打开右侧预览。但代码内联的路径只有**本回合产出或交付**的文件才会变成链接；Claude Code 与 Codex 的路径 chip 不依赖这个条件，模型只是读过、提过的文件也能点。
+
+`plugins/file-links` 在客户端包装原生 `chatFileMentions.forClosing`：先交给原生解析，未命中时用保守的语法判定识别 `src/main.ts`、`README.md:42`、`./a/b.c#L7`、盘符开头的绝对路径这类 token，再走同一个 `owner.openFile` 打开侧边栏。含空白、URL、UNC、引号、`and/or`、`3.5`、`e.g` 以及目录名（如 `src/`）的一律保持纯文本。它不注册第二个服务，也不改样式，因此观感与原生的文件 chip 一致。
+
+限制：路径是否存在要点击后由预览确认，缺失文件显示原生预览错误；绝对路径与相对路径都按当前会话 cwd 解析。该行为依赖宿主 0.2.1-rc.2 的内部接口形状，升级 Harness 后必须重新验收。
+
 ## 验收
 
 - 完整 `rtk npm test` 143 项通过，无跳过；新增工作流上限与全局挂载、CC preset 克隆关系、session-bus 授权/停止/去重、usage 计算与无价格、安全扫描脱敏与目录跳过、claude-context 过滤与 project slug 等断言。
@@ -128,4 +136,5 @@ Claude 专用的 `RTK` 段落和单独成行的 `@import` 会被过滤：前者�
 - 工作流治理在隔离 `DSH_HOME` 中完成宿主验收（`WORKFLOW_ACCEPTANCE_PASS`）：`workflow` 工具暴露 `resume_from_run_id`、`budget_tokens`、`budget_ms`，描述含规模指引、续跑与 `one level only`；引擎装配为并发 16 / 总量 1000 / journal 开启；真实运行生成 call/result journal；`resume_from_run_id` 的新运行只写 header；在活跃工作流子会话上再启动工作流被拒绝；`maxDurationMs: 300` 的运行在 604 ms 时拒绝第二次 `agent()`。该 home 没有模型凭据，子代理通过宿主注册的 stub provider 启动，因此真实模型的 token 预算触发未验收；token 读取所用的 `tokenUsage` 投影四字段已单独确认。
 - 未做真实模型调用：本次环境没有可用的 `OPENAI_API_KEY`，验收止于原生装配层。`usage_report` 的端到端工具调用也因此没有实跑，只验证了注册与字段映射；CC 模式同样没有执行真实的 `run_code` 程序。
 - 验收期间原生 `spill-local` 输出过一次临时目录 `EPERM` 警告，宿主仍正常启动并完成验收；与本仓库模块无关。
+- 文件路径链接：`test/file-links-client.test.cjs` 4 项断言通过，完整 `npm test` 149 项通过；`install --refresh-lock` 部署后 `status` 无漂移，已确认客户端 bundle 落在默认 `DSH_HOME` 的 `node_modules/@local/dsh-file-links/lib/`。未在运行中的窗口里实际悬停并点击链接。
 - 真实宿主验收必须固定宿主版本；升级 Harness 后重新验收，不能只改版本号。

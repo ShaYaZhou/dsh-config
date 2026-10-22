@@ -45,6 +45,19 @@
       }
     },
     {
+      "id": "file-links",
+      "package": "@local/dsh-file-links",
+      "version": "1.0.0",
+      "license": "UNLICENSED",
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "changes": [
+          "Native chat file mentions also resolve plain workspace paths from assistant markdown, opening the existing sidebar preview; produced or delivered matches still win.",
+          "Wraps the pinned host 0.2.1-rc.2 chatFileMentions.forClosing surface without registering a second service or touching styles."
+        ]
+      }
+    },
+    {
       "id": "memory",
       "package": "@dsh-external/dsh-memory",
       "version": "0.5.1-local.1",
