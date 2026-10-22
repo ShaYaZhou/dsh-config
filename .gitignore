@@ -1,6 +1,5 @@
 node_modules/
 .local/
-.deck/
 build/
 .env
 .env.*
