@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "patterns": [
+    { "id": "cards", "kind": "html", "intent": "方案对比、选型、分档" },
+    { "id": "vflow", "kind": "html", "intent": "分阶段流程、成本或门槛梯度" },
+    { "id": "svg-flow", "kind": "svg", "intent": "模块关系、架构、分支流程" },
+    { "id": "sequence", "kind": "svg", "intent": "消息时序、请求与响应" },
+    { "id": "grid", "kind": "html", "intent": "原理、机制、网格推演" },
+    { "id": "matrix", "kind": "html", "intent": "数值推演、矩阵算式" },
+    { "id": "frames", "kind": "svg", "intent": "机制多帧示意" },
+    { "id": "step", "kind": "script", "intent": "步进、切换、滑杆" },
+    { "id": "bars", "kind": "html", "intent": "排名、单序列量级" },
+    { "id": "columns", "kind": "html", "intent": "有序类目上的两序列对比" },
+    { "id": "stacked", "kind": "html", "intent": "每类的总量和构成" },
+    { "id": "donut", "kind": "svg", "intent": "少量类别的占比" },
+    { "id": "funnel", "kind": "html", "intent": "有序阶段的逐级流失" },
+    { "id": "sankey", "kind": "script", "intent": "分阶段的加权流向" },
+    { "id": "line", "kind": "script", "intent": "随时间的趋势" },
+    { "id": "scatter", "kind": "script", "intent": "两个数值指标的相关、聚类、离群" },
+    { "id": "radar", "kind": "script", "intent": "多维度画像" },
+    { "id": "heatmap", "kind": "script", "intent": "按天或时段的密度分布" },
+    { "id": "gantt", "kind": "html", "intent": "排期、依赖、关键路径" }
+  ]
+}

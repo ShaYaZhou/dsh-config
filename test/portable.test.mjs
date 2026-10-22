@@ -74,9 +74,11 @@ test('official OpenSpec skills deploy portably and native cleanup removes only m
 test('enhanced modules and skills deploy with bounded workflow and both browser servers',()=>{
  const home=path.join(os.tmpdir(),'enhanced portable home');
  const plan=renderPlan(home,settings),base='profiles/desktop/agent-capabilities/skills/';
- for(const name of ['workflow-orchestration','dsh-code-review','security-review','claude-context','usage-report'])
+ for(const name of ['workflow-orchestration','dsh-code-review','security-review','claude-context','usage-report','dynamic-ui'])
   assert.equal(plan.get(base+name+'/SKILL.md'),fs.readFileSync(path.join(repository,'skills',name,'SKILL.md'),'utf8'));
  assert.equal(plan.get(base+'security-review/scan.mjs'),fs.readFileSync(path.join(repository,'skills/security-review/scan.mjs'),'utf8'));
+ for(const relative of ['patterns/line.md','patterns/manifest.json','preview.py'])
+  assert.equal(plan.get(base+'dynamic-ui/'+relative),fs.readFileSync(path.join(repository,'skills/dynamic-ui',relative),'utf8'),'动态图元资源必须随技能部署: '+relative);
  for(const name of ['claude-context.mjs','usage-report.mjs','session-bus.mjs'])
   assert.equal(plan.get('profiles/desktop/agent-capabilities/'+name),fs.readFileSync(path.join(repository,'modules',name),'utf8'));
 

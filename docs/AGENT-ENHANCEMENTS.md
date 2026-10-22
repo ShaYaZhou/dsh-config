@@ -1,6 +1,6 @@
 # Agent 能力增强（六项能力与 CC 模式）
 
-2026-10-22。桌面 profile 在原配置上增加了三个本地模块（`claude-context`、`usage-report`、`session-bus`）和五个技能（`workflow-orchestration`、`dsh-code-review`、`security-review`、`claude-context`、`usage-report`）。另提供额外可选 `cc` preset（CC 模式），把这些能力按 PTC 工具形态组合。全部是受管文件，安装后必须从菜单真正退出 Harness 再打开才加载。
+2026-10-22。桌面 profile 在原配置上增加了三个本地模块（`claude-context`、`usage-report`、`session-bus`）和六个技能（`workflow-orchestration`、`dsh-code-review`、`security-review`、`claude-context`、`usage-report`、`dynamic-ui`）。`dynamic-ui` 带 `patterns/` 子目录（19 个图元 + `manifest.json`）和 `preview.py` 自检脚本，部署时随技能目录整棵复制。另提供额外可选 `cc` preset（CC 模式），把这些能力按 PTC 工具形态组合。全部是受管文件，安装后必须从菜单真正退出 Harness 再打开才加载。
 
 三个模块都挂在**顶层全局 insert**，与原生 `working-directory`、`browser-guidance` 同级，而不是放进 preset。preset 会为每个 Agent 实例化一份插件：`session-bus` 若在 preset 内，第二个 Agent 打开同一 storage domain 会直接失败；`usage-report` 和 `claude-context` 也不需要重复实例。工具仍通过 `agent.ctx.tools.register` 按 Agent 注册，子代理不获得 `message_session`。
 
@@ -106,7 +106,7 @@ Claude 专用的 `RTK` 段落和单独成行的 `@import` 会被过滤：前者�
 ## 验收
 
 - 完整 `rtk npm test` 143 项通过，无跳过；新增工作流上限与全局挂载、CC preset 克隆关系、session-bus 授权/停止/去重、usage 计算与无价格、安全扫描脱敏与目录跳过、claude-context 过滤与 project slug 等断言。
-- 隔离 DSH_HOME 完整安装后，用安装版同一 Electron 运行时启动桌面 profile：`ENHANCED_ACCEPTANCE_PASS`，确认 `usage_report`、`message_session`、`list_authorized_sessions` 三个工具注册，两个 Playwright 服务前缀都存在，五个技能解析到 `agent-capabilities/skills/`，`/session-bus list` 返回 success，装配后的系统提示含 `claude-context`（含合成标记）与 `session-bus`。
+- 隔离 DSH_HOME 完整安装后，用安装版同一 Electron 运行时启动桌面 profile：`ENHANCED_ACCEPTANCE_PASS`，确认 `usage_report`、`message_session`、`list_authorized_sessions` 三个工具注册，两个 Playwright 服务前缀都存在，五个技能解析到 `agent-capabilities/skills/`，`/session-bus list` 返回 success，装配后的系统提示含 `claude-context`（含合成标记）与 `session-bus`。`dynamic-ui` 在该次验收之后加入，只验证了部署映射（`patterns/*.md` 与 `preview.py` 进部署清单）、本地自检和真实宿主 `@agent-deck/visualize.render` 渲染，没有重跑整轮隔离安装。
 - CC 模式：隔离 `DSH_HOME` 重新安装后，standard 会话解析为 `native` 且 `workflow` 直接可见；`agentPreset: "cc"` 会话解析为 `ptc`，模型可见工具只有 `run_code`，输出 `CC_PRESET_ACCEPTANCE_PASS`。
 - 工作流治理在隔离 `DSH_HOME` 中完成宿主验收（`WORKFLOW_ACCEPTANCE_PASS`）：`workflow` 工具暴露 `resume_from_run_id`、`budget_tokens`、`budget_ms`，描述含规模指引、续跑与 `one level only`；引擎装配为并发 16 / 总量 1000 / journal 开启；真实运行生成 call/result journal；`resume_from_run_id` 的新运行只写 header；在活跃工作流子会话上再启动工作流被拒绝；`maxDurationMs: 300` 的运行在 604 ms 时拒绝第二次 `agent()`。该 home 没有模型凭据，子代理通过宿主注册的 stub provider 启动，因此真实模型的 token 预算触发未验收；token 读取所用的 `tokenUsage` 投影四字段已单独确认。
 - 未做真实模型调用：本次环境没有可用的 `OPENAI_API_KEY`，验收止于原生装配层。`usage_report` 的端到端工具调用也因此没有实跑，只验证了注册与字段映射；CC 模式同样没有执行真实的 `run_code` 程序。

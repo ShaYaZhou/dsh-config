@@ -87,7 +87,17 @@ export function renderPlan(home,settings,artifacts={}, {clean=false}={}){
  files.set('profiles/desktop/agent-capabilities/manifest.json',json({managedBy:'deepseek-harness-config',flavor:clean?'native':provenance.flavor,runtime:provenance.runtime,modules:Object.fromEntries(moduleNames.map(name=>[name,digest(path.join(repository,'modules',name))])),artifacts}));
  return files;
 }
-const SKILL_RESOURCE_EXTENSIONS=new Set(['.mjs','.js','.json','.md','.txt','.yaml','.yml']);
+const SKILL_RESOURCE_EXTENSIONS=new Set(['.mjs','.js','.json','.md','.py','.txt','.yaml','.yml']);
+function skillResources(directory,prefix=''){
+ const found=[];
+ for(const entry of fs.readdirSync(directory,{withFileTypes:true})){
+  const relative=prefix+entry.name;
+  if(entry.isDirectory()){found.push(...skillResources(path.join(directory,entry.name),relative+'/'));continue}
+  if(!entry.isFile()||relative==='SKILL.md')continue;
+  if(SKILL_RESOURCE_EXTENSIONS.has(path.extname(entry.name).toLowerCase()))found.push(relative);
+ }
+ return found;
+}
 function desktopSkillSources(){
  const base='profiles/desktop/agent-capabilities/skills/';
  const sources={};
@@ -98,11 +108,7 @@ function desktopSkillSources(){
   const files=fs.readdirSync(directory,{withFileTypes:true});
   if(!files.some(file=>file.isFile()&&file.name==='SKILL.md'))continue;
   sources[base+entry.name+'/SKILL.md']='skills/'+entry.name+'/SKILL.md';
-  for(const file of files){
-   if(!file.isFile()||file.name==='SKILL.md')continue;
-   if(!SKILL_RESOURCE_EXTENSIONS.has(path.extname(file.name).toLowerCase()))continue;
-   sources[base+entry.name+'/'+file.name]='skills/'+entry.name+'/'+file.name;
-  }
+  for(const relative of skillResources(directory))sources[base+entry.name+'/'+relative]='skills/'+entry.name+'/'+relative;
  }
  for(const entry of fs.readdirSync(path.join(repository,'.dsh/skills'),{withFileTypes:true}))if(entry.isDirectory()&&/^openspec-[a-z0-9-]+$/.test(entry.name))sources[base+entry.name+'/SKILL.md']='.dsh/skills/'+entry.name+'/SKILL.md';
  return sources;
