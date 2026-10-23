@@ -32,7 +32,7 @@
 
 文件路径交互集中在 `plugins/file-links`：只包装原生 `chatFileMentions.forClosing`，让助手消息里出现的普通工作区路径复用既有的侧边栏预览，产出/交付文件的匹配仍然优先。识别是纯语法判断，不探磁盘、不读会话；不注册同名服务（Cordis 会拒绝重复 `provide`）、不改 Markdown 渲染器或 CSS。该接缝固定宿主 0.2.1-rc.2 的 `chatFileMentions` 形状，升级须重新验收。
 
-Team 治理集中在 `modules/team.mjs` 与 `modules/team-tools.mjs`：计划状态是纯数据（append/重放、`pendingPlan` 查询与 `TeamPlanWaiters` 唤醒），工具层只做参数校验与只读 guard，不读 UI、不直接写持久记录；计划以 `appendPluginRecord` 的可忽略记录落盘，原生冷读跳过。`hooks` 按事件名解析命令串行执行，`TeammateIdle` 只把原因 steer 回成员，不操作其会话存储。`plugins/team-view` 是纯客户端面板：读 `agentTeam` projectionValues、调 `uiWorkspace.openSession` 和原生 `subagentchat` 资源，不读 DOM 结构、不复制对话渲染器，也不改 Team 服务状态。
+Team 治理集中在 `modules/team.mjs` 与 `modules/team-tools.mjs`：计划状态是纯数据（append/重放、`hasPendingPlan` 查询与 `TeamPlanWaiters` 唤醒），工具层只做参数校验与只读 guard，不读 UI、不直接写持久记录；计划以 `appendPluginRecord` 的可忽略记录落盘，原生冷读跳过。`hooks` 按事件名解析命令串行执行，`TeammateIdle` 只把原因 steer 回成员，不操作其会话存储。`plugins/team-view` 是纯客户端面板：读 `agentTeam` projectionValues、调 `uiWorkspace.openSession` 和原生 `subagentchat` 资源，不读 DOM 结构、不复制对话渲染器，也不改 Team 服务状态。
 
 技能来源统一在 `skills/`：DSH 侧由 `scripts/harness.mjs` 整棵复制，agent 全局侧由 `scripts/align-skills.mjs` 幂等复制。后者只做文件比较与复制，拒绝覆盖目标里仓库没有的文件，并把 `SKILL.md` 全文写进 `docs/SKILLS-ALIGNMENT.md` 的附录块；不建软链接或目录联接，不接管 DSH 部署，也不读写会话与记忆。
 

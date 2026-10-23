@@ -296,7 +296,7 @@ To message another teammate, use send_message({ target: "<teammate name>", messa
 			}
 		}));
 		register(scoped.tools.guard((exec) => {
-			if (ctx.agentTeams.pendingPlan(agent) === void 0) return void 0;
+			if (!ctx.agentTeams.hasPendingPlan(agent)) return void 0;
 			return PLAN_READ_TOOLS.has(exec.name) ? void 0 : "A plan from this teammate is awaiting the Team Lead decision; only read-only tools and messaging are available until it is approved or rejected.";
 		}));
 		register(scoped.tools.register(defineTool({

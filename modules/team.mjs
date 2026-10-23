@@ -433,8 +433,11 @@ function taskReady(state, task) {
 * @param task - durable task snapshot to view.
 * @returns a detached task view.
 */
+function memberName(state, id) {
+	return id === brandString(state.id) ? "lead" : state.members.find((member) => member.id === id)?.name;
+}
 function projectTaskView(state, task) {
-	const ownerName = task.ownerId === void 0 ? void 0 : task.ownerId === brandString(state.id) ? "lead" : state.members.find((member) => member.id === task.ownerId)?.name;
+	const ownerName = task.ownerId === void 0 ? void 0 : memberName(state, task.ownerId);
 	const warnings = /* @__PURE__ */ new Set();
 	for (const other of state.tasks) {
 		if (other.id === task.id || other.status !== "in_progress") continue;
@@ -461,6 +464,13 @@ const positiveSafeInteger = nonNegativeSafeInteger.min(1);
 const sessionIdSchema = z$1.string().min(1).transform((value) => brandString(value));
 const teamIdSchema = z$1.string().min(1).transform((value) => TeamId(value));
 const numericTaskIdPattern = /^task-(\d+)$/u;
+const numericPlanIdPattern = /^plan-(\d+)$/u;
+function advanceNextNumber(current, id, pattern) {
+	const match = pattern.exec(id);
+	if (match === null) return current;
+	const number = Number(match[1]);
+	return Math.max(current, number === Number.MAX_SAFE_INTEGER ? number : number + 1);
+}
 const teamTaskIdSchema = z$1.string().min(1).refine((value) => {
 	const match = numericTaskIdPattern.exec(value);
 	return match === null || Number.isSafeInteger(Number(match[1]));
@@ -709,16 +719,10 @@ function applyCurrentTeamEvent(state, event) {
 			if (prior === void 0 && task.revision !== 1) throw new Error(`team task "${task.id}" must begin at revision 1`);
 			if (prior !== void 0 && task.revision !== prior.revision + 1) throw new Error(`team task "${task.id}" revision is not contiguous`);
 			assertTaskGraphCandidate(state.tasks, task);
-			let nextTaskNumber = state.nextTaskNumber;
-			const match = numericTaskIdPattern.exec(task.id);
-			if (match !== null) {
-				const number = Number(match[1]);
-				nextTaskNumber = Math.max(nextTaskNumber, number === Number.MAX_SAFE_INTEGER ? number : number + 1);
-			}
 			return {
 				...state,
 				tasks: replaceAt(state.tasks, index, task),
-				nextTaskNumber
+				nextTaskNumber: advanceNextNumber(state.nextTaskNumber, task.id, numericTaskIdPattern)
 			};
 		}
 		case "team/message/queued": {
@@ -750,12 +754,10 @@ function applyCurrentTeamEvent(state, event) {
 				if (prior.status !== "pending") throw new Error(`team plan "${plan.id}" was already resolved`);
 				if (plan.status === "pending") throw new Error(`team plan "${plan.id}" has an invalid pending -> pending transition`);
 			}
-			const match = /^plan-(\d+)$/u.exec(plan.id);
-			const number = match === null ? 0 : Number(match[1]);
 			return {
 				...state,
 				plans: replaceAt(state.plans, index, plan),
-				nextPlanNumber: number > 0 ? Math.max(state.nextPlanNumber, number === Number.MAX_SAFE_INTEGER ? number : number + 1) : state.nextPlanNumber
+				nextPlanNumber: advanceNextNumber(state.nextPlanNumber, plan.id, numericPlanIdPattern)
 			};
 		}
 		/* v8 ignore next 2 -- TeamEventType is closed and every member is handled above. */
@@ -817,7 +819,7 @@ const teamProjectionViews = /* @__PURE__ */ new WeakMap();
 * @returns a detached plan view.
 */
 function projectPlanView(state, plan) {
-	const authorName = plan.authorId === brandString(state.id) ? "lead" : state.members.find((member) => member.id === plan.authorId)?.name;
+	const authorName = memberName(state, plan.authorId);
 	return {
 		id: plan.id,
 		content: plan.content,
@@ -1353,12 +1355,16 @@ const TASK_GRAPH_ERROR_CODES = {
 	duplicate: "TEAM_INVALID_ARGUMENT",
 	cycle: "TEAM_TASK_DEPENDENCY_CYCLE"
 };
+/** Normalize one configured hook event value into non-empty command strings. */
+function hookCommandList(value) {
+	const configured = Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
+	return configured.filter((command) => typeof command === "string").map((command) => command.trim()).filter((command) => command.length > 0);
+}
 /** Owns Team task limits, authorization, transitions, and derived views. */
 var TeamTaskBoard = class {
 	journal;
 	maxTasks;
 	requireApproval;
-	gate;
 	hooks;
 	/**
 	* @param journal - authoritative Lead-log transaction owner.
@@ -1369,20 +1375,18 @@ var TeamTaskBoard = class {
 		this.journal = journal;
 		this.maxTasks = maxTasks;
 		this.requireApproval = options.requireApproval === true;
-		this.gate = typeof options.gate === "string" ? options.gate.trim() : "";
-		this.hooks = options.hooks ?? {};
+		this.hooks = { ...options.hooks };
+		const gate = typeof options.gate === "string" ? options.gate.trim() : "";
+		if (gate.length > 0) for (const type of ["TaskCreated", "TaskCompleted"]) if (hookCommandList(this.hooks[type]).length === 0) this.hooks[type] = [gate];
 	}
 	/**
-	* Resolve the commands configured for one hook event. The legacy `taskGate`
-	* remains the fallback for the two task events when no map entry is set.
+	* Resolve the commands configured for one hook event; the legacy `taskGate` is
+	* folded into the two task events at construction.
 	* @param type - hook event name.
 	* @returns non-empty command strings in declaration order.
 	*/
 	hookCommands(type) {
-		const configured = Array.isArray(this.hooks[type]) ? this.hooks[type] : typeof this.hooks[type] === "string" ? [this.hooks[type]] : [];
-		const commands = configured.filter((command) => typeof command === "string").map((command) => command.trim()).filter((command) => command.length > 0);
-		if (commands.length > 0) return commands;
-		return (type === "TaskCreated" || type === "TaskCompleted") && this.gate.length > 0 ? [this.gate] : [];
+		return hookCommandList(this.hooks[type]);
 	}
 	/**
 	* Run one command hook with the event payload on stdin.
@@ -1957,9 +1961,7 @@ var TeamService = class extends Service {
 			if (current === void 0) throw new TeamError(`team plan "${request.planId}" not found`, "TEAM_PLAN_NOT_FOUND");
 			if (current.status !== "pending") throw new TeamError(`team plan "${current.id}" is already ${current.status}`, "TEAM_PLAN_INVALID_TRANSITION");
 			const resolved = {
-				id: current.id,
-				authorId: current.authorId,
-				content: current.content,
+				...current,
 				status: request.action === "approve" ? "approved" : "rejected",
 				...feedback === void 0 ? {} : { feedback }
 			};
@@ -1974,19 +1976,17 @@ var TeamService = class extends Service {
 		return projectPlanView(this.journal.state(root), plan);
 	}
 	/**
-	* Resolve one member's pending plan without throwing, for the read-only guard.
+	* Test whether one member has a plan awaiting the Lead decision, for the read-only guard.
 	* @param agent - candidate exact live Agent.
-	* @returns the pending plan view, or undefined when none is pending.
+	* @returns whether a pending plan exists.
 	*/
-	pendingPlan(agent) {
+	hasPendingPlan(agent) {
 		const membership = this.roster.tryMembership(agent);
-		if (membership === void 0) return void 0;
+		if (membership === void 0) return false;
 		try {
-			const state = this.journal.state(membership.root);
-			const plan = state.plans.find((candidate) => candidate.authorId === agent.id && candidate.status === "pending");
-			return plan === void 0 ? void 0 : projectPlanView(state, plan);
+			return this.journal.state(membership.root).plans.some((candidate) => candidate.authorId === agent.id && candidate.status === "pending");
 		} catch {
-			return void 0;
+			return false;
 		}
 	}
 	/**

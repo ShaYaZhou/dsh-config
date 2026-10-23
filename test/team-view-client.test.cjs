@@ -48,10 +48,13 @@ test("a selected Lead or teammate Session resolves to its Team view", () => {
     byId: {
       "lead-1": { id: "lead-1", projectionValues: { agentTeam: team } },
       "child-1": { id: "child-1", parentId: "lead-1" },
+      "grand-1": { id: "grand-1", parentId: "child-1" },
     },
   };
   assert.equal(teamOf(list, "lead-1"), team);
   assert.equal(teamOf(list, "child-1"), team);
+  // The parent chain is walked until a real Team projection is found.
+  assert.equal(teamOf(list, "grand-1"), team);
   // useSyncExternalStore requires the empty snapshot to be reference-stable.
   assert.equal(teamOf(list, undefined), teamOf({ byId: {} }, "missing"));
   for (const empty of [

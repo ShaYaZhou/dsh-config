@@ -1776,6 +1776,14 @@ window.__ModuleLoader__.load({
       );
     }
 
+    /** One short state label for a subagent call row. */
+    function callState(phase, block, childId, child) {
+      if (phase !== "result") return "启动中";
+      if (block.isError) return "启动失败";
+      if (childId === undefined) return "无法定位子会话";
+      return child?.running ? "运行中" : "已完成";
+    }
+
     /**
      * Inline entry for one native subagent call in the main conversation: open
      * the child beside it or in the main view, and follow the child's state.
@@ -1792,16 +1800,7 @@ window.__ModuleLoader__.load({
         child = childId === undefined ? undefined : list.byId[childId],
         address =
           childId === undefined ? undefined : ctx.sessions.subagentAddress(childId),
-        state =
-          phase !== "result"
-            ? "启动中"
-            : block.isError
-              ? "启动失败"
-              : childId === undefined
-                ? "无法定位子会话"
-                : child?.running
-                  ? "运行中"
-                  : "已完成";
+        state = callState(phase, block, childId, child);
       return h(
         "div",
         { className: "dsh-subagent-call", "data-tool": toolName, "data-state": phase },

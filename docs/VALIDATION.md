@@ -20,7 +20,7 @@
 
 ## 2026-10-23 Team 计划审批、Hook 事件与成员面板
 
-- 计划审批：`modules/team.mjs` 增加 `submitPlan` / `listPlans` / `resolvePlan` / `pendingPlan`；`modules/team-tools.mjs` 增加 `team_plan_submit`、`team_plan_list`、`team_plan_resolve`，并在成员有待审计划时用工具 guard 只放行 `read`、`read_image`、`glob`、`grep`、`skill`、`send_message`、`team_task_get`、`team_task_list`、`team_plan_list`。拒绝必须带反馈。
+- 计划审批：`modules/team.mjs` 增加 `submitPlan` / `listPlans` / `resolvePlan` / `hasPendingPlan`；`modules/team-tools.mjs` 增加 `team_plan_submit`、`team_plan_list`、`team_plan_resolve`，并在成员有待审计划时用工具 guard 只放行 `read`、`read_image`、`glob`、`grep`、`skill`、`send_message`、`team_task_get`、`team_task_list`、`team_plan_list`。拒绝必须带反馈。
 - Hook 事件：`TeamService.Config.hooks` 可配 `TaskCreated` / `TaskCompleted` / `TeammateIdle`（字符串或字符串数组），事件 JSON 走 stdin，10 秒超时，退出码 0 放行、2 拦截、其他记为门禁失败；`TeammateIdle` 在 `agent/turn-stopping` 运行，退出码 2 把 stderr steer 回成员继续本轮。旧 `taskGate` 仍是两个任务事件的回退命令。
 - 成员面板：新增本地客户端包 `plugins/team-view`（`@local/dsh-team-view`），同步 `provenance.json`、`config/desktop.package.json` 与锁模板；侧栏入口读取选中会话的 `agentTeam` 投影，列出成员状态与待审计划数，可经原生 `subagentchat` 资源并排打开成员。`test/team-view-client.test.cjs` 加入测试清单。
 - 验收方式：隔离 `DSH_HOME` 启动 desktop profile，真实模型驱动；凭据只在进程内存中从本机凭据文件转发，不落盘、不打印。脚本位于 `.local/accept-2026-10-22-a`（不入库）。

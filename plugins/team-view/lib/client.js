@@ -3,7 +3,7 @@ window.__ModuleLoader__.load({
   factory: (require) => {
     const React = require("react"),
       h = React.createElement;
-    const inject = ["slots", "sessions", "uiWorkspace"];
+    const inject = ["slots", "sessions", "uiWorkspace", "sidebarRight"];
     const prefix = "dsh-team-view";
     // getSnapshot must return a stable reference while no Team is selected.
     const EMPTY_TEAM = { members: [], tasks: [], plans: [] };
@@ -11,23 +11,28 @@ window.__ModuleLoader__.load({
     const CHAT_ADDRESS = "dsh-resource://subagentchat/session/";
 
     /**
-     * Pick the Team projection that belongs to the selected Session: the
-     * selected Lead Session, or the Lead of a selected teammate.
+     * Pick the Team projection that belongs to the selected Session: the nearest
+     * Session in its parent chain whose Team projection is a real Team.
      * @param {object} list - sessions list snapshot.
      * @param {string} [sessionId] - selected Session identity.
      * @returns {{members: object[], tasks: object[], plans: object[]}} Team wire view.
      */
     function teamOf(list, sessionId) {
-      const row =
+      const own =
         sessionId === undefined ? undefined : list?.byId?.[sessionId];
-      const own = row?.projectionValues?.agentTeam;
-      if (own !== undefined && own.members.length > 1) return own;
-      const parent =
-        row?.parentId === undefined
-          ? undefined
-          : list?.byId?.[row.parentId]?.projectionValues?.agentTeam;
-      if (parent !== undefined && parent.members.length > 1) return parent;
-      return own ?? EMPTY_TEAM;
+      const ownTeam = own?.projectionValues?.agentTeam;
+      const seen = new Set();
+      for (
+        let row = own;
+        row !== undefined && !seen.has(row);
+        row =
+          row.parentId === undefined ? undefined : list?.byId?.[row.parentId]
+      ) {
+        seen.add(row);
+        const team = row.projectionValues?.agentTeam;
+        if (team !== undefined && team.members.length > 1) return team;
+      }
+      return ownTeam ?? EMPTY_TEAM;
     }
 
     /**
@@ -36,26 +41,30 @@ window.__ModuleLoader__.load({
      * @returns {object[]} teammate rows in roster order.
      */
     function memberRows(team) {
-      const pendingPlans = new Map();
+      const counts = new Map();
+      const bump = (name, key) => {
+        if (name === undefined) return;
+        const count = counts.get(name) ?? { working: 0, pendingPlans: 0 };
+        count[key] += 1;
+        counts.set(name, count);
+      };
+      for (const task of team.tasks)
+        if (task.status === "in_progress") bump(task.ownerName, "working");
       for (const plan of team.plans)
-        if (plan.status === "pending" && plan.authorName !== undefined)
-          pendingPlans.set(
-            plan.authorName,
-            (pendingPlans.get(plan.authorName) ?? 0) + 1,
-          );
+        if (plan.status === "pending") bump(plan.authorName, "pendingPlans");
       return team.members
         .filter((member) => member.role === "teammate")
-        .map((member) => ({
-          id: member.id,
-          name: member.name,
-          phase: member.phase,
-          error: member.error,
-          working: team.tasks.filter(
-            (task) =>
-              task.ownerName === member.name && task.status === "in_progress",
-          ).length,
-          pendingPlans: pendingPlans.get(member.name) ?? 0,
-        }));
+        .map((member) => {
+          const count = counts.get(member.name);
+          return {
+            id: member.id,
+            name: member.name,
+            phase: member.phase,
+            error: member.error,
+            working: count?.working ?? 0,
+            pendingPlans: count?.pendingPlans ?? 0,
+          };
+        });
     }
 
     /**
@@ -80,12 +89,8 @@ window.__ModuleLoader__.load({
      */
     function openAside(ctx, id) {
       const address = ctx.sessions.subagentAddress(id);
-      const sidebarRight =
-        typeof ctx.get === "function"
-          ? ctx.get("sidebarRight", false)
-          : undefined;
-      if (address === undefined || !sidebarRight) return false;
-      sidebarRight.openResource(chatAddress(address), {
+      if (address === undefined || !ctx.sidebarRight) return false;
+      ctx.sidebarRight.openResource(chatAddress(address), {
         kind: "subagentchat",
         preferNewPane: true,
       });
