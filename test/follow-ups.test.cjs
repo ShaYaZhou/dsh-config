@@ -123,6 +123,10 @@ async function fixture() {
   }
   const box = {
     z,
+    sessionId: z.string().min(1).max(200).regex(/^[A-Za-z0-9_.-]+$/),
+    runInitializers: (target, initializers) => {
+      for (const initialize of initializers) initialize.call(target);
+    },
     Remote: protocol.Remote,
     RemoteError: protocol.RemoteError,
     principalOf: protocol.principalOf,

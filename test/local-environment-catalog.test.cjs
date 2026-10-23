@@ -48,6 +48,9 @@ async function fixture(t) {
     realpath: fs.promises.realpath,
     stat: fs.promises.stat,
     defineDomain: (spec) => spec,
+    runInitializers: (target, initializers) => {
+      for (const initialize of initializers) initialize.call(target);
+    },
     Remote,
     RemoteError: class extends Error {
       constructor(code, message) {

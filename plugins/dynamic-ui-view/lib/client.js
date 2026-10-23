@@ -121,15 +121,17 @@ window.__ModuleLoader__.load({
         window.addEventListener('message', onMessage);
         return () => window.removeEventListener('message', onMessage);
       }, [html, host]);
-      // 回合结束时宿主才折叠，时间点不固定；每次发现折叠就把卡片搬到该分组之后。
-      // 轮询同时覆盖「宿主重建节点导致容器脱落」的情况：容器不在原位就再插一次。
+      // 回合结束时宿主才折叠，时间点不固定；折叠一出现就把卡片搬到该分组之后。
+      // 监听 DOM 而不是轮询：折叠属性变化和宿主重建节点都会触发回调，
+      // 同一批变化由 MutationObserver 合并；搬移本身产生的 childList 变化
+      // 会在下一次回调里收敛（容器已在原位，不再移动）。
       // 依赖 html：preparing 阶段还没有锚点。
       React.useEffect(() => {
         const node = anchorRef.current;
         if (!node) return undefined;
         const doc = node.ownerDocument;
         let container = null;
-        const tick = () => {
+        const sync = () => {
           const fold = outerHidden(node);
           if (!fold) {
             if (container) {
@@ -146,12 +148,18 @@ window.__ModuleLoader__.load({
           }
           if (container.previousSibling !== fold) fold.after(container);
         };
-        tick();
-        const timer = setInterval(tick, 250);
+        sync();
+        const observer = new MutationObserver(sync);
+        observer.observe(doc.body ?? doc.documentElement, {
+          attributes: true,
+          attributeFilter: ['hidden'],
+          childList: true,
+          subtree: true,
+        });
         const onResize = () => requestMeasure(frameRef.current);
         doc.defaultView?.addEventListener('resize', onResize);
         return () => {
-          clearInterval(timer);
+          observer.disconnect();
           doc.defaultView?.removeEventListener('resize', onResize);
           container?.remove();
         };

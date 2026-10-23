@@ -1,0 +1,19 @@
+{
+  "name": "@local/dsh-shared",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "exports": {
+    "./session-id": "./lib/session-id.js",
+    "./config": "./lib/config.js",
+    "./remote": "./lib/remote.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib"
+  ],
+  "peerDependencies": {
+    "zod": "^4.0.0"
+  }
+}

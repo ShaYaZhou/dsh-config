@@ -3,15 +3,18 @@ window.__ModuleLoader__.load({
   factory: require => {
     const React = require('react'), h = React.createElement;
     const {Switch} = require('@deepseek-ai/dsh-client-ui-primitives');
-    const inject = ['slots', 'configForms'];
+    const inject = ['slots', 'configForms', 'remote', 'remote.pluginManager'];
     const PANEL = 'settings.enhancement.panel';
+    const OVERVIEW = 'enhancement';
+    // 每个功能对应 profile 里真实的插件条目：开关走原生 pluginManager，
+    // 关闭后该条目不再加载，模块内部的运行时判断随之消失。
     const FEATURES = [
-      ['team', '团队协作', 'Team 成员、共享任务与 spawn/send/wait 工具。'],
-      ['worktree', 'Git worktree', 'create_worktree 工具。'],
-      ['browser', '浏览器与桌面指引', '浏览器和 computer-use 的系统提示与 computer-use 技能。'],
-      ['sessionBus', '会话总线', '跨会话 message_session 工具与 /session-bus 授权。'],
-      ['claudeContext', 'Claude 上下文', '注入 ~/.claude 与项目 .claude 指令、规则。'],
-      ['usageReport', '用量报告', 'usage_report 用量查询工具。'],
+      ['团队协作', 'Team 成员、共享任务与 spawn/send/wait 工具。', ['agent-team-local', 'tool-agent-team-local']],
+      ['Git worktree', 'create_worktree 工具。', ['tool-worktree']],
+      ['浏览器与桌面指引', '浏览器和 computer-use 的系统提示与 computer-use 技能。', ['browser-guidance']],
+      ['会话总线', '跨会话 message_session 工具与 /session-bus 授权。', ['session-bus']],
+      ['Claude 上下文', '注入 ~/.claude 与项目 .claude 指令、规则。', ['claude-context']],
+      ['用量报告', 'usage_report 用量查询工具。', ['usage-report']],
     ];
     function Row({label, description, checked, disabled, onChange}) {
       return h('div', {style:{display:'flex',gap:16,alignItems:'flex-start',justifyContent:'space-between',padding:'10px 0',borderBottom:'1px solid #8883'}},
@@ -47,67 +50,97 @@ window.__ModuleLoader__.load({
       });
       function Section({close, renderSlot, useTabs}) {
         const snap = React.useSyncExternalStore(listener => form.subscribe(listener), () => form.getSnapshot());
-        const rows = useTabs(value => value);
+        const pages = useTabs(value => value);
+        // 「Harness增强」本身是第一个页签，其余是各插件的分页。
+        const rows = [{id:OVERVIEW, order:-1, label:'Harness增强'}, ...pages.filter(row => row.id !== OVERVIEW)];
         const [activeId, setActiveId] = React.useState();
-        const [visited, setVisited] = React.useState(() => new Set());
+        const [visited, setVisited] = React.useState(() => new Set([OVERVIEW]));
+        const [plugins, setPlugins] = React.useState();
         const [busy, setBusy] = React.useState(false);
         const [error, setError] = React.useState('');
         const alive = React.useRef(true);
         React.useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
-        const active = rows.find(row => row.id === activeId)?.id ?? rows[0]?.id;
+        const active = rows.find(row => row.id === activeId)?.id ?? OVERVIEW;
         React.useEffect(() => {
           if (active === undefined) return;
           setVisited(previous => previous.has(active) ? previous : new Set([...previous, active]));
         }, [active]);
-        const disabled = snap.status !== 'ready' || !snap.writable || busy;
-        const value = key => snap.value?.[key] ?? snap.base?.[key] ?? key !== 'ultracodeDefault';
-        const change = async (key, next) => {
+        const load = async () => {
+          try {
+            const answer = await ctx.remote.pluginManager.listPlugins();
+            if (!answer?.ok) throw new Error(answer?.error?.message || '读取插件状态失败。');
+            if (alive.current) setPlugins(new Map(answer.value.map(row => [row.entryId, row])));
+          } catch (failure) {
+            if (alive.current) setError(failure.message || '读取插件状态失败。');
+          }
+        };
+        React.useEffect(() => { void load(); }, []);
+        const change = async (write, retry) => {
           setBusy(true); setError('');
           try {
-            const accepted = await form.set(key, next);
-            if (alive.current && !accepted) setError('保存未成功，请重试。');
+            const accepted = await write();
+            if (alive.current && !accepted) setError(retry);
           } catch (failure) {
             if (alive.current) setError(failure.message || '保存失败。');
           } finally { if (alive.current) setBusy(false); }
         };
-        return h('section', {style:{maxWidth:680,padding:24,lineHeight:1.7}},
-          h('h2', {style:{margin:'0 0 6px'}}, 'Harness增强'),
-          h('p', {style:{fontSize:13,opacity:0.72,margin:'0 0 14px'}}, '集中管理本地插件的功能开关与设置页。'),
-          h('h3', {style:{fontSize:16,margin:'18px 0 4px'}}, '功能开关'),
-          ...FEATURES.map(([key, label, description]) =>
-            h(Row, {key, label, description, checked:value(key) === true, disabled, onChange:next => change(key, next)})),
+        // 加载器条目的 entryId 带层前缀（实际是 `include:<patch id>`），而 FEATURES 写的是 patch id。
+        const find = id => plugins && [...plugins.values()].find(row => row.entryId === id || row.entryId.endsWith(`:${id}`));
+        const changePlugins = (ids, next) => change(async () => {
+          for (const id of ids) {
+            const row = find(id);
+            if (!row) throw new Error('插件条目未就绪，请重试。');
+            const result = await ctx.remote.pluginManager.setPluginEnabled(row.entryId, next);
+            if (!result?.ok) throw new Error(result?.error?.message || '保存失败。');
+          }
+          await load();
+          return true;
+        }, '保存未成功，请重试。');
+        const stateOf = ids => {
+          const rows = ids.map(find);
+          return {
+            checked: plugins !== undefined && rows.every(row => row?.enabled === true),
+            // 条目缺失、被原生标记只读或状态未就绪时不允许切换。
+            disabled: plugins === undefined || busy || rows.some(row => row === undefined || row.readOnlyReason !== undefined),
+          };
+        };
+        const ultracode = snap.value?.ultracodeDefault ?? snap.base?.ultracodeDefault ?? false;
+        const overview = h('div', {role:'tabpanel', hidden:active !== OVERVIEW},
+          h('p', {style:{fontSize:13,opacity:0.72,margin:'0 0 14px'}}, '开关直接启用或关闭当前 profile 的插件条目；下次部署会恢复模板默认值。'),
+          ...FEATURES.map(([label, description, ids]) =>
+            h(Row, {key:label, label, description, ...stateOf(ids), onChange:next => void changePlugins(ids, next)})),
           h(Row, {
             label:'新会话默认开启 ultracode',
             description:'没有显式 /ultracode 记录的会话跟随此默认值；会话内可用 /ultracode on|off 覆盖。',
-            checked:value('ultracodeDefault') === true,
-            disabled,
-            onChange:next => change('ultracodeDefault', next),
+            checked:ultracode === true,
+            disabled:snap.status !== 'ready' || !snap.writable || busy,
+            onChange:next => void change(() => form.set('ultracodeDefault', next), '保存未成功，请重试。'),
           }),
-          h('p', {style:{fontSize:13,opacity:0.72}}, '工具类开关在新会话或重启后生效；系统提示类开关立即生效。'),
-          snap.status === 'unavailable' && h('p', {role:'status'}, '当前部署未提供Harness增强设置。'),
-          error && h('p', {role:'alert'}, error),
-          h('h3', {style:{fontSize:16,margin:'22px 0 8px'}}, '设置页'),
-          rows.length === 0
-            ? h('p', {style:{fontSize:13,opacity:0.72}}, '当前没有可用的Harness增强页面。')
-            : h('div', null,
-              h('div', {role:'tablist', 'aria-label':'Harness增强设置页', style:{display:'flex',gap:6,flexWrap:'wrap',borderBottom:'1px solid #8883',marginBottom:12}},
-                ...rows.map(row => h('button', {
-                  key:row.id,
-                  type:'button',
-                  role:'tab',
-                  'aria-selected':row.id === active,
-                  tabIndex:row.id === active ? 0 : -1,
-                  onClick:() => setActiveId(row.id),
-                  style:{
-                    font:'inherit',fontSize:13,padding:'7px 11px',border:'1px solid transparent',
-                    borderBottomColor:row.id === active ? '#326ce5' : 'transparent',
-                    background:'transparent',color:'inherit',cursor:'pointer',
-                    fontWeight:row.id === active ? 600 : 400,
-                  },
-                }, row.label))),
-              ...rows.filter(row => row.id === active || visited.has(row.id)).map(row =>
-                h('div', {key:row.id, role:'tabpanel', hidden:row.id !== active},
-                  renderSlot(PANEL, {close}, {only:row.id})))));
+          h('p', {style:{fontSize:13,opacity:0.72}}, '插件开关会触发一次重载；系统提示类改动对新会话生效。'),
+          error && h('p', {role:'alert'}, error));
+        return h('section', {style:{maxWidth:680,padding:24,lineHeight:1.7}},
+          h('h2', {style:{margin:'0 0 6px'}}, 'Harness增强'),
+          h('p', {style:{fontSize:13,opacity:0.72,margin:'0 0 14px'}}, '集中管理本地插件的功能开关与设置页。'),
+          h('div', {role:'tablist', 'aria-label':'Harness增强设置页', style:{display:'flex',gap:6,flexWrap:'wrap',borderBottom:'1px solid #8883',marginBottom:12}},
+            ...rows.map(row => h('button', {
+              key:row.id,
+              type:'button',
+              role:'tab',
+              'aria-selected':row.id === active,
+              tabIndex:row.id === active ? 0 : -1,
+              onClick:() => setActiveId(row.id),
+              style:{
+                font:'inherit',fontSize:13,padding:'7px 11px',border:'1px solid transparent',
+                borderBottomColor:row.id === active ? '#326ce5' : 'transparent',
+                background:'transparent',color:'inherit',cursor:'pointer',
+                fontWeight:row.id === active ? 600 : 400,
+              },
+            }, row.label))),
+          ...rows.filter(row => row.id === active || visited.has(row.id)).map(row =>
+            row.id === OVERVIEW
+              ? h('div', {key:OVERVIEW}, overview)
+              : h('div', {key:row.id, role:'tabpanel', hidden:row.id !== active},
+                  renderSlot(PANEL, {close}, {only:row.id}))));
       }
       ctx.slots.inject('settings.section', () => {
         ctx.effect(() => ctx.configForms.whileServed(['enhancement-settings'], () =>

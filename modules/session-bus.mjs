@@ -85,7 +85,6 @@ export class BusService {
     return agent;
   }
   async send(from, to, message) {
-    if (this.ctx.get('enhancementSettings')?.enabled('sessionBus') === false) throw new Error('会话总线已在“Harness增强”设置中关闭');
     if (from === to) throw new Error('不能给当前会话自己发消息');
     if (this.grants()[from]?.[to] !== true) throw new Error('用户尚未授权本会话向目标会话发送消息');
     if (typeof message !== 'string' || !message.trim()) throw new Error('消息不能为空');
@@ -209,12 +208,11 @@ export function formatBusList(rows, grants) {
 }
 
 export async function apply(ctx) {
-  const on = () => ctx.get('enhancementSettings')?.enabled('sessionBus') !== false;
   const domain = await ctx.storage.domain.open(busDomain);
   const service = new BusService(ctx, domain);
   const installed = new Map();
   const install = (agent) => {
-    if (!on() || agent.session.header.origin === 'subagent' || installed.has(agent)) return;
+    if (agent.session.header.origin === 'subagent' || installed.has(agent)) return;
     installed.set(agent, installTools(agent, service));
   };
   for (const agent of ctx.agents.list()) install(agent);
@@ -229,7 +227,6 @@ export async function apply(ctx) {
     description: '会话间授权：/session-bus list | allow <会话ID前缀> | revoke <会话ID前缀>。授权只对当前会话生效，模型不能自行授权。',
     input: {hint: 'list|allow <id>|revoke <id>'},
     async handler(invocation) {
-      if (!on()) return {kind: 'error', text: '会话总线已在“Harness增强”设置中关闭'};
       const raw = invocation.rawInput.trim();
       const [verb = 'list', ...rest] = raw.split(/\s+/);
       const from = invocation.agent.id;

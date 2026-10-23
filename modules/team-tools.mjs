@@ -657,7 +657,6 @@ function apply(ctx, config = {}) {
 	};
 	const installed = /* @__PURE__ */ new Map();
 	const maybeInstall = (agent) => {
-		if (ctx.get("enhancementSettings")?.enabled("team") === false) return;
 		if (installed.has(agent) || ctx.agentTeams.tryMembership(agent) === void 0) return;
 		installed.set(agent, install(agent, ctx, resolved));
 	};

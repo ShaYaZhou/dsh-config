@@ -262,6 +262,19 @@
           "The frame document adds a CSP that blocks all network access and its sandbox withholds same-origin, so the fragment cannot reach the app or its storage."
         ]
       }
+    },
+    {
+      "id": "shared",
+      "package": "@local/dsh-shared",
+      "version": "0.1.0",
+      "license": "UNLICENSED",
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "changes": [
+          "Single-source helpers for the local plugins: the session id schema and the manual execution of collected Remote initializers.",
+          "Library only: registers no cordis plugin, ships no client entry and declares no bundle patch."
+        ]
+      }
     }
   ],
   "flavor": "tuned",

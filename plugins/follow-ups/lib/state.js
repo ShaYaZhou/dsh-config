@@ -1,10 +1,7 @@
 import { z } from "zod";
+import { sessionId } from "@local/dsh-shared/session-id";
 
-export const sessionId = z
-  .string()
-  .min(1)
-  .max(200)
-  .regex(/^[A-Za-z0-9_.-]+$/);
+export { sessionId };
 export const taskInput = z.strictObject({
   title: z.string().trim().min(1).max(160),
   prompt: z.string().trim().min(1).max(8000),

@@ -52,6 +52,10 @@ nativeTest('the delete endpoint is marked on the prototype at load time', async 
   const chain = new Proxy({}, { get: () => () => chain });
   const box = {
     z: { string: () => chain, strictObject: (shape) => shape },
+    sessionId: chain,
+    runInitializers: (target, initializers) => {
+      for (const initialize of initializers) initialize.call(target);
+    },
     Remote,
     TypertRemoteService: class {
       constructor(ctx, key) {
@@ -72,6 +76,68 @@ nativeTest('the delete endpoint is marked on the prototype at load time', async 
   assert.deepEqual(descriptor.value.methods.map((method) => method.method), ['delete']);
   assert.equal(typeof descriptor.value.methods[0].resources.session, 'function');
   assert.equal(descriptor.value.methods[0].resources.session({ sessionId: 's1' }), 's1');
+});
+
+// 服务端准入用一个最小 ctx：waterfall 回答活动清单，workspaceRegistry 回答归档集合。
+function admissionBox({ activity = [], archived = [] } = {}) {
+  const code = fsSync
+    .readFileSync(new URL('../plugins/delete-session/lib/index.js', import.meta.url), 'utf8')
+    .replace(/^import .*;\r?\n/gm, '')
+    .replace(/^export /gm, '');
+  const calls = [];
+  const chain = new Proxy({}, { get: () => () => chain });
+  const box = {
+    z: { string: () => chain, strictObject: (shape) => shape },
+    sessionId: chain,
+    runInitializers: (target, initializers) => {
+      for (const initialize of initializers) initialize.call(target);
+    },
+    Remote: () => () => {},
+    TypertRemoteService: class {
+      constructor(ctx) {
+        this.ctx = ctx;
+      }
+    },
+    resolveDshHome: () => '/tmp/dsh-home',
+    relocateSession: async (home, id) => {
+      calls.push({ home, id });
+      return { moved: true, trashedTo: 'trash' };
+    },
+  };
+  vm.createContext(box);
+  vm.runInContext(code + '\nthis.DeleteSession = DeleteSession;', box);
+  const ctx = {
+    workspaceRegistry: { archivedSessionIds: archived },
+    waterfall: async (event, request) => {
+      calls.push({ event, request });
+      return activity;
+    },
+  };
+  return { DeleteSession: box.DeleteSession, ctx, calls };
+}
+
+test('the server refuses to delete a session that still has activity', async () => {
+  const { DeleteSession, ctx, calls } = admissionBox({
+    activity: [{ kind: 'turn' }],
+    archived: ['sess-1'],
+  });
+  await assert.rejects(new DeleteSession(ctx).delete({ sessionId: 'sess-1' }), /仍在运行/);
+  assert.equal(calls.some((call) => call.id), false);
+});
+
+test('the server refuses to delete a session that is not archived', async () => {
+  const { DeleteSession, ctx, calls } = admissionBox({ archived: [] });
+  await assert.rejects(new DeleteSession(ctx).delete({ sessionId: 'sess-1' }), /尚未归档/);
+  assert.equal(calls.some((call) => call.id), false);
+});
+
+test('the server moves only an archived, inactive session', async () => {
+  const { DeleteSession, ctx, calls } = admissionBox({ archived: ['sess-1'] });
+  assert.deepEqual(await new DeleteSession(ctx).delete({ sessionId: 'sess-1' }), {
+    moved: true,
+    trashedTo: 'trash',
+  });
+  assert.deepEqual(calls.at(-1), { home: '/tmp/dsh-home', id: 'sess-1' });
 });
 
 test('reports a missing session without creating trash state', async () => {

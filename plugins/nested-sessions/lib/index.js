@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { sessionId } from "@local/dsh-shared/session-id";
+import { runInitializers } from "@local/dsh-shared/remote";
 import {
   Remote,
   RemoteError,
@@ -33,11 +35,7 @@ export const inject = [
   "systemPrompt",
   "sessionProjections",
 ];
-const id = z
-  .string()
-  .min(1)
-  .max(200)
-  .regex(/^[A-Za-z0-9_.-]+$/);
+const id = sessionId;
 const text = z.string().trim().min(1).max(16000);
 const schemas = {
   list: z
@@ -148,7 +146,7 @@ export class NestedSessions extends TypertRemoteService {
   static inject = inject;
   constructor(ctx, domain) {
     super(ctx, "nestedSessions", { namespace: "nestedSessions" });
-    for (const initialize of initializers) initialize.call(this);
+    runInitializers(this, initializers);
     this.domain = domain;
     this.tail = Promise.resolve();
     this.disposed = false;

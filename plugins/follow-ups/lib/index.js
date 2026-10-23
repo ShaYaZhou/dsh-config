@@ -13,6 +13,7 @@ import {
   preflightRepositories,
   createRepositoryWorkspaces,
 } from "@local/dsh-local-environments/workspace";
+import { runInitializers } from "@local/dsh-shared/remote";
 import {
   sessionId,
   proposalInput,
@@ -89,7 +90,7 @@ const preferenceSpec = defineDomain({
 export class FollowUps extends TypertRemoteService {
   constructor(ctx, preferences) {
     super(ctx, "followUps");
-    for (const initialize of initializers) initialize.call(this);
+    runInitializers(this, initializers);
     this.preferenceDomain = preferences;
     this.dismissed = preferences.table("dismissed");
     this.tails = new Map();

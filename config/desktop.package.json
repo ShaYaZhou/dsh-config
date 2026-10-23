@@ -22,6 +22,7 @@
     "@local/dsh-idle-settings": "@artifact/idle-settings",
     "@local/dsh-enhancement-settings": "@artifact/enhancement-settings",
     "@local/dsh-local-environments": "@artifact/local-environments",
+    "@local/dsh-shared": "@artifact/shared",
     "@local/dsh-follow-ups": "@artifact/follow-ups",
     "@local/dsh-file-links": "@artifact/file-links",
     "@local/dsh-team-view": "@artifact/team-view",

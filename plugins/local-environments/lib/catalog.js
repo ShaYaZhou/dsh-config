@@ -6,6 +6,7 @@ import {
   principalOf,
 } from "@deepseek-ai/dsh-typert-protocol";
 import { defineDomain } from "@deepseek-ai/dsh-storage-domain";
+import { runInitializers } from "@local/dsh-shared/remote";
 import { stat } from "node:fs/promises";
 import {
   canonicalDirectory,
@@ -67,7 +68,7 @@ const initializers = [];
 export class LocalEnvironmentCatalog extends TypertRemoteService {
   constructor(ctx, domain) {
     super(ctx, "localEnvironmentCatalog");
-    for (const initialize of initializers) initialize.call(this);
+    runInitializers(this, initializers);
     this.domain = domain;
     this.tail = Promise.resolve();
     this.disposed = false;

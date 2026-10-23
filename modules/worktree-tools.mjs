@@ -10,7 +10,6 @@ const inject = ["tools", "worktrees"];
 * @param ctx - tool registry and worktree runtime.
 */
 function apply(ctx) {
-	if (ctx.get("enhancementSettings")?.enabled("worktree") === false) return;
 	ctx.tools.register(defineTool({
 		name: "create_worktree",
 		description: "Create a new Git branch and worktree from a local commit, branch, or tag, then change this session's working directory to it. Defaults to HEAD and a generated name. Uncommitted files stay in the source checkout. Existing names fail. Use working_directory with cd to leave; the checkout and branch remain.",

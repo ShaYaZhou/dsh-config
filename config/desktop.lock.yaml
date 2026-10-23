@@ -28,7 +28,7 @@ importers:
         version: file:../../local-plugins/${BROWSER-REVIEW_TGZ}
       '@local/dsh-delete-session':
         specifier: file:../../local-plugins/${DELETE-SESSION_TGZ}
-        version: file:../../local-plugins/${DELETE-SESSION_TGZ}(zod@4.4.3)
+        version: file:../../local-plugins/${DELETE-SESSION_TGZ}(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3))(zod@4.4.3)
       '@local/dsh-desktop-commands':
         specifier: file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}
         version: file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}
@@ -37,22 +37,25 @@ importers:
         version: file:../../local-plugins/${DYNAMIC-UI-VIEW_TGZ}
       '@local/dsh-enhancement-settings':
         specifier: file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}
-        version: file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}(@deepseek-ai/schemastery@3.18.5)
+        version: file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}(@deepseek-ai/schemastery@3.18.5)(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3))
       '@local/dsh-file-links':
         specifier: file:../../local-plugins/${FILE-LINKS_TGZ}
         version: file:../../local-plugins/${FILE-LINKS_TGZ}
       '@local/dsh-follow-ups':
         specifier: file:../../local-plugins/${FOLLOW-UPS_TGZ}
-        version: file:../../local-plugins/${FOLLOW-UPS_TGZ}(@local/dsh-local-environments@file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(zod@4.4.3))(zod@4.4.3)
+        version: file:../../local-plugins/${FOLLOW-UPS_TGZ}(@local/dsh-local-environments@file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3))(zod@4.4.3))(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3))(zod@4.4.3)
       '@local/dsh-idle-settings':
         specifier: file:../../local-plugins/${IDLE-SETTINGS_TGZ}
         version: file:../../local-plugins/${IDLE-SETTINGS_TGZ}(@deepseek-ai/schemastery@3.18.5)
       '@local/dsh-local-environments':
         specifier: file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}
-        version: file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(zod@4.4.3)
+        version: file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3))(zod@4.4.3)
       '@local/dsh-nested-sessions':
         specifier: file:../../local-plugins/${NESTED-SESSIONS_TGZ}
-        version: file:../../local-plugins/${NESTED-SESSIONS_TGZ}(zod@4.4.3)
+        version: file:../../local-plugins/${NESTED-SESSIONS_TGZ}(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3))(zod@4.4.3)
+      '@local/dsh-shared':
+        specifier: file:../../local-plugins/${SHARED_TGZ}
+        version: file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3)
       '@local/dsh-team-view':
         specifier: file:../../local-plugins/${TEAM-VIEW_TGZ}
         version: file:../../local-plugins/${TEAM-VIEW_TGZ}
@@ -319,6 +322,7 @@ packages:
     peerDependencies:
       '@deepseek-ai/dsh-home-paths': 0.2.1-rc.2
       '@deepseek-ai/dsh-typert-protocol': 0.2.1-rc.2
+      '@local/dsh-shared': 0.1.0
       zod: ^4.0.0
 
   '@local/dsh-desktop-commands@file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}':
@@ -335,6 +339,7 @@ packages:
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.5
       '@deepseek-ai/schemastery': 3.18.5
+      '@local/dsh-shared': 0.1.0
 
   '@local/dsh-file-links@file:../../local-plugins/${FILE-LINKS_TGZ}':
     resolution: {integrity: ${FILE-LINKS_INTEGRITY}, tarball: file:../../local-plugins/${FILE-LINKS_TGZ}}
@@ -350,6 +355,7 @@ packages:
       '@deepseek-ai/dsh-tools': 0.2.1-rc.2
       '@deepseek-ai/dsh-typert-protocol': 0.2.1-rc.2
       '@local/dsh-local-environments': 0.1.1
+      '@local/dsh-shared': 0.1.0
       zod: ^4.0.0
 
   '@local/dsh-idle-settings@file:../../local-plugins/${IDLE-SETTINGS_TGZ}':
@@ -370,6 +376,7 @@ packages:
       '@deepseek-ai/dsh-storage-domain': 0.2.1-rc.2
       '@deepseek-ai/dsh-subprocess-local': 0.2.1-rc.2
       '@deepseek-ai/dsh-typert-protocol': 0.2.1-rc.2
+      '@local/dsh-shared': 0.1.0
       zod: ^4.0.0
 
   '@local/dsh-nested-sessions@file:../../local-plugins/${NESTED-SESSIONS_TGZ}':
@@ -380,6 +387,13 @@ packages:
       '@deepseek-ai/dsh-storage-domain': 0.2.1-rc.2
       '@deepseek-ai/dsh-tools': 0.2.1-rc.2
       '@deepseek-ai/dsh-typert-protocol': 0.2.1-rc.2
+      '@local/dsh-shared': 0.1.0
+      zod: ^4.0.0
+
+  '@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}':
+    resolution: {integrity: ${SHARED_INTEGRITY}, tarball: file:../../local-plugins/${SHARED_TGZ}}
+    version: 0.1.0
+    peerDependencies:
       zod: ^4.0.0
 
   '@local/dsh-team-view@file:../../local-plugins/${TEAM-VIEW_TGZ}':
@@ -1513,34 +1527,43 @@ snapshots:
 
   '@local/dsh-browser-review@file:../../local-plugins/${BROWSER-REVIEW_TGZ}': {}
 
-  '@local/dsh-delete-session@file:../../local-plugins/${DELETE-SESSION_TGZ}(zod@4.4.3)':
+  '@local/dsh-delete-session@file:../../local-plugins/${DELETE-SESSION_TGZ}(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3))(zod@4.4.3)':
     dependencies:
+      '@local/dsh-shared': file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3)
       zod: 4.4.3
 
   '@local/dsh-desktop-commands@file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}': {}
 
   '@local/dsh-dynamic-ui-view@file:../../local-plugins/${DYNAMIC-UI-VIEW_TGZ}': {}
 
-  '@local/dsh-enhancement-settings@file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}(@deepseek-ai/schemastery@3.18.5)':
+  '@local/dsh-enhancement-settings@file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}(@deepseek-ai/schemastery@3.18.5)(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3))':
     dependencies:
       '@deepseek-ai/schemastery': 3.18.5
+      '@local/dsh-shared': file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3)
 
   '@local/dsh-file-links@file:../../local-plugins/${FILE-LINKS_TGZ}': {}
 
-  '@local/dsh-follow-ups@file:../../local-plugins/${FOLLOW-UPS_TGZ}(@local/dsh-local-environments@file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(zod@4.4.3))(zod@4.4.3)':
+  '@local/dsh-follow-ups@file:../../local-plugins/${FOLLOW-UPS_TGZ}(@local/dsh-local-environments@file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3))(zod@4.4.3))(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3))(zod@4.4.3)':
     dependencies:
-      '@local/dsh-local-environments': file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(zod@4.4.3)
+      '@local/dsh-local-environments': file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3))(zod@4.4.3)
+      '@local/dsh-shared': file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3)
       zod: 4.4.3
 
   '@local/dsh-idle-settings@file:../../local-plugins/${IDLE-SETTINGS_TGZ}(@deepseek-ai/schemastery@3.18.5)':
     dependencies:
       '@deepseek-ai/schemastery': 3.18.5
 
-  '@local/dsh-local-environments@file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(zod@4.4.3)':
+  '@local/dsh-local-environments@file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3))(zod@4.4.3)':
     dependencies:
+      '@local/dsh-shared': file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3)
       zod: 4.4.3
 
-  '@local/dsh-nested-sessions@file:../../local-plugins/${NESTED-SESSIONS_TGZ}(zod@4.4.3)':
+  '@local/dsh-nested-sessions@file:../../local-plugins/${NESTED-SESSIONS_TGZ}(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3))(zod@4.4.3)':
+    dependencies:
+      '@local/dsh-shared': file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3)
+      zod: 4.4.3
+
+  '@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3)':
     dependencies:
       zod: 4.4.3
 
