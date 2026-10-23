@@ -79,12 +79,17 @@ nativeTest('the delete endpoint is marked on the prototype at load time', async 
 });
 
 // 服务端准入用一个最小 ctx：waterfall 回答活动清单，workspaceRegistry 回答归档集合。
+// activity 可以是一份固定清单，也可以是一份按轮次变化的清单（每轮取一项，用尽后沿用最后一项），
+// 用来模拟归档后子代理还在退出、几拍之后才清空。
 function admissionBox({ activity = [], archived = [] } = {}) {
   const code = fsSync
     .readFileSync(new URL('../plugins/delete-session/lib/index.js', import.meta.url), 'utf8')
     .replace(/^import .*;\r?\n/gm, '')
     .replace(/^export /gm, '');
   const calls = [];
+  const rounds = Array.isArray(activity[0]) ? activity : null;
+  const sleeps = [];
+  let round = 0;
   const chain = new Proxy({}, { get: () => () => chain });
   const box = {
     z: { string: () => chain, strictObject: (shape) => shape },
@@ -103,6 +108,11 @@ function admissionBox({ activity = [], archived = [] } = {}) {
       calls.push({ home, id });
       return { moved: true, trashedTo: 'trash' };
     },
+    // vm 上下文没有宿主定时器；立即兑现，让等待轮询在测试里瞬间跑完。
+    setTimeout: (resolve, ms) => {
+      sleeps.push(ms);
+      resolve();
+    },
   };
   vm.createContext(box);
   vm.runInContext(code + '\nthis.DeleteSession = DeleteSession;', box);
@@ -110,18 +120,33 @@ function admissionBox({ activity = [], archived = [] } = {}) {
     workspaceRegistry: { archivedSessionIds: archived },
     waterfall: async (event, request) => {
       calls.push({ event, request });
-      return activity;
+      if (!rounds) return activity;
+      return rounds[Math.min(round++, rounds.length - 1)];
     },
   };
-  return { DeleteSession: box.DeleteSession, ctx, calls };
+  return { DeleteSession: box.DeleteSession, ctx, calls, sleeps };
 }
 
-test('the server refuses to delete a session that still has activity', async () => {
-  const { DeleteSession, ctx, calls } = admissionBox({
+test('the server waits for a stopping subagent to clear, then moves the session', async () => {
+  const { DeleteSession, ctx, calls, sleeps } = admissionBox({
+    activity: [[{ kind: 'subagent' }], [{ kind: 'subagent' }], []],
+    archived: ['sess-1'],
+  });
+  assert.deepEqual(await new DeleteSession(ctx).delete({ sessionId: 'sess-1' }), {
+    moved: true,
+    trashedTo: 'trash',
+  });
+  assert.deepEqual(sleeps, [200, 200]);
+  assert.deepEqual(calls.at(-1), { home: '/tmp/dsh-home', id: 'sess-1' });
+});
+
+test('the server gives up instead of looping when activity never clears', async () => {
+  const { DeleteSession, ctx, calls, sleeps } = admissionBox({
     activity: [{ kind: 'turn' }],
     archived: ['sess-1'],
   });
-  await assert.rejects(new DeleteSession(ctx).delete({ sessionId: 'sess-1' }), /仍在运行/);
+  await assert.rejects(new DeleteSession(ctx).delete({ sessionId: 'sess-1' }), /仍在停止中/);
+  assert.equal(sleeps.length, 50);
   assert.equal(calls.some((call) => call.id), false);
 });
 

@@ -17,7 +17,7 @@ const code = fs.readFileSync(new URL('../modules/ultracode.mjs', import.meta.url
 vm.createContext(sandbox);
 vm.runInContext(code + '\nthis.apply = apply; this.ultracodeProjection = ultracodeProjection;', sandbox);
 
-function fixture({state = null, defaultActive = false} = {}) {
+function fixture({state = null, defaultActive = false, hasWorkflow = true} = {}) {
   const records = [];
   const session = {records, header: {origin: 'user'}};
   let section, command;
@@ -25,6 +25,7 @@ function fixture({state = null, defaultActive = false} = {}) {
     get: (name) => name === 'enhancementSettings'
       ? {ultracodeDefault: () => defaultActive}
       : undefined,
+    tools: {get: (name) => (hasWorkflow && name === 'workflow' ? {} : undefined)},
     sessionProjections: {
       register: () => {},
       stateOf: () => state,
@@ -57,6 +58,16 @@ test('the policy section follows the session record and the settings default', (
   const explicitOff = fixture({state: {active: false}, defaultActive: true});
   assert.equal(explicitOff.section.text({agent: {session: explicitOff.session}}), '');
   assert.equal(explicitOff.section.text({}), '');
+});
+
+test('the policy is withheld when the session has no workflow tool', () => {
+  // 原生 ptc 预设禁用 tool-workflow，三个只读角色预设也没有 delegation 组：
+  // 这两种会话开着 ultracode 也不能注入一段指向不存在工具的策略。
+  const on = fixture({defaultActive: true, hasWorkflow: false});
+  assert.equal(on.section.text({agent: {session: on.session}}), '');
+
+  const explicitOn = fixture({state: {active: true}, hasWorkflow: false});
+  assert.equal(explicitOn.section.text({agent: {session: explicitOn.session}}), '');
 });
 
 test('/ultracode toggles a restorable session record', () => {

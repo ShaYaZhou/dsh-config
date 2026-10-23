@@ -164,6 +164,8 @@ DSH 原生已经给消息里的文件提及着色（`--dsw-alias-link`），悬�
 
 `plugins/ultracode-control` 在 composer 工具行、模型选择器左侧放一个 `role="switch"` 药丸。状态读原生 `ultracode` projection；会话还没写过记录（`active: null`）时显示「Harness增强」里的新会话默认值。点击只发送现有 `/ultracode on|off`，切换会像 `/permission` 一样在会话里留下原生命令节点；不新增记录、不复制设置。开启时药丸带缓慢流光与呼吸点，`prefers-reduced-motion: reduce` 下全部静止。
 
+策略段本身只在该 agent 作用域内 `workflow` 工具可见时注入。原生 ptc 预设把 `tool-workflow` 设为 disabled，explore/planner/reviewer 三个只读角色预设根本没有 delegation 组——这些会话即使开着 ultracode，也不会收到一段指向不存在工具的指令。判据取 `ctx.tools.get("workflow", agent)` 的可见性而不是预设名，新增预设无需维护白名单。工具名与 `tool-workflow` 的 `toolName` 配置耦合，模板目前不改它；药丸与 `/ultracode status` 仍如实显示开关状态，只表示策略是否希望生效。
+
 限制：模型弹出菜单（`conversation.input.model`）是 single 槽，宿主只允许一个占用者，无法在其中加行，所以开关放在同一行的左侧而非菜单内；该位置也是会话作用域，每个会话独立。
 
 ## 验收

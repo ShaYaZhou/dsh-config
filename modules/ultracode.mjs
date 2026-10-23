@@ -2,7 +2,7 @@ import { z } from "zod";
 import { appendPluginRecord } from "@deepseek-ai/dsh-session";
 
 export const name = "ultracode";
-export const inject = ["systemPrompt", "sessionProjections", "commands"];
+export const inject = ["systemPrompt", "sessionProjections", "commands", "tools"];
 
 const RECORD = "plugin:ultracode/mode";
 
@@ -43,7 +43,12 @@ export function apply(ctx) {
     text: (context) => {
       const agent = context?.agent;
       if (agent === undefined) return "";
-      return active(ctx, agent.session) ? POLICY : "";
+      if (!active(ctx, agent.session)) return "";
+      // 策略点名了 workflow 工具。没有这个工具的会话（原生 ptc 预设把它 disabled，
+      // explore/planner/reviewer 三个只读角色预设根本没有 delegation 组）注入它只会
+      // 指向不存在的工具。判据用该 agent 作用域下的工具可见性，不按预设名。
+      // 工具名与 tool-workflow 的 toolName 配置耦合，目前模板不覆盖它。
+      return ctx.tools.get("workflow", agent) === undefined ? "" : POLICY;
     },
   });
   ctx.effect(() => ctx.commands.register({

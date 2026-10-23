@@ -12,6 +12,10 @@ const schemas = {
   delete: z.strictObject({ sessionId }),
 };
 
+// 等待运行中的工作收尾的上限：200ms 一次、最多 10s，够子代理退出，又不会让请求长期挂住。
+const DRAIN_INTERVAL_MS = 200;
+const DRAIN_TIMEOUT_MS = 10_000;
+
 export class DeleteSession extends TypertRemoteService {
   constructor(ctx) {
     super(ctx, "deleteSession", { namespace: "deleteSession" });
@@ -19,16 +23,22 @@ export class DeleteSession extends TypertRemoteService {
 
   async delete(request) {
     const { sessionId } = request;
-    // 准入放在服务端：客户端流程被绕开时，也不能搬走仍在运行或未归档的会话目录。
-    // 活动清单来自原生 workspace/session-activity waterfall（回合、作业、子代理、日程）。
-    const activity = await this.ctx.waterfall(
-      "workspace/session-activity",
-      { sessionId },
-      () => Promise.resolve([]),
-    );
-    if (activity.length > 0) throw new Error("会话仍在运行，请先停止后再删除。");
+    // 准入放在服务端：客户端流程被绕开时，也不能搬走未归档的会话目录。
     if (!this.ctx.workspaceRegistry.archivedSessionIds.includes(sessionId))
       throw new Error("会话尚未归档，不能删除。");
+    // 归档时的 stopActivity 只发出停止请求、不等运行中的工作收尾，子代理会稍后才退出。
+    // 之前这里一见到活动就拒绝，用户每点一次删除都撞在同一份清单上。现在等它清空再搬，
+    // 既让重试能收敛，也避免搬走仍有写入的目录。
+    for (let waited = 0; ; waited += DRAIN_INTERVAL_MS) {
+      const activity = await this.ctx.waterfall(
+        "workspace/session-activity",
+        { sessionId },
+        () => Promise.resolve([]),
+      );
+      if (activity.length === 0) break;
+      if (waited >= DRAIN_TIMEOUT_MS) throw new Error("会话仍在停止中，请稍后重试。");
+      await new Promise((resolve) => setTimeout(resolve, DRAIN_INTERVAL_MS));
+    }
     return relocateSession(resolveDshHome(), sessionId);
   }
 }

@@ -356,3 +356,20 @@ DSH 侧栏静态核对只针对已安装 0.2.1-rc.2 的工作区组件选定文�
 - 复现与验证：用 `git show d18409c:modules/session-bus.mjs` 取旧版模块，在 vm 沙箱里跑同一个 `apply` 与 `text()` 调用，得到 `ReferenceError: on is not defined`；删除残留行后同一调用返回 `''`。
 - 回归测试：`test/session-bus.test.mjs` 新增「apply registers a prompt context that tolerates a missing agent」，mock `storage/agents/on/effect/commands/systemPrompt` 后调用 `apply` 捕获 `systemPrompt.context`，断言无 agent 与未授权 agent 都返回 `''`；旧模块跑该断言会抛错。`npm test` 190 项、`test/portable.test.mjs` 13 项通过，无跳过。
 - `build` → `plan`（96 files）→ `deploy`（备份 `backups/portable-harness-2026-10-23T10-44-24-549Z`）→ `status` 报告无漂移。已开着的窗口需要用新模块：从菜单真正退出 Harness 再打开。
+
+## 删除会话在子代理退出时反复失败修复（2026-10-23 晚）
+
+- 现象：子代理还在运行时从侧栏「删除会话」，弹窗提示「会话仍在运行，请先停止后再删除。」；再点「删除」仍是同一提示，删不掉。
+- 根因：客户端 `archiveSession(id, {stopActivity: true})` 只把会话写入归档集并派发 `workspace/session-stop`，`packages/workspace/workspace/src/index.ts` 明确写着该分支「does not wait for running work to settle」；服务端 `deleteSession/delete` 紧接着复查 `workspace/session-activity`，必然仍看到子代理，于是每次都抛同一个错。
+- 修复：`plugins/delete-session/lib/index.js` 把归档检查提到最前（未归档一律拒绝，不搬目录），随后以 200ms 间隔、最多 10s 轮询活动清单，清空后才 `relocateSession`；超时抛「会话仍在停止中，请稍后重试。」。这样重试会收敛，也不会搬走仍有写入的目录。
+- 回归测试：`test/delete-session.test.mjs` 的 `admissionBox` 支持按轮次变化的活动清单，并注入即时 `setTimeout` 记录等待间隔。新增两条用例——「子代理两拍后清空则搬目录成功」（断言等待 2×200ms 后搬到 `/tmp/dsh-home`）与「活动始终不降则放弃且不搬目录」（断言 50 次等待后抛错）。`npm test` 191 项、`test/portable.test.mjs` 13 项通过，无跳过。
+- `build` → `plan`（96 files）→ `deploy`（备份 `backups/portable-harness-2026-10-23T11-12-11-465Z`）→ `status` 报告无漂移。已开着的窗口需从菜单真正退出 Harness 再打开。
+
+## ultracode 策略按工具可见性注入（2026-10-23 晚）
+
+- 现象：ultracode 策略段此前只要会话开关为开就注入。原生 ptc 预设把 `tool-workflow` 设为 disabled，explore/planner/reviewer 三个只读角色预设根本没有 delegation 组，这些会话仍会收到一段要求「实质性任务默认用原生 `workflow` 编排」的指令，而该工具对它不可见。
+- 判据：策略点名了工具，所以它只在工具对该 agent 可见时才有意义。判定用 `ctx.tools.get("workflow", agent)`（`packages/core/tools/src/index.ts:1238` 的公开方法，与呈现模式无关），不按预设名维护白名单；ptc 呈现下工具仍可经 `run_code` 的 SDK 调用，所以判据是工具可达性而不是呈现方式。
+- 修复：`modules/ultracode.mjs` 的 `inject` 增加 `tools`；`systemPrompt.section` 的 `text()` 在开关判定之后追加可见性判定，不可见时返回空串。开关记录、projection、`/ultracode` 命令与 ultracode-control 药丸均未改动。
+- 回归测试：`test/ultracode.test.mjs` 的 fixture 增加 `tools.get` 桩与 `hasWorkflow` 参数；新增用例「the policy is withheld when the session has no workflow tool」，覆盖「默认开启且无工具」与「显式开启且无工具」两种情况。`npm test` 192 项、`test/portable.test.mjs` 13 项通过，无跳过。
+- `build` → `plan`（96 files）→ `deploy`（备份 `backups/portable-harness-2026-10-23T12-20-28-496Z`）→ `status` 报告无漂移。
+- 未做：没有在真实宿主里打开 ptc 或角色预设会话并抓取装配后的系统提示核对空段，结论来自单元测试与代码路径。工具名与 `tool-workflow` 的 `toolName` 配置耦合，模板目前不改该字段；若日后改名，判定会静默退化为永不注入。药丸与 `/ultracode status` 仍只显示开关状态，不区分策略是否真的注入。
