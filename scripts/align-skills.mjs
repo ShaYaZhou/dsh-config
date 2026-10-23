@@ -13,6 +13,8 @@ const ANNEX_END = "<!-- annex:end -->";
 
 // 只有这些技能同时属于「本机 agent 全局技能」；其余 skills/<名称> 仅由 DSH 安装器部署。
 export const AGENT_SKILLS = ["dynamic-ui", "think", "pua"];
+// 附录只内联自维护技能的全文；下载来的技能全文以仓库文件为准，文档只给链接。
+export const INLINE_SKILLS = ["dynamic-ui"];
 
 function listFiles(root, base = root, files = []) {
   if (!fs.existsSync(root)) return files;
@@ -85,6 +87,7 @@ function fenceFor(text) {
 
 export function renderAnnex() {
   return AGENT_SKILLS.map((name) => {
+    if (!INLINE_SKILLS.includes(name)) return `### ${name}\n\n第三方下载技能，全文以仓库文件为准：[skills/${name}/SKILL.md](../skills/${name}/SKILL.md)\n`;
     const text = fs.readFileSync(path.join(repository, "skills", name, "SKILL.md"), "utf8").replace(/\r\n/g, "\n").trimEnd();
     return `### ${name}\n\n源文件：\`skills/${name}/SKILL.md\`\n\n${fenceFor(text)}\n`;
   }).join("\n");

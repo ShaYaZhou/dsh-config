@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { AGENT_SKILLS, annexCurrent, planSkill, syncSkill } from "../scripts/align-skills.mjs";
+import { AGENT_SKILLS, INLINE_SKILLS, annexCurrent, planSkill, syncSkill } from "../scripts/align-skills.mjs";
 
 const repository = path.resolve(import.meta.dirname, "..");
 
@@ -63,6 +63,10 @@ test("文档附录与仓库技能保持一致", () => {
   assert.equal(annexCurrent(), true);
   for (const name of AGENT_SKILLS) {
     const head = fs.readFileSync(path.join(repository, "skills", name, "SKILL.md"), "utf8").replace(/\r\n/g, "\n").slice(0, 40);
-    assert.ok(doc.includes(head), `附录缺少 ${name} 的 SKILL.md 开头`);
+    if (INLINE_SKILLS.includes(name)) assert.ok(doc.includes(head), `附录缺少 ${name} 的 SKILL.md 开头`);
+    else {
+      assert.ok(doc.includes(`../skills/${name}/SKILL.md`), `附录缺少 ${name} 的仓库链接`);
+      assert.ok(!doc.includes(head), `附录不应内联第三方技能 ${name}`);
+    }
   }
 });

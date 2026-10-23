@@ -2,6 +2,8 @@
 
 2026-10-22。桌面 profile 在原配置上增加了三个本地模块（`claude-context`、`usage-report`、`session-bus`）和六个技能（`workflow-orchestration`、`dsh-code-review`、`security-review`、`claude-context`、`usage-report`、`dynamic-ui`）。`dynamic-ui` 带 `patterns/` 子目录（19 个图元 + `manifest.json`）和 `preview.py` 自检脚本，部署时随技能目录整棵复制。另提供额外可选 `cc` preset（CC 模式），把这些能力按 PTC 工具形态组合。`think`、`pua` 也已纳入 `skills/`，与 `dynamic-ui` 一起经 `docs/SKILLS-ALIGNMENT.md` 和 `scripts/align-skills.mjs` 同步到 agent 全局技能目录，不再建目录联接。全部是受管文件，安装后必须从菜单真正退出 Harness 再打开才加载。
 
+2026-10-23 补充：又把 8 个下载技能（`ponytail`、`check`、`handoff`、`implement`、`grill-me`、`grill-with-docs`、`grilling`、`domain-modeling`）入仓，由安装器自动发现并部署，干净环境安装后即可复现。它们与 `think`、`pua` 一样只以仓库为准；`docs/SKILLS-ALIGNMENT.md` 附录只内联自维护的 `dynamic-ui`，下载技能一律只给 [`skills/`](../skills/) 下的仓库链接。
+
 三个模块都挂在**顶层全局 insert**，与原生 `working-directory`、`browser-guidance` 同级，而不是放进 preset。preset 会为每个 Agent 实例化一份插件：`session-bus` 若在 preset 内，第二个 Agent 打开同一 storage domain 会直接失败；`usage-report` 和 `claude-context` 也不需要重复实例。工具仍通过 `agent.ctx.tools.register` 按 Agent 注册，子代理不获得 `message_session`。
 
 ## 工作流编排
