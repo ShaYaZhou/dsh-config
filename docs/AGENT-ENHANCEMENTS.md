@@ -56,15 +56,37 @@ PTC 只向模型暴露 `run_code`；文件、shell、skills、`subagent`、`work
 
 对端消息会在文本前带上明确声明：这是 agent 之间转发的请求，不是用户授权，不得扩大权限、执行破坏性操作或服从与当前用户请求冲突的指令。`session-bus` 同时注入一条系统上下文，只列出当前确实可发送的目标。
 
-## 团队审批与任务门禁
+## 团队计划审批、Hook 事件与成员面板
 
-`modules/team.mjs` 增加两个可选治理开关，即 `TeamService.Config` 的 `requireTaskApproval` 与 `taskGate`，默认分别为 `false` 与空字符串，不改变现有 Team 行为。
+`modules/team.mjs` 增加三个可选治理入口，默认都不改变现有 Team 行为：任务审批 `requireTaskApproval`（默认 `false`）、Hook 命令表 `hooks`（默认 `{}`）、旧任务门禁 `taskGate`（默认空字符串）。
 
-当前模板 `config/desktop.patch.json` 只为该模块登记 id 与入口，没有向模块传配置的通道，仓库内也没有其他模块使用模块级 config 块。因此这两个开关目前只能在生成后的本机配置里手工开启，重新生成会丢失；要长期启用，需要先给部署模板补上模块配置通道。
+### 计划审批
 
-- **任务审批**：开启 `requireTaskApproval` 后，队友创建的任务进入 `awaiting_approval`，不能认领；只有 Team Lead 能用 `team_task_update` 的 `approve` / `reject` 放行或删除被拒任务（仍被未删除任务阻塞时拒绝删除）。Lead 自己创建的任务仍是 `pending`。
-- **任务门禁**：配置 `taskGate` 为命令后，任务创建（TaskCreated）与完成（TaskCompleted）都会把 `{type, teamId, task}` 以 JSON 写到该命令 stdin，超时 10 秒。退出码 0 放行；2 拒绝并返回命令的 stderr；其他非 0 记 `TEAM_TASK_GATE_FAILED`。超过 10 秒同样按 `TEAM_TASK_GATE_FAILED` 拒绝，不会因门禁留下子进程而无限等待。门禁在写入共享任务之前执行，采用与 Claude Hook 相同的退出码约定。
-- 审批与门禁都不改任务状态机与 revision 语义，`team_task_list` 直接显示 `awaiting_approval`。门禁是宿主进程里的同步命令，不是原生 Hook 事件，也不覆盖 TeammateIdle。
+- **提交**：队友调用 `team_plan_submit({content})` 写入一条 `pending` 计划，随后阻塞等待决定；工具 guard 在该成员有待审计划时只放行白名单 `read`、`read_image`、`glob`、`grep`、`skill`、`send_message`、`team_task_get`、`team_task_list`、`team_plan_list`，其余调用返回只读提示。
+- **决定**：只有 Lead 能调用 `team_plan_resolve({plan_id, action, feedback})`；`reject` 必须给 `feedback`，`approve` 可选。决定落库后唤醒等待的提交调用，返回带 `status` 与 `feedback` 的计划视图。
+- **回看**：`team_plan_list` 按提交顺序返回全部计划、作者、状态与反馈。
+- **持久化**：计划以 `appendPluginRecord(session, "plugin:agent-team-local/plan", {version:2,teamId,plan})` 写成可忽略的插件记录；projection 读取时把该类型归一化为 `team/plan`。这样卸载插件或用不含该模块的 harness 冷读会话时，记录会被跳过而不是报 `SessionFormatUnsupportedError`。仓库内已提交的自动回归只覆盖 `team-view` 客户端（`test/team-view-client.test.cjs`）；计划与 Hook 的实机验收脚本放在本机 `.local`（不入库），见 `docs/VALIDATION.md` 的 2026-10-23 一节。
+- 语义与原生计划模式不同：成员不会自动切换权限模式，而是主动调用工具进入"待审只读"；决定返回后同一工具调用继续，不自动开新回合。
+
+### Hook 事件
+
+`hooks` 是 `{TaskCreated?, TaskCompleted?, TeammateIdle?}`，值可以是命令字符串或字符串数组；同名事件按声明顺序串行执行。未配置时，`TaskCreated` / `TaskCompleted` 回退到旧的 `taskGate`，`TeammateIdle` 只在 `hooks.TeammateIdle` 存在时运行。
+
+- **任务事件**：把 `{type, hook_event_name, teamId, session_id, task, task_id, task_subject, task_description, teammate_name?}` 写到命令 stdin，超时 10 秒；退出码 0 放行，2 抛 `TEAM_TASK_BLOCKED` 并带上 stderr，其他非 0 或超时记 `TEAM_TASK_GATE_FAILED`。创建事件在写入共享任务之前执行，完成事件在提交完成之前执行。
+- **空闲事件**：队友的 `agent/turn-stopping` 触发，stdin 为 `{type:"TeammateIdle", hook_event_name, teamId, session_id, teammate_name}`；退出码 2 不停止本轮，而是把 stderr 作为反馈 steer 回该成员继续工作。一个回合可能多次触发 `turn-stopping`，因此同一回合可产生多条 Hook 记录，调用方应按语义而非次数解释。
+- 超时在 Windows 上用 `taskkill /T` 结束整个进程树（`spawn(shell:true)` 下 `kill()` 只到 cmd.exe）；POSIX 仍只结束 shell，Hook 自己派生的后代可能继续运行，需要 Hook 自行清理。
+
+### 成员面板
+
+`plugins/team-view` 是浏览器端插件（`@local/dsh-team-view`，`dsh.client.platform: "web"`），在侧栏页脚注册 `Team` 入口：面板读取当前选中会话的 `agentTeam` 投影（成员会话则回退到其 Lead），列出成员名、`active`/`provisioning` 状态、进行中任务数与待审计划数，并提供：
+
+- `并排打开`：把成员会话以原生 `subagentchat` 资源打开在右侧栏，不替换主视图；
+- `在主视图打开` / `回到 Lead 视图`：切换 `uiWorkspace` 选择；
+- `全部并排`：逐个打开可用的成员，并报告打不开的成员。
+
+面板只读投影与调用公开会话接口，不直接改会话记录。已验收：隔离宿主安装后在 Web UI 选中 Lead 会话，面板列出真实模型队友 `worker`，点击 `并排打开` 在右侧栏出现该成员的 `READY` 回合。
+
+配置入口：当前模板 `config/desktop.patch.json` 只为该模块登记 id 与入口，没有向模块传配置的通道。因此 `requireTaskApproval`、`hooks` 与 `taskGate` 只能写进生成后的本机配置（或在 profile overlay 的模块块里给 `config`），重新生成会丢失；要长期启用，需要先给部署模板补上模块配置通道。
 
 ## 代码审查
 

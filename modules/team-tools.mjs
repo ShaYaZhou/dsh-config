@@ -26,7 +26,7 @@ The Team Lead and all teammates share the same working directory and filesystem.
 
 Prefer read/edit/write for file changes. If a file operation returns FS_STALE_VERSION, read the current file, rebase your intended change onto the new content, and retry. Bash, formatters, code generators, and scripts are not fully protected by the filesystem version guard; coordinate them explicitly and have the Lead review the final diff and run tests.
 
-Use the target returned by spawn_teammate or list_agents for send_message${interrupt ? " and interrupt_agent" : ""}, or as owner when assigning or filtering shared tasks. send_message steers a running target at its nearest step boundary and starts or resumes an inactive target. inactive means no turn is executing; it does not describe task completion, success, failure, or waiting for other agents. provisioning means member creation is in progress; failed means member creation failed. A peer message starts with its sender name. A successful send does not mean the recipient has processed it. Shared-task workflow is list, get, claim with the current revision, perform the work, then complete. Task readiness never starts an owner. When the deployment requires Lead approval, a task a teammate creates stays awaiting_approval until the Lead resolves it with approve or reject. Before wait_agent, use list_agents and make sure another required member is running or provisioning; use send_message first when the required member is inactive. wait_agent observes only changes after that call starts, never wakes a member, and returns noProgress immediately when no other member can produce a change. Re-list after wakeup or timeout. The Lead must wait for required teammates before giving the final answer.`;
+Use the target returned by spawn_teammate or list_agents for send_message${interrupt ? " and interrupt_agent" : ""}, or as owner when assigning or filtering shared tasks. send_message steers a running target at its nearest step boundary and starts or resumes an inactive target. inactive means no turn is executing; it does not describe task completion, success, failure, or waiting for other agents. provisioning means member creation is in progress; failed means member creation failed. A peer message starts with its sender name. A successful send does not mean the recipient has processed it. Shared-task workflow is list, get, claim with the current revision, perform the work, then complete. Task readiness never starts an owner. When the deployment requires Lead approval, a task a teammate creates stays awaiting_approval until the Lead resolves it with approve or reject. A teammate may propose a plan before substantial work with team_plan_submit: it records the plan, notifies the Lead, and blocks until the Lead approves or rejects it, and while it is pending the teammate's other tools are read-only. The Lead resolves a pending plan with team_plan_resolve and must give feedback when rejecting. Before wait_agent, use list_agents and make sure another required member is running or provisioning; use send_message first when the required member is inactive. wait_agent observes only changes after that call starts, never wakes a member, and returns noProgress immediately when no other member can produce a change. Re-list after wakeup or timeout. The Lead must wait for required teammates before giving the final answer.`;
 }
 const ACTIVE_WAIT_STATUSES = new Set(["running", "provisioning"]);
 const NO_ACTIVE_PEER_MESSAGE = "No other Team member is running or provisioning. wait_agent cannot make progress or wake inactive teammates. Re-list with list_agents and team_task_list, then use send_message to wake each required inactive teammate before waiting again.";
@@ -202,6 +202,53 @@ const TASK_LIST_VALUE_SCHEMA = {
 		nextCursor: { type: "integer" }
 	}
 };
+/** One teammate plan awaiting, or already carrying, the Lead decision. */
+const PLAN_VIEW_SCHEMA = {
+	type: "object",
+	additionalProperties: false,
+	properties: {
+		id: {
+			type: "string",
+			required: true
+		},
+		authorName: { type: "string" },
+		content: {
+			type: "string",
+			required: true
+		},
+		status: {
+			type: "string",
+			required: true,
+			enum: [
+				"pending",
+				"approved",
+				"rejected"
+			]
+		},
+		feedback: { type: "string" }
+	}
+};
+const PLAN_LIST_VALUE_SCHEMA = {
+	type: "object",
+	additionalProperties: false,
+	properties: { plans: {
+		type: "array",
+		required: true,
+		items: PLAN_VIEW_SCHEMA
+	} }
+};
+/** Tools a teammate may still call while its plan awaits the Lead decision. */
+const PLAN_READ_TOOLS = new Set([
+	"read",
+	"read_image",
+	"glob",
+	"grep",
+	"skill",
+	"send_message",
+	"team_task_get",
+	"team_task_list",
+	"team_plan_list"
+]);
 /**
 * Declare one canonical output schema with compact model-facing JSON. Every
 * Team result is a fixed record, so the declared schema is what makes the
@@ -247,6 +294,10 @@ function install(agent, ctx, config) {
 Use list_agents({}) to find your teammates and their names.
 To message another teammate, use send_message({ target: "<teammate name>", message: "..." }).`;
 			}
+		}));
+		register(scoped.tools.guard((exec) => {
+			if (ctx.agentTeams.pendingPlan(agent) === void 0) return void 0;
+			return PLAN_READ_TOOLS.has(exec.name) ? void 0 : "A plan from this teammate is awaiting the Team Lead decision; only read-only tools and messaging are available until it is approved or rejected.";
 		}));
 		register(scoped.tools.register(defineTool({
 			name: "spawn_teammate",
@@ -532,6 +583,60 @@ To message another teammate, use send_message({ target: "<teammate name>", messa
 					...args.blocked_by === void 0 ? {} : { blockedBy: args.blocked_by.map(TeamTaskId) },
 					...args.write_scopes === void 0 ? {} : { writeScopes: args.write_scopes },
 					...args.owner === void 0 ? {} : { owner: args.owner }
+				});
+			}
+		})));
+		register(scoped.tools.register(defineTool({
+			name: "team_plan_submit",
+			description: "Submit one plan to the Team Lead and block until it is approved or rejected. Teammates only. While the plan is pending, other tools are read-only.",
+			parameters: { content: {
+				type: "string",
+				required: true,
+				description: "Complete plan: intended changes, files, commands, and how the result will be verified."
+			} },
+			output: jsonOutput(PLAN_VIEW_SCHEMA),
+			async execute(args, exec) {
+				return await ctx.agentTeams.submitPlan(callingAgent(exec.agent, "team_plan_submit"), {
+					content: args.content,
+					signal: exec.signal
+				});
+			}
+		})));
+		register(scoped.tools.register(defineTool({
+			name: "team_plan_list",
+			description: "List teammate plans with their status and any Lead feedback.",
+			parameters: {},
+			output: jsonOutput(PLAN_LIST_VALUE_SCHEMA),
+			execute(_args, exec) {
+				return Promise.resolve({ plans: ctx.agentTeams.listPlans(callingAgent(exec.agent, "team_plan_list")) });
+			}
+		})));
+		register(scoped.tools.register(defineTool({
+			name: "team_plan_resolve",
+			description: "Approve or reject one pending teammate plan. Team Lead only; rejection requires feedback that tells the teammate what to change.",
+			parameters: {
+				plan_id: {
+					type: "string",
+					required: true,
+					description: "Plan id from team_plan_list or the plan notification."
+				},
+				action: {
+					type: "string",
+					required: true,
+					enum: ["approve", "reject"],
+					description: "Decision applied to the pending plan."
+				},
+				feedback: {
+					type: "string",
+					description: "Required when rejecting; optional guidance when approving."
+				}
+			},
+			output: jsonOutput(PLAN_VIEW_SCHEMA),
+			async execute(args, exec) {
+				return await ctx.agentTeams.resolvePlan(callingAgent(exec.agent, "team_plan_resolve"), {
+					planId: args.plan_id,
+					action: args.action,
+					...args.feedback === void 0 ? {} : { feedback: args.feedback }
 				});
 			}
 		})));

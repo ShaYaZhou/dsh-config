@@ -23,6 +23,7 @@
     "@local/dsh-local-environments": "@artifact/local-environments",
     "@local/dsh-follow-ups": "@artifact/follow-ups",
     "@local/dsh-file-links": "@artifact/file-links",
+    "@local/dsh-team-view": "@artifact/team-view",
     "@local/dsh-workflow-ptc": "@artifact/workflow-ptc",
     "@local/dsh-tool-workflow": "@artifact/tool-workflow"
   },
@@ -47,7 +48,8 @@
         "@local/dsh-idle-settings",
         "@local/dsh-local-environments",
         "@local/dsh-follow-ups",
-        "@local/dsh-file-links"
+        "@local/dsh-file-links",
+        "@local/dsh-team-view"
       ]
     }
   }

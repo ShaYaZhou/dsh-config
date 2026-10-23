@@ -830,6 +830,8 @@ test("nested tree preserves sibling ordering, descendants and orphan history wit
   assert.deepEqual(
     registrations.map((row) => row.name),
     [
+      "tool.call.toolview",
+      "tool.call.toolview",
       "sidebar.footer.action",
       "shell.overlay",
       "sidebar.right.pane.tab",
@@ -838,5 +840,59 @@ test("nested tree preserves sibling ordering, descendants and orphan history wit
       "conversation.session.header.actions",
       "main",
     ],
+  );
+  assert.deepEqual(
+    registrations
+      .filter((row) => row.name === "tool.call.toolview")
+      .map((row) => row.key),
+    ["subagent", "subagent_fork"],
+  );
+  // The native details toolview owns these keys at priority 0.
+  assert.deepEqual(
+    registrations
+      .filter((row) => row.name === "tool.call.toolview")
+      .map((row) => row.priority),
+    [-1, -1],
+  );
+});
+
+test("a settled native subagent result names the child and opens beside the conversation", () => {
+  let plugin;
+  vm.runInNewContext(
+    fs.readFileSync(
+      new URL("../plugins/nested-sessions/lib/client.js", import.meta.url),
+      "utf8",
+    ),
+    {
+      window: {
+        __ModuleLoader__: {
+          load: (entry) => {
+            plugin = entry.factory(() => ({}));
+          },
+        },
+      },
+    },
+  );
+  assert.equal(
+    plugin.subagentIdOf({
+      content: [{ type: "text", text: "started subagent child-1" }],
+    }),
+    "child-1",
+  );
+  for (const miss of [
+    { content: [{ type: "text", text: "started subagent" }] },
+    { content: [{ type: "image", data: "x" }] },
+    { content: [{ type: "text", text: "started subagent child-1" }], isError: true },
+    {},
+    undefined,
+  ])
+    assert.equal(plugin.subagentIdOf(miss), undefined);
+  assert.equal(
+    plugin.subagentChatAddress({
+      parentSessionId: "lead-1",
+      childSessionId: "child 1",
+      mode: "continuable",
+    }),
+    "dsh-resource://subagentchat/session/child%201?parent=lead-1&mode=continuable",
   );
 });

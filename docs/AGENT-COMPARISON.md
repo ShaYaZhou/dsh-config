@@ -2,15 +2,15 @@
 
 - 对照对象：DeepSeek Harness 0.2.1-rc.2 + 本仓库 `tuned` 配置（deepseek-harness-config）
 - Claude 侧基线：Anthropic Claude Code / Claude agent 公开文档与官方博客，抓取日期 2026-10-22（文档版本约 v2.1.30x）；agent-teams、workflows、memory、sub-agents 四页于同日重新核对
-- DSH 侧数据：2026-10-22，仓库提交 `d923e10`
+- DSH 侧数据：2026-10-23，仓库提交 `d923e10` 加当前工作区未提交改动（Team 计划审批、Hook 事件与成员面板）
 - 结论口径：只描述本仓库当前启用、且有源码、配置或验收记录支撑的能力；不评价模型质量，不把上游 DSH 的全部潜力算作已具备
 
 ## 一、结论摘要
 
 1. **整体定位不同。** Claude Code 是跨形态、云端延续的托管式 agent 产品：CLI、IDE、桌面、Web、手机与 CI 共用同一引擎，云会话、远程接管、定时任务和企业治理齐全。DSH 是本地优先、模型无关、可整体发行和回滚的桌面 agent 运行时。两者不是同类产品的强弱关系，而是**广度与可控性**的取舍。
 2. **DSH 仍然完全缺失的是服务与生态层**：云/多端延续、IDE 集成、CI 与托管审查服务、企业可观测与合规治理、Agent SDK、插件市场与评测、跨机器会话消息、可分享产物页与团队聊天（Artifacts / Projects / Claude Tag）、外部事件通道（Channels）。这些属于产品形态差距，不是配置能补齐的。代码审查与安全扫描已从"外部命令"变成仓库内的只读技能与启发式静态扫描，但仍没有 CI 入口和托管的多代理审查。
-3. **DSH 明显较弱的是多代理治理和权限/沙箱精细度**：Team 已有共享任务、依赖、认领、成员消息与 worktree 隔离，缺计划审批动作、任务级 hook 和成员分屏；嵌套会话固定两层。权限只有 3 个预设，模板默认 `workspace-write`，最松一档 `danger-full-access` 需要主动选择。
-4. **DSH 有若干 Claude 没有或做得更彻底的能力**：模型无关与按会话/子会话选模型、配置即代码的安装/回滚/漂移检测、本地优先不留云、可见父子会话树、跨工作区只读历史授权、持久旁问（btw）、空闲期压缩、内置浏览器批注、Windows 原生桌面控制、OpenSpec 规格交付闭环、本地环境定义、确认式后续任务、会话级记忆禁写。本次新增**会话间逐对授权消息**、**按会话的用量与成本汇总**、**Claude 指令文件镜像注入**、**消息内普通文件路径的侧边栏预览**，以及工作流、代码审查、安全审查、用量报告和 Claude 上下文五个技能。
+3. **DSH 明显较弱的是多代理治理和权限/沙箱精细度**：Team 已有共享任务、依赖、认领、成员消息、worktree 隔离、成员计划审批（提交后阻塞等待 Lead 批准/拒绝，待审期间只读）与 `TaskCreated` / `TaskCompleted` / `TeammateIdle` 三个 Hook 事件；成员可在 Team 面板查看并并排打开。仍缺"成员进入计划模式后自动只读、批准后自动继续"的完整闭环，嵌套会话固定两层。权限只有 3 个预设，模板默认 `workspace-write`，最松一档 `danger-full-access` 需要主动选择。
+4. **DSH 有若干 Claude 没有或做得更彻底的能力**：模型无关与按会话/子会话选模型、配置即代码的安装/回滚/漂移检测、本地优先不留云、可见父子会话树、跨工作区只读历史授权、持久旁问（btw）、空闲期压缩、内置浏览器批注、Windows 原生桌面控制、OpenSpec 规格交付闭环、本地环境定义、确认式后续任务、会话级记忆禁写。本次新增**会话间逐对授权消息**、**按会话的用量与成本汇总**、**Claude 指令文件镜像注入**、**消息内普通文件路径的侧边栏预览**，以及工作流、代码审查、安全审查、用量报告和 Claude 上下文五个技能；补充轮又加入 **Team 计划审批**、**三个 Team Hook 事件**与**Team 成员面板**。
 5. **一句话判断**：日常本地开发与"可审计、可回滚的私人 agent 工作站"，DSH 已经够用且更可控；需要跨端接力、CI 自动化、组织治理或大规模多代理编排时，Claude Code 仍明显领先。差距的主因是产品层，而不是 harness 工具层。
 
 ## 二、评估范围与方法
@@ -33,7 +33,7 @@
 - 只把"文档明确写出，且本仓库有对应实现或验收记录"的项计为能力；只有一边有文档、另一边未验证的，标注为"未验证"，而不是"有"或"无"。
 - 本次没有运行 Claude 做同任务对照，也没有访问其账号或会话；Claude 侧全部结论来自公开文档，属于"能力存在性"而非"实测效果"。
 - DSH 侧本次新增能力的仓库内证据集中在 `docs/AGENT-ENHANCEMENTS.md` 与 `docs/VALIDATION.md` 的 2026-10-22 一节：完整测试通过，隔离 `DSH_HOME` 安装后用安装版同一 Electron 运行时启动，取得 `ENHANCED_ACCEPTANCE_PASS`（工具注册、两套 Playwright 前缀、5 个技能解析、`/session-bus list`、系统提示装配）。该次验收**没有真实模型调用**，端到端工具执行未覆盖。
-- 子代理能力另行做了真实模型验收（见 `docs/VALIDATION.md` 同日「子代理能力验收与嵌套深度对齐」）：隔离 `DSH_HOME` 启动 desktop profile，凭据只在进程内存中转，取得 `SUBAGENT_ACCEPTANCE_PASS`——冷恢复、父子互发、后代深度、祖先中断与深度 2 的孙代理均实测。Team 包装层与被在线 Agent 拥有的成员计划模式不在该次覆盖内。
+- 子代理能力另行做了真实模型验收（见 `docs/VALIDATION.md` 同日「子代理能力验收与嵌套深度对齐」）：隔离 `DSH_HOME` 启动 desktop profile，凭据只在进程内存中转，取得 `SUBAGENT_ACCEPTANCE_PASS`——冷恢复、父子互发、后代深度、祖先中断与深度 2 的孙代理均实测。Team 治理面在 2026-10-23 另行验收（「Team 计划审批、Hook 事件与成员面板」）：真实模型队友提交计划、Lead 批准/拒绝、三个 Hook 事件放行与退出码 2 拦截、计划记录在原生冷读下可忽略，以及装好的 Web UI 里打开成员面板并并排打开真实成员会话。
 
 ### 2.3 判定口径
 
@@ -51,8 +51,8 @@
 | Shell / 文件 / 搜索 | ✅ bash/pwsh、fs、fs-search | ✅ Bash/PowerShell、文件工具 | 持平 |
 | 计划模式 | ✅ plan mode + planner 预设 | ✅ plan mode + Plan 子代理 | 持平 |
 | 目标保持 / 长任务 | ✅ goal 工具 + 命令，带执行时权限检查 | ✅ `/goal` 可验证完成条件，小模型判停 | 接近 |
-| 子代理 | ✅ subagent / fork / list-agents / control；本部署活跃槽位 20、嵌套 3 层（`maxDepth`）；按 ID 冷恢复、父子互发消息、目录/后代查询与祖先中断已用真实模型在隔离宿主验收 | ✅ 子代理，可按 ID 恢复、可互发消息，默认嵌套 3 层、20 并发 | **接近（恢复、互发、嵌套已对齐；差异在 UI 呈现）** |
-| 多代理团队 | ✅ 本地 Team：共享任务（CAS/依赖/认领/改派/审批 `approve`·`reject`）、`send_message`、`list_agents`、`wait_agent`、worktree 隔离；可选 `requireTaskApproval` 与 `taskGate`（在 TaskCreated/TaskCompleted 同步执行，退出码 2 拒绝） | ✅ Agent Teams（实验，默认关闭）：共享任务 + mailbox + 计划审批 + 门禁 hook + 分屏 | **接近，弱在原生 Hook 事件与计划模式；门禁为本地同步命令且默认关闭** |
+| 子代理 | ✅ subagent / fork / list-agents / control；本部署活跃槽位 20、嵌套 3 层（`maxDepth`）；按 ID 冷恢复、父子互发消息、目录/后代查询与祖先中断已用真实模型在隔离宿主验收；主对话工具行内直接显示子代理入口（描述、状态、并排/主视图/检查），已在装好的 Web UI 用真实模型验收 | ✅ 子代理，可按 ID 恢复、可互发消息，默认嵌套 3 层、20 并发 | **接近（恢复、互发、嵌套与主对话内入口已对齐）** |
+| 多代理团队 | ✅ 本地 Team：共享任务（CAS/依赖/认领/改派/审批 `approve`·`reject`）、`send_message`、`list_agents`、`wait_agent`、worktree 隔离；成员计划审批（`team_plan_submit` 阻塞等待，`team_plan_resolve` 仅 Lead，拒绝必须给反馈，待审期间只读）；`TaskCreated` / `TaskCompleted` / `TeammateIdle` 三个 Hook 事件（退出码 2 拦截，`TeammateIdle` 以 steer 让成员继续）；Team 面板可查看成员并并排打开 | ✅ Agent Teams（实验，默认关闭）：共享任务 + mailbox + 计划审批 + 门禁 hook + 分屏 | **基本对齐（成员计划模式仍需手动由 teammate 调用；双方均为可选/实验）** |
 | 嵌套会话 / 状态总览 | ✅ 两层父子会话、并排分屏、待审批/计划待审/问题/停止/失败状态、跨工作区分组（元数据，20 条/批） | ✅ 子代理 + agent view 全局状态、按 ID 恢复 | 接近 |
 | 本地环境 / 多仓库 | ✅ 保存多仓库 + worktree + 只写变量，便携定义导入导出，启动独立会话 | ◐ worktree、`--add-dir`、Projects；无同等环境定义与变量管理 | **DSH 更强** |
 | 后续建议 / 确认式派发 | ✅ `propose_followups` 只提议；owner 确认后独立 worktree 启动或排入当前会话，Tab 采纳草稿 | ✅ 桌面建议提示、采纳后排入 | 接近（DSH 强在确认前不执行） |
@@ -72,7 +72,7 @@
 | 权限 | ◐ 3 预设（模板默认 workspace-write；只读 / 工作区写 / 完全访问） | ✅ 6 模式 + allow/deny/ask + 分类器 + dontAsk | **弱** |
 | 沙箱 | ◐ sandbox-policy 三档，OS 级隔离未见验收 | ✅ macOS/Linux/WSL2 OS 级文件+网络代理；原生 Windows 无沙箱 | **弱（证据不足）** |
 | Hooks | ◐ 兼容层按目标机器上 Hook 文件是否存在启用，仓库不含 Hook 内容 | ✅ 30+ 事件、5 类执行器 | **弱** |
-| 技能 | ✅ 原生 `skill-filesystem` + `tool-skill`；16 个受管技能（10 个本地 + 6 个 OpenSpec），安装器自动发现 `SKILL.md` 与同目录资源；技能的实际模型调用未验收 | ✅ 渐进披露、`context: fork`、插件/账号同步 | 接近 |
+| 技能 | ✅ 原生 `skill-filesystem` + `tool-skill`；24 个受管技能（18 个本地 + 6 个 OpenSpec），安装器自动发现 `SKILL.md` 与同目录资源；技能的实际模型调用未验收 | ✅ 渐进披露、`context: fork`、插件/账号同步 | 接近 |
 | 插件生态 | ◐ 市场 UI 存在，模型侧工具禁用；无评测/治理 | ✅ 市场、mods、插件评测、企业策略 | **弱** |
 | MCP | ✅ 客户端（含两个 Playwright 服务） | ✅ 三种传输 + OAuth + tool search + 大结果落盘 | **弱（未验证认证）** |
 | 回退 / 检查点 | ✅ rewind：会话/文件/两者，code-only 走快照日志 | ✅ 100 个检查点、定向摘要、明确排除项 | 接近，语义不同 |
@@ -127,11 +127,17 @@ Claude 可把 Telegram / Discord / iMessage / webhook 事件作为会话输入�
 
 ### 4.9 团队计划审批与任务门禁
 
-Claude Agent Teams 支持 teammate 先进入只读计划模式：计划完成后向 lead 发审批请求，默认由 Claude Code 直接放行（用户手动把该成员切进计划模式时改由 lead 审阅）；并由 TeammateIdle / TaskCreated / TaskCompleted 三个 hook 做质量门禁。DSH 的本地 Team 现在有任务级审批动作（`approve` / `reject`，仅 Lead，作用于 `awaiting_approval` 任务）和一个同步任务门禁：开启 `requireTaskApproval` 后，队友创建的任务先停在 `awaiting_approval`；配置 `taskGate` 后，创建与完成都会把任务视图以 JSON 交给该命令，退出码 2 拒绝、其他非 0 记为门禁失败。仍然没有的能力：成员级计划模式与计划审阅、原生 hook 事件（门禁是本地同步命令，不是 Hook 进程，也不覆盖 TeammateIdle）、成员级分屏。嵌套会话一侧已能把子会话的"待审批 / 计划待审"呈现到侧栏并打开决策卡片，也能记录拒绝结果，但这是把原生审批状态**展示出来**，不是给 Team 任务增加审批门禁。**影响**：现在可以在"动手前"卡一道审批、在任务完成时跑校验；审批动作默认关闭，门禁命令由部署方自行提供。
+Claude Agent Teams 支持 teammate 先进入只读计划模式：计划完成后向 lead 发审批请求，默认由 Claude Code 直接放行（用户手动把该成员切进计划模式时改由 lead 审阅）；并由 TeammateIdle / TaskCreated / TaskCompleted 三个 hook 做质量门禁。DSH 的本地 Team 现在有两层治理：
+
+- **计划审批**：队友调用 `team_plan_submit` 提交完整计划，随后阻塞等待；工具 guard 在该成员有待审计划时只放行只读工具与消息，直到 Lead 用 `team_plan_resolve` 批准、或带反馈拒绝（拒绝必须给理由）。计划与决策持久化为插件可忽略记录 `plugin:agent-team-local/plan`，`team_plan_list` 可随时回看状态与反馈。
+- **任务与空闲门禁**：`TaskCreated` / `TaskCompleted` / `TeammateIdle` 三个 Hook 事件把事件 JSON 写到命令 stdin，超时 10 秒；退出码 0 放行、2 拦截（任务返回 `TEAM_TASK_BLOCKED`，空闲把理由 steer 回成员让本轮继续）、其他非 0 记门禁失败。`requireTaskApproval` 仍可让队友创建的任务先停在 `awaiting_approval`，旧配置 `taskGate` 继续作为两个任务事件的回退命令。
+- **成员视图**：Team 面板列出成员、状态与待审计划数，可把任一成员并排打开为原生子会话 chat，或切回 Lead 视图。
+
+仍与 Claude 不同的是：DSH 的"计划模式"不是成员级权限模式自动切换，而是由 teammate 主动调用工具进入只读；待审计划目前阻塞在该次工具调用里，不会自动在下一轮续跑。**影响**：动手前的审批、完成时的校验与 teammate 空闲前的检查都能配置；Hook 默认未配置，命令由部署方提供。
 
 ### 4.10 桌面级功能面
 
-Claude 桌面有逐文件 diff + 按行评论回传、PR CI 监控、SSH 远程会话、隔离 worktree 会话、多 teammate 分屏。DSH 桌面有嵌套会话分屏、任务/回顾、浏览器批注、确认式后续任务、本地环境与跨工作区状态分组，但没有 diff 行内评论与远程会话，Team 成员也没有独立分屏视图（分屏只覆盖嵌套会话）。**影响**：多方并行时，Team 成员的进度仍只能在主界面看。
+Claude 桌面有逐文件 diff + 按行评论回传、PR CI 监控、SSH 远程会话、隔离 worktree 会话、多 teammate 分屏。DSH 桌面有嵌套会话分屏、任务/回顾、浏览器批注、确认式后续任务、本地环境与跨工作区状态分组，以及 Team 成员面板：侧栏入口列出成员状态与待审计划，可把成员并排打开为原生子会话 chat。仍没有 diff 行内评论与远程会话。**影响**：多名 Team 成员可以逐个并排，也可用「全部并排」一次铺开所有已就绪成员（已实测两名）；与 Claude 的差别是分屏由用户点击触发，而非自动布局。
 
 ### 4.11 平台化能力（Claude Platform 层）
 
@@ -150,12 +156,12 @@ Claude 把会话产出发布为 claude.ai 上的 Artifacts（原地更新、版�
 | 层 | DSH | Claude Code |
 |---|---|---|
 | 子代理 | `subagent` / `fork` / `list-agents` / `control`；嵌套深度配置为 3 层（原生默认 1，已对齐）；按 ID 冷恢复、父子互发消息、后代深度与祖先中断均已用真实模型在隔离宿主验收 | 可按 ID 恢复（`SendMessage`）、可按名字互发消息；默认向下嵌套 3 层（`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`，设为 1 关闭），默认 20 个并发 |
-| 团队 | 本地 Team：共享任务带 revision CAS、依赖、认领/完成/重开/改派、建议写范围（advisory，非锁），以及 `approve` / `reject` 审批动作与可选 `taskGate`（TaskCreated / TaskCompleted 同步命令，退出码 2 拒绝）；`send_message` 在步边界 steer 或唤醒、`wait_agent`、`spawn_teammate` 支持独立 model / preset / worktree；默认 16 名成员、256 个任务、单条消息 64 KiB | Agent Teams（实验，默认关闭，需 `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`）：共享任务列表 + mailbox + 计划审批 + `TeammateIdle` / `TaskCreated` / `TaskCompleted` 门禁 hook + in-process/分屏两种显示；成员无硬上限（建议 3–5）；限制：每会话一支团队、团队不能嵌套、不能转移 lead、`/resume` 不恢复 in-process 成员 |
+| 团队 | 本地 Team：共享任务带 revision CAS、依赖、认领/完成/重开/改派、建议写范围（advisory，非锁），`approve` / `reject` 任务审批，成员计划审批（`team_plan_submit` 阻塞 → `team_plan_resolve` 批准/拒绝，待审只读），`TaskCreated` / `TaskCompleted` / `TeammateIdle` Hook 事件（退出码 2 拦截）与 `taskGate` 回退；`send_message` 在步边界 steer 或唤醒、`wait_agent`、`spawn_teammate` 支持独立 model / preset / worktree；Team 成员面板可并排打开成员；默认 16 名成员、256 个任务、单条消息 64 KiB | Agent Teams（实验，默认关闭，需 `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`）：共享任务列表 + mailbox + 计划审批 + `TeammateIdle` / `TaskCreated` / `TaskCompleted` 门禁 hook + in-process/分屏两种显示；成员无硬上限（建议 3–5）；限制：每会话一支团队、团队不能嵌套、不能转移 lead、`/resume` 不恢复 in-process 成员 |
 | 工作流 | 本地扩展 `workflow-ptc` + `tool-workflow`（上游 0.2.1-rc.2 源码）：`provider: spawn`、并发 16、单次最多 1000 个代理、单次调用 4096 项、规模指引（5/10/25）、`budget_tokens` / `budget_ms` 与只读 `budget`、一层嵌套、journal 断点续跑（前缀回放，失配后转 live）、schema 失败重试（`schemaRetries` 默认 5，只有最终尝试入 journal） | 动态工作流：JS 脚本（`agent` / `pipeline` / `parallel` / `phase` / `args`）、`schema` 校验失败重试 5 次、单次调用最多 4096 项、默认 16 并发（可调 1–256）、单次最多 1000 个代理、同一会话内断点续跑、超过 25 个代理或预估 150 万 token 时提示 Large workflow |
 
-- **DSH**：Team 只在 desktop profile 提供，只有 lead 能 spawn，`wait_agent` 超时限制 10 秒–1 小时；Team 成员是 subagent，不会出现在嵌套会话树里。嵌套会话是另一套机制，最多两层，`wait_for_sessions` 最多等 60 秒，`read_session` 默认取最后 12 条（最多 40 条、正文截 16K 字符），并带跨工作区状态分组（仅元数据、每批 20 条）、跨 cwd 的侧栏血缘、取消传播，以及经记忆插件公开服务继承的禁写边界。工作流的规模、一层嵌套、journal 续跑、时长预算与工具 schema 已在隔离宿主验收（journal 生成、resume 只写 header、嵌套拒绝、604 ms 越过 300 ms 预算被拒）；并发 16 的排队行为与真实模型的 token 预算触发仍未验收。子级也不继承父会话的 cwd、preset 或 reasoning effort。
+- **DSH**：Team 只在 desktop profile 提供，只有 lead 能 spawn，`wait_agent` 超时限制 10 秒–1 小时；Team 成员是 subagent，不会出现在嵌套会话树里，而由 Team 面板单独列出并可并排打开。嵌套会话是另一套机制，最多两层，`wait_for_sessions` 最多等 60 秒，`read_session` 默认取最后 12 条（最多 40 条、正文截 16K 字符），并带跨工作区状态分组（仅元数据、每批 20 条）、跨 cwd 的侧栏血缘、取消传播，以及经记忆插件公开服务继承的禁写边界。工作流的规模、一层嵌套、journal 续跑、时长预算与工具 schema 已在隔离宿主验收（journal 生成、resume 只写 header、嵌套拒绝、604 ms 越过 300 ms 预算被拒）；并发 16 的排队行为与真实模型的 token 预算触发仍未验收。子级也不继承父会话的 cwd、preset 或 reasoning effort。
 - **Claude**：subagent / Agent Teams / dynamic workflows 是三层递进，各有明确的规模与中断语义；工作流把中间结果留在脚本变量里，不占主上下文，对抗验证、多角度评审这类质量模式可以写进脚本复用；Team 的成员是独立会话，可在 UI 里直接对话、按名字互发消息。
-- **差距性质**：协议层（共享任务、消息、worktree 隔离）DSH 已接近；差距集中在两处——**治理**（计划审批、任务级 hook、成员并排分屏）与**规模语义**。成员本身有第三方子代理管理面板（`dsh-subagent-workspace-ui`，标题栏显示活跃数并可在右侧栏打开单个子代理），缺的是 Claude 那种把多名成员同时铺开的成员视图。规模数字已补上：工作流并发 16、单次 1000 对齐 Claude 的默认量与上限，原生 subagent 活跃槽位同步从默认 8 调到 20（工作流占 16，留 4 个给手工 subagent）。本地引擎已补上断点续跑、整体时长/token 预算、一层嵌套与 `schema` 失败自动重试；Team 已补上任务审批动作与可选同步门禁。子代理侧已补齐到与 Claude 相同：嵌套 3 层、按 ID 冷恢复、父子互发与中断均已实测。剩余差距是原生 Hook 事件与成员计划模式、Team 成员互发的真实宿主验收、超大规模提示与真实模型重试的实际体验，以及 token 预算只在宿主挂载 `session-query` 时可用。原生计划模式的评审只能由运行时根会话发起，被另一个在线 Agent 拥有的子会话无法打开评审，因此成员级计划模式不能只靠打开原生开关解决。成熟度是反向的：Claude 的 Teams 仍是实验特性、默认关闭；DSH 的 Team 是常规配置。但 DSH 的 Team 与嵌套会话仍是两套并列机制，Claude 已是三层递进。本部署另有额外可选 `cc` preset（CC 模式）：把 standard 的完整插件列表与 PTC 呈现组合，让模型用 `run_code` 调用工具；它改变的是工具呈现方式；续跑、整体预算与嵌套由本地引擎提供，与是否选择 CC 无关。
+- **差距性质**：协议层（共享任务、消息、worktree 隔离）DSH 已接近；差距集中在两处——**治理闭环**（Claude 的成员计划模式会自动切换只读并发起审批，DSH 由成员主动调用工具进入）与**规模语义**。成员视图已补：仓库内的 `@local/dsh-team-view` 在侧栏提供 Team 面板，列出成员、状态与待审计划数，可把成员并排打开为原生子会话 chat，或用「全部并排」一次铺开已就绪成员；仍不像 Claude 那样自动分屏。规模数字已补上：工作流并发 16、单次 1000 对齐 Claude 的默认量与上限，原生 subagent 活跃槽位同步从默认 8 调到 20（工作流占 16，留 4 个给手工 subagent）。本地引擎已补上断点续跑、整体时长/token 预算、一层嵌套与 `schema` 失败自动重试；Team 已补上计划审批、任务审批与三个 Hook 事件。子代理侧已补齐到与 Claude 相同：嵌套 3 层、按 ID 冷恢复、父子互发与中断均已实测；Team 治理面已在隔离宿主与装好的 Web UI 中验收。剩余差距是超大规模提示与真实模型重试的实际体验，以及 token 预算只在宿主挂载 `session-query` 时可用。原生计划模式的评审只能由运行时根会话发起，被另一个在线 Agent 拥有的子会话无法打开评审，因此 DSH 的成员计划审批走 Team 自己的计划记录，而不是原生计划模式。成熟度是反向的：Claude 的 Teams 仍是实验特性、默认关闭；DSH 的 Team 是常规配置。但 DSH 的 Team 与嵌套会话仍是两套并列机制，Claude 已是三层递进。本部署另有额外可选 `cc` preset（CC 模式）：把 standard 的完整插件列表与 PTC 呈现组合，让模型用 `run_code` 调用工具；它改变的是工具呈现方式；续跑、整体预算与嵌套由本地引擎提供，与是否选择 CC 无关。
 
 ### 5.2 权限与审批粒度
 
@@ -228,7 +234,7 @@ desktop profile 有 MCP、Team、worktree、plan mode、tool-result pruner、区
 
 ### 6.4 可见的父子会话树
 
-原生侧边栏层级、会话级进度、任务与最近回合回顾、并排分屏（复用原生会话引用与独立草稿）、后台完成通知（基于会话列表事件 + 2 秒轮询，首屏不重放、按 outcomeSeq 去重、静音可选）。限制：回顾只是原生每回合最多 120 字符的回复预览，不是模型另写的总结；任务面板最多 40 项；系统通知横幅已用隔离载体验证 show 事件，但物理横幅未完全验收；侧栏树依赖固定 `data-row-key`/ARIA 结构。Claude 的子代理在界面里不是一等会话；Agent Teams 虽可直聊 teammate，但仍标注实验性。**价值**：多任务并行时"谁在干什么"更直观。
+原生侧边栏层级、会话级进度、任务与最近回合回顾、主对话工具行内的子代理入口（描述、实时状态、并排查看/在主视图打开/检查）、并排分屏（复用原生会话引用与独立草稿）、Team 成员面板（成员状态、待审计划、并排打开成员 chat）、后台完成通知（基于会话列表事件 + 2 秒轮询，首屏不重放、按 outcomeSeq 去重、静音可选）。限制：回顾只是原生每回合最多 120 字符的回复预览，不是模型另写的总结；任务面板最多 40 项；系统通知横幅已用隔离载体验证 show 事件，但物理横幅未完全验收；侧栏树依赖固定 `data-row-key`/ARIA 结构。Claude 的子代理在界面里不是一等会话；Agent Teams 虽可直聊 teammate，但仍标注实验性。**价值**：多任务并行时"谁在干什么"更直观。
 
 ### 6.5 跨工作区只读历史授权
 
@@ -301,9 +307,9 @@ OpenSpec 1.14.3 + `dsh-spec-delivery`：从提案到实现到归档的完整 ski
 
 ### P1：补齐协作协议的缺口（1–2 月）
 
-5. **Team 计划审批**：任务级 `approve` / `reject` 与 `requireTaskApproval` 已补上；仍未做的是成员只读计划模式与计划审阅交互。
-6. **任务级 hook**：`taskGate` 已在任务创建/完成时同步执行校验并支持退出码 2 拒绝；未覆盖 TeammateIdle，也不是原生 Hook 事件。
-7. **Team 界面**：成员分屏或独立会话视图。嵌套会话已有并排分屏与状态分组，Team 成员仍是 subagent，不进会话树、也没有独立视图。
+5. **Team 计划审批**：已完成任务级 `approve` / `reject`、`requireTaskApproval`，以及成员计划审批（`team_plan_submit` / `team_plan_list` / `team_plan_resolve`，待审只读，拒绝必须给反馈）。未做的只是"进入计划模式"由运行时自动切换。
+6. **任务级 hook**：已完成 `TaskCreated` / `TaskCompleted` / `TeammateIdle` 三个 Hook 事件，退出码 2 拦截，`TeammateIdle` 以 steer 让成员继续；旧 `taskGate` 保留为两个任务事件的回退命令。
+7. **Team 界面**：已完成 `@local/dsh-team-view` 成员面板（侧栏入口、成员状态、待审计划数、并排打开成员 chat）与「全部并排」整组布局（两名真实成员实测）。
 
 ### P2：可观测性（1–2 月，与 P1 并行）
 
@@ -322,20 +328,20 @@ OpenSpec 1.14.3 + `dsh-spec-delivery`：从提案到实现到归档的完整 ski
 本仓库：
 
 - `README.md`：定位、能力清单、两种历史层、安全边界
-- `docs/AGENT-ENHANCEMENTS.md`：工作流、会话间消息、代码/安全审查、双浏览器链路、用量成本、Claude 指令注入与消息内文件路径交互
+- `docs/AGENT-ENHANCEMENTS.md`：工作流、会话间消息、代码/安全审查、双浏览器链路、用量成本、Claude 指令注入、消息内文件路径交互，以及 Team 计划审批、Hook 事件与成员面板
 - `docs/CODE-STRUCTURE.md`：模块职责与依赖规则
 - `docs/NESTED-SESSIONS.md`：两层嵌套、消息、权限继承、跨工作区授权
 - `docs/WORKTREE-DELIVERY.md`：隔离、集成、验收
 - `docs/BROWSER-COMPUTER-USE.md`：Playwright、CUA、批注、边界
 - `docs/IDLE-COMPACTION.md`：54 分钟 / 200K 阈值、真实代理验收
-- `docs/VALIDATION.md`：验收记录与未完成项（含 2026-10-22 的装配层验收与限制）
+- `docs/VALIDATION.md`：验收记录与未完成项（含 2026-10-22 装配层验收与 2026-10-23 Team 治理验收）
 - `docs/OPENSPEC.md`：规格交付流程
 - `docs/NESTED-ACCEPTANCE.md`：R1–R9 逐项验收、117 项回归、远程边界
 - `docs/FOLLOW-UPS.md`：确认式后续任务、输入建议与撤销边界
 - `docs/MEMORY-WRITE-POLICY.md`：会话级禁写、子会话继承与异步复查
 - `docs/local-environment-execution.md`：多仓库环境、变量、便携定义与实测证据
 - `config/desktop.patch.json`：模型、预设、权限、插件装配
-- `modules/`、`plugins/`、`skills/`：本地模块、本地插件与受管技能源码（`plugins/file-links` 含路径识别与其回归）
+- `modules/`、`plugins/`、`skills/`：本地模块、本地插件与受管技能源码（`plugins/file-links` 含路径识别与其回归；`plugins/team-view` 为 Team 成员面板，带客户端回归）
 - `test/*.test.mjs`：回归断言（含全局挂载、workflow 上限、扫码脱敏）
 - `provenance.json`：运行时版本与本地模块记录
 

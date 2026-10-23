@@ -1,5 +1,37 @@
 # 可迁移性验收
 
+## 2026-10-23 干净环境技能同步
+
+- 入仓技能：`skills/` 新增 `ponytail`、`check`、`handoff`、`implement`、`grill-me`、`grill-with-docs`、`grilling`、`domain-modeling`，来源为本机 `~/.claude/skills` 与 `~/.agents/skills`。`grill-me` 依赖 `grilling`，`grill-with-docs` 依赖 `grilling` + `domain-modeling`，四项必须同时部署。
+- 部署路径：安装器按 `skills/*/SKILL.md` 自动发现，复制到 `profiles/desktop/agent-capabilities/skills/<名称>/`；只有 DSH 的机器执行 `install` 即得到 24 个受管技能（18 个本地 + 6 个 OpenSpec）。这些技能不进入 `align-skills.mjs` 的 agent 全局同步清单。
+- 验证：`install --dry-run` 从 65 个受管文件增至 94 个；安装后 `~/.dsh/profiles/desktop/agent-capabilities/skills` 列出全部 24 个技能，`status` 无漂移；`test/portable.test.mjs` 13 项与完整 `npm test` 157 项通过，其中「versioned sources contain neither personal host paths nor credential files」覆盖新增文件。
+- 未验证：只在安装目录层面确认技能落盘，未在真实 DSH 会话里逐个触发这些技能的模型调用。
+
+## 2026-10-23 主对话内的子代理入口
+
+- 交互：`plugins/nested-sessions` 在 `tool.call.toolview` 上为 `subagent`、`subagent_fork` 注册轻量组件，把原生工具行替换成「子代理 + 描述 + 状态」，并提供「并排查看」「在主视图打开」「检查」与可展开的提示词。子会话 id 从工具结果的 `started subagent <id>` 解析，打开复用原生 `subagentchat` 资源，状态读原生子会话投影。
+- 冲突修复：原生 `details-toolview` 已经以 priority 0 注册同名 key，首个版本同优先级注册时宿主直接抛 `keyed slot "tool.call.toolview" already has an entry for key "subagent" at priority 0`，整个客户端不渲染。改为 `priority: -1`（最低者渲染）后生效，`test/nested-client.test.mjs` 锁定该优先级，`provenance.json`、锁模板与 `package.json` 同步到 1.3.5。
+- 验收方式：隔离 `DSH_HOME` 装入 1.3.5 包后启动 desktop profile 的 Web UI，真实模型按提示词调用一次 `subagent`，再在页面里检查该工具行。
+- 结果（`INLINE_SUBAGENT_UI_PASS`）：第一轮工具行显示「子代理 / UI inline entry check / 已完成」与三个按钮；点击「并排查看」后右侧出现子会话面板并显示 `INLINE`。截图 `inline-subagent.png`、`inline-subagent-side.png` 留在 `.local`。
+- 自动化注意：宿主把已完成的步骤放在 `hidden="until-found"` 里（配合浏览器查找的 reveal），Playwright 判定为不可见；验收脚本改为对隐藏祖先派发 `beforematch` 事件，触发组件自带的 reveal 钩子，属于宿主原生机制而非绕开。
+- 结果（`INLINE_FORK_UI_PASS`）：另起会话让真实模型调用 `subagent_fork`，同一组件渲染「子代理 / UI fork entry check / 已完成」与三个按钮；三个动作都是原生 `<button type="button">`，可访问名称分别为「并排查看」「在主视图打开」「检查」（后者另有 `aria-label="在轨迹中检查该调用"`），提示词为原生 `<details>`。把焦点移到「并排查看」后按 Enter 打开右侧子会话面板并显示 `FORK`。截图 `fork-inline.png`、`fork-inline-side.png` 留在 `.local`。
+- 未验证：只用可访问名称和键盘激活检查了无鼠标路径，没有用真实读屏软件（Narrator/NVDA）跑一遍；「检查」打开的轨迹内容未断言。
+- 部署：构建产物 `nested-sessions-1.3.5-67fe8850f6cf.tgz`，`install --dry-run` 后装入隔离 home（备份 `portable-harness-2026-10-23T01-38-24-657Z`）；`rtk proxy node --test test/portable.test.mjs` 13 项通过，完整 `npm test` 157 项通过。
+
+## 2026-10-23 Team 计划审批、Hook 事件与成员面板
+
+- 计划审批：`modules/team.mjs` 增加 `submitPlan` / `listPlans` / `resolvePlan` / `pendingPlan`；`modules/team-tools.mjs` 增加 `team_plan_submit`、`team_plan_list`、`team_plan_resolve`，并在成员有待审计划时用工具 guard 只放行 `read`、`read_image`、`glob`、`grep`、`skill`、`send_message`、`team_task_get`、`team_task_list`、`team_plan_list`。拒绝必须带反馈。
+- Hook 事件：`TeamService.Config.hooks` 可配 `TaskCreated` / `TaskCompleted` / `TeammateIdle`（字符串或字符串数组），事件 JSON 走 stdin，10 秒超时，退出码 0 放行、2 拦截、其他记为门禁失败；`TeammateIdle` 在 `agent/turn-stopping` 运行，退出码 2 把 stderr steer 回成员继续本轮。旧 `taskGate` 仍是两个任务事件的回退命令。
+- 成员面板：新增本地客户端包 `plugins/team-view`（`@local/dsh-team-view`），同步 `provenance.json`、`config/desktop.package.json` 与锁模板；侧栏入口读取选中会话的 `agentTeam` 投影，列出成员状态与待审计划数，可经原生 `subagentchat` 资源并排打开成员。`test/team-view-client.test.cjs` 加入测试清单。
+- 验收方式：隔离 `DSH_HOME` 启动 desktop profile，真实模型驱动；凭据只在进程内存中从本机凭据文件转发，不落盘、不打印。脚本位于 `.local/accept-2026-10-22-a`（不入库）。
+- 结果（`TEAM_ACCEPTANCE_PASS`）：真实队友提交计划后 `team_plan_submit` 阻塞；Lead 批准后返回 `approved`，拒绝无反馈被 `TEAM_INVALID_ARGUMENT` 拒绝，带反馈拒绝返回 `rejected` 与反馈；`team_plan_list` 状态为 `approved`/`rejected`。`TaskCreated`、`TaskCompleted`、`TeammateIdle` 三个 Hook 均实测：退出码 2 时任务创建被 `TEAM_TASK_BLOCKED` 拦住且任务未落库、任务完成被拦住并保持 `in_progress`、成员空闲被拦后收到 steer 继续工作且之后仍能正常结束。
+- 真实缺陷与修复：计划最初以 `team/plan` 直接追加，安装版冷读时报 `SessionFormatUnsupportedError: ... unknown to this harness and not marked ignorable`。改为 `appendPluginRecord(session, "plugin:agent-team-local/plan", ...)` 后，原生持久化可以跳过该记录，安装与冷读通过；验收断言历史中有 4 条 `plugin:agent-team-local/plan` 记录且均为 `ignorable: true`、`version: 2`。
+- 界面验收（`TEAM_UI_PASS`）：安装版 Web UI 中选中 Lead 会话，侧栏 `Team` 面板列出真实队友 `worker` 与「就绪」状态；点击 `并排打开` 后右侧栏出现该成员的 `subagentchat` 会话，显示 `Reply with exactly: READY` → `READY`。截图留在 `.local`。
+- 整组布局（`TEAM_UI_MULTI_PASS`）：在同一 Team 中再启动真实队友 `helper`（`Reply with exactly: HELPER` → `HELPER`），`全部并排` 提示「已并排打开 2 个成员」，右侧同时出现 `worker` 与 `helper` 两个 `subagentchat` 面板，各自显示 `READY` / `HELPER`；截图 `team-ui-open-all.png`。
+- Hook 超时缺陷与修复：首轮验收记录 `HOOK_TIMEOUT_PASS {"elapsedMs":10009,"hookSurvived":true,"grandchildSurvived":true}`——超时只结束了 cmd.exe，Hook 进程及其脱离的孙进程都存活。改为 Windows 上以 `taskkill /pid <shell> /T /F` 结束整棵树（`kill()` 只作为 `taskkill` 失败后的回退），修复后同一脚本得到 `HOOK_TIMEOUT_PASS {"elapsedMs":10017,"hookSurvived":false,"grandchildSurvived":false}`。中间版本把 `child.kill()` 与 `taskkill` 并排调用，`taskkill` 因 shell 已退出返回 128，树杀必须独自完成。
+- 部署：`install --dry-run` 预览后安装（保留备份 `portable-harness-2026-10-22T16-21-45-498Z`），安装时 `status` 无漂移；之后启动 Web UI 验收时，宿主自身把该隔离 home 的 `profiles/desktop/cordis.patch.yml` 改写成 YAML 并更新 `welcomeNoticeVersion`（`2026-08-13.1` → `2026-09-28.1`），再查 `status` 会报告这一个文件漂移，与本次源码无关。`rtk proxy node --test test/portable.test.mjs` 13 项通过，完整 `npm test` 156 项通过。
+- 未验证：一次回合可能多次触发 `turn-stopping`，因此同一回合的 `TeammateIdle` Hook 次数不固定；POSIX 上 Hook 超时仍只结束 shell，后代进程可能继续运行（只在 Windows 验证）；计划与 Hook 只有本机验收脚本，仓库内没有对应自动回归。
+
 ## 2026-10-22 子代理能力验收与嵌套深度对齐
 
 - 配置：`config/desktop.patch.json` 的 `@deepseek-ai/dsh-subagent` 增加 `maxDepth: 3`（原生默认 1）。Claude Code 的 `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` 默认值同为 3，语义一致：根会话深度 0，子代理每层加一，超过上限的启动被拒绝。`test/portable.test.mjs` 的配置断言同步为新值。

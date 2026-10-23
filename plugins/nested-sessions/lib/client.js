@@ -1256,6 +1256,20 @@ window.__ModuleLoader__.load({
 .dsh-nested-error{color:#b22;white-space:pre-wrap}
 .dsh-nested details{font-size:12px;color:var(--dsw-alias-label-secondary,#697386)}
 .dsh-nested summary{cursor:pointer}
+.dsh-subagent-call{display:flex;flex-direction:column;gap:2px;font-size:13px;line-height:1.5;min-width:0}
+.dsh-subagent-call-row{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+.dsh-subagent-call-title{font-weight:600;white-space:nowrap}
+.dsh-subagent-call-desc{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary,#697386)}
+.dsh-subagent-call-state{font-size:12px;white-space:nowrap;color:var(--dsw-alias-label-secondary,#697386)}
+.dsh-subagent-call[data-state=result] .dsh-subagent-call-state{color:#15803d}
+.dsh-subagent-call-actions{display:flex;gap:6px;margin-left:auto}
+.dsh-subagent-call button{font:inherit;font-size:12px;color:inherit;border:1px solid var(--dsw-alias-border-l2,#dce0e7);border-radius:6px;background:transparent;padding:2px 8px;cursor:pointer}
+.dsh-subagent-call button:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,#8881)}
+.dsh-subagent-call button:focus-visible{outline:2px solid #356ae6;outline-offset:2px}
+.dsh-subagent-call button:disabled{opacity:.45;cursor:default}
+.dsh-subagent-call details{font-size:12px;color:var(--dsw-alias-label-secondary,#697386)}
+.dsh-subagent-call summary{cursor:pointer}
+.dsh-subagent-call pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow:auto;margin:4px 0 0;font-size:12px}
 .dsh-nested-popup{position:absolute;top:calc(100% + 10px);left:0;width:min(470px,calc(100vw - 30px));max-height:75vh;overflow:auto;z-index:100;padding:22px;border:1px solid var(--dsw-alias-border-l2,#dce0e7);border-radius:14px;background:var(--dsw-alias-bg-layer-1,#fff);box-shadow:0 12px 40px #0002}
 .dsh-nested-popup h2{font-size:18px}
 .dsh-global-attention>button{font-size:12px;padding:6px 10px}
@@ -1728,7 +1742,145 @@ window.__ModuleLoader__.load({
       );
     }
 
+    // Native delegation tools; a settled call renders `started subagent <child>`.
+    const subagentToolNames = ["subagent", "subagent_fork"];
+
+    /**
+     * Read the child Session id from a settled native subagent result.
+     * @param {{content?: readonly object[], isError?: boolean}} block - tool result node.
+     * @returns {string | undefined} child Session id.
+     */
+    function subagentIdOf(block) {
+      if (block?.isError) return undefined;
+      for (const part of block?.content ?? [])
+        if (part.type === "text") {
+          const match = /started subagent (\S+)/.exec(part.text ?? "");
+          if (match) return match[1];
+        }
+      return undefined;
+    }
+
+    /**
+     * Address one child Session for the native right-panel chat resource.
+     * @param {{parentSessionId: string, childSessionId: string, mode: string}} address - subagent address.
+     * @returns {string} canonical resource address.
+     */
+    function subagentChatAddress(address) {
+      return (
+        "dsh-resource://subagentchat/session/" +
+        encodeURIComponent(address.childSessionId) +
+        "?parent=" +
+        encodeURIComponent(address.parentSessionId) +
+        "&mode=" +
+        address.mode
+      );
+    }
+
+    /**
+     * Inline entry for one native subagent call in the main conversation: open
+     * the child beside it or in the main view, and follow the child's state.
+     * Replaces the generic tool row for the two delegation tool names.
+     */
+    function SubagentCall({ ctx, phase, block, toolName, inspect }) {
+      const description = block.args.text("description"),
+        prompt = block.args.text("prompt"),
+        childId = phase === "result" ? subagentIdOf(block) : undefined,
+        list = React.useSyncExternalStore(
+          (listener) => ctx.sessions.list.subscribe(listener),
+          () => ctx.sessions.list.getSnapshot(),
+        ),
+        child = childId === undefined ? undefined : list.byId[childId],
+        address =
+          childId === undefined ? undefined : ctx.sessions.subagentAddress(childId),
+        state =
+          phase !== "result"
+            ? "启动中"
+            : block.isError
+              ? "启动失败"
+              : childId === undefined
+                ? "无法定位子会话"
+                : child?.running
+                  ? "运行中"
+                  : "已完成";
+      return h(
+        "div",
+        { className: "dsh-subagent-call", "data-tool": toolName, "data-state": phase },
+        h(
+          "div",
+          { className: "dsh-subagent-call-row" },
+          h("span", { className: "dsh-subagent-call-title" }, "子代理"),
+          description &&
+            h(
+              "span",
+              { className: "dsh-subagent-call-desc", title: description },
+              description,
+            ),
+          h("span", { className: "dsh-subagent-call-state" }, state),
+          childId !== undefined &&
+            h(
+              "span",
+              { className: "dsh-subagent-call-actions" },
+              h(
+                "button",
+                {
+                  type: "button",
+                  title:
+                    address === undefined
+                      ? "该子会话还没有可并排打开的地址"
+                      : "在当前会话旁打开该子代理",
+                  disabled: address === undefined || !ctx.sidebarRight,
+                  onClick: () => {
+                    if (address === undefined) return;
+                    ctx.sidebarRight.openResource(
+                      subagentChatAddress(address),
+                      { kind: "subagentchat", preferNewPane: true },
+                    );
+                  },
+                },
+                "并排查看",
+              ),
+              h(
+                "button",
+                {
+                  type: "button",
+                  title: "在主视图打开该子代理会话",
+                  onClick: () => ctx.uiWorkspace.openSession(childId),
+                },
+                "在主视图打开",
+              ),
+            ),
+          inspect &&
+            h(
+              "button",
+              {
+                type: "button",
+                "aria-label": "在轨迹中检查该调用",
+                onClick: inspect,
+              },
+              "检查",
+            ),
+        ),
+        phase !== "preparing" &&
+          prompt &&
+          h(
+            "details",
+            null,
+            h("summary", null, "提示词"),
+            h("pre", null, prompt),
+          ),
+      );
+    }
+
     function apply(ctx) {
+      for (const key of subagentToolNames)
+        ctx.slots.inject("tool.call.toolview", () =>
+          ctx.slots.register(
+            // The native details toolview claims the same keys at priority 0;
+            // the lowest priority renders, so this one has to sit below it.
+            { name: "tool.call.toolview", key, priority: -1 },
+            (props) => h(SubagentCall, { ...props, ctx }),
+          ),
+        );
       ctx.slots.inject("sidebar.footer.action", () =>
         ctx.slots.register(
           { name: "sidebar.footer.action", id: "nested-attention", order: 80 },
@@ -1907,6 +2059,8 @@ window.__ModuleLoader__.load({
       splitSessionId,
       completionUpdates,
       installNativeMenuEntries,
+      subagentIdOf,
+      subagentChatAddress,
     };
   },
 });

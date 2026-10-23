@@ -32,7 +32,8 @@
 | `dynamic-ui` | `skills/dynamic-ui` | `~/.claude/skills/dynamic-ui` | `agent-capabilities/skills/dynamic-ui` | `preview.py` + `patterns/` 20 个 |
 | `think` | `skills/think` | `~/.claude/skills/think` | 同上 | `references/` 3 个 |
 | `pua` | `skills/pua` | `~/.claude/skills/pua` | 同上 | 无 |
-| 其余 7 个 DSH 专用技能 | `skills/` | 不复制 | 同上 | 见各自目录 |
+| `ponytail`、`check`、`handoff`、`implement`、`grill-me`、`grill-with-docs`、`grilling`、`domain-modeling` | `skills/`（自本机 `~/.claude/skills`、`~/.agents/skills` 入仓） | 不复制 | 同上 | 见各自目录；`grill-me` 依赖 `grilling`，`grill-with-docs` 依赖 `grilling` + `domain-modeling`，四项必须同时部署 |
+| 其余 DSH 专用技能 | `skills/` | 不复制 | 同上 | 见各自目录 |
 
 `~` 指当前用户主目录。DSH 侧由安装器整棵复制 `skills/<名称>/`，不需要单独登记；agent 全局侧只同步上表前三项。
 

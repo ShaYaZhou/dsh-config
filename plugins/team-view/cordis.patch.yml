@@ -1,0 +1,3 @@
+- insert:
+    - id: team-view
+      name: '@local/dsh-team-view'

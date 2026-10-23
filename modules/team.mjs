@@ -8,6 +8,7 @@ import { brandString } from "@deepseek-ai/dsh-brand";
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { foldSubagentDescriptor } from "@deepseek-ai/dsh-subagent";
+import { appendPluginRecord } from "@deepseek-ai/dsh-session";
 //#region lib/types/error.js
 /** Typed Agent Teams failures. */
 /** Stable failure raised by the Team domain. */
@@ -106,6 +107,71 @@ var TeamActivity = class {
 	}
 };
 //#endregion
+//#region lib/types/plan-waiters.js
+/** One-shot waiters for a teammate's plan awaiting the Lead decision. */
+/** Owns pending plan waiters and releases each at most once. */
+var TeamPlanWaiters = class {
+	waiters = /* @__PURE__ */ new Map();
+	closed = false;
+	/**
+	* Wait until one plan is no longer pending, or the caller cancels.
+	* @param planId - plan whose resolution wakes the caller.
+	* @param signal - caller cancellation for this wait only.
+	* @param resolved - recheck of durable state that also catches a resolution before this wait registered.
+	* @returns when the plan is resolved or the wait is cancelled.
+	*/
+	async wait(planId, signal, resolved) {
+		signal.throwIfAborted();
+		if (this.closed || resolved()) return;
+		await new Promise((resolve, reject) => {
+			let waiters = this.waiters.get(planId);
+			if (waiters === void 0) {
+				waiters = /* @__PURE__ */ new Set();
+				this.waiters.set(planId, waiters);
+			}
+			let settled = false;
+			const finish = (settle) => {
+				if (settled) return;
+				settled = true;
+				signal.removeEventListener("abort", onAbort);
+				waiters.delete(waiter);
+				if (waiters.size === 0) this.waiters.delete(planId);
+				settle();
+			};
+			const onAbort = () => {
+				finish(() => {
+					const reason = signal.reason;
+					reject(reason instanceof Error ? reason : new TeamError(`plan wait aborted: ${errorMessage(reason)}`, "TEAM_WAIT_ABORTED"));
+				});
+			};
+			const waiter = { resolve: () => {
+				finish(resolve);
+			} };
+			waiters.add(waiter);
+			signal.addEventListener("abort", onAbort, { once: true });
+			if (signal.aborted) onAbort();
+		});
+	}
+	/**
+	* Wake and remove every waiter for one resolved plan.
+	* @param planId - resolved plan whose waiters observe the decision.
+	*/
+	notify(planId) {
+		const waiters = this.waiters.get(planId);
+		if (waiters === void 0) return;
+		this.waiters.delete(planId);
+		for (const waiter of waiters) waiter.resolve();
+	}
+	/** Fail every current waiter during runtime disposal. */
+	close() {
+		this.closed = true;
+		for (const [planId, waiters] of this.waiters) {
+			this.waiters.delete(planId);
+			for (const waiter of waiters) waiter.resolve();
+		}
+	}
+};
+//#endregion
 //#region lib/types/journal.js
 /** Serialized Team transactions over the exact live Lead Session log. */
 /** Owns per-Lead transaction order and committed Team event publication. */
@@ -155,7 +221,10 @@ var TeamJournal = class {
 	* @param data - payload correlated with the event type.
 	*/
 	async appendAndFlush(root, type, data) {
-		root.session.append.bind(root.session)(type, data);
+		// A plan is plugin-owned state: persist it as an ignorable record so a
+		// harness without this plugin can still open and migrate the session.
+		if (type === "team/plan") appendPluginRecord(root.session, PLAN_RECORD_TYPE, data);
+		else root.session.append.bind(root.session)(type, data);
 		await this.ctx.sessions.flush(root.session);
 		this.onCommit(root);
 	}
@@ -478,6 +547,17 @@ const teamMessageSnapshotSchema = z$1.object({
 	targetId: sessionIdSchema,
 	content: z$1.array(contentBlockSchema)
 }).strict();
+const teamPlanSnapshotSchema = z$1.object({
+	id: z$1.string().min(1),
+	authorId: sessionIdSchema,
+	content: z$1.string(),
+	status: z$1.enum([
+		"pending",
+		"approved",
+		"rejected"
+	]),
+	feedback: z$1.string().optional()
+}).strict();
 const teamEventSelectorSchema = z$1.object({
 	version: nonNegativeSafeInteger,
 	teamId: teamIdSchema
@@ -503,6 +583,11 @@ const teamMessageDeliveredEventSchema = z$1.object({
 	messageId: teamMessageIdSchema,
 	targetId: sessionIdSchema
 }).strict();
+const teamPlanEventSchema = z$1.object({
+	version: z$1.literal(2),
+	teamId: teamIdSchema,
+	plan: teamPlanSnapshotSchema
+}).strict();
 /**
 * Construct empty state for one Team identity.
 * @param rootId - root Session identity.
@@ -515,7 +600,9 @@ function emptyTeamState(rootId) {
 		tasks: [],
 		messages: [],
 		delivered: [],
-		nextTaskNumber: 1
+		plans: [],
+		nextTaskNumber: 1,
+		nextPlanNumber: 1
 	};
 }
 const teamProjectionEntrySchema = z$1.object({
@@ -524,7 +611,9 @@ const teamProjectionEntrySchema = z$1.object({
 	tasks: z$1.array(teamTaskSnapshotSchema),
 	messages: z$1.array(teamMessageSnapshotSchema),
 	delivered: z$1.array(teamMessageIdSchema),
+	plans: z$1.array(teamPlanSnapshotSchema).default([]),
 	nextTaskNumber: positiveSafeInteger,
+	nextPlanNumber: positiveSafeInteger.default(1),
 	failure: z$1.string().optional()
 }).strict();
 /**
@@ -532,8 +621,9 @@ const teamProjectionEntrySchema = z$1.object({
 * @param event - candidate Session event.
 * @returns whether the event has a Team-owned type.
 */
+const PLAN_RECORD_TYPE = "plugin:agent-team-local/plan";
 function isTeamEvent(event) {
-	return event.type === "team/member" || event.type === "team/task" || event.type === "team/message/queued" || event.type === "team/message/delivered";
+	return event.type === "team/member" || event.type === "team/task" || event.type === "team/message/queued" || event.type === "team/message/delivered" || event.type === "team/plan" || event.type === PLAN_RECORD_TYPE;
 }
 /** Decode one persisted Team value and retain the schema failure as its cause. */
 function parsePersisted(type, schema, value) {
@@ -562,6 +652,10 @@ function parseCurrentTeamEvent(event) {
 			...event,
 			data: parsePersisted(event.type, teamMessageDeliveredEventSchema, event.data)
 		};
+		case "team/plan": return {
+			...event,
+			data: parsePersisted(event.type, teamPlanEventSchema, event.data)
+		};
 		/* v8 ignore next 2 -- TeamEventType is closed and every member is handled above. */
 		default: return event;
 	}
@@ -570,10 +664,11 @@ function applyProjectionEvent(state, event) {
 	if (state.failure !== void 0) return state;
 	if (!isTeamEvent(event)) return state;
 	try {
-		const selector = parsePersisted(event.type, teamEventSelectorSchema, event.data);
+		const normalized = event.type === PLAN_RECORD_TYPE ? {...event, type: "team/plan"} : event;
+		const selector = parsePersisted(normalized.type, teamEventSelectorSchema, normalized.data);
 		if (selector.teamId !== state.id) return state;
 		if (selector.version !== 2) throw new Error(`unsupported Agent Teams event version ${String(selector.version)}`);
-		return applyCurrentTeamEvent(state, parseCurrentTeamEvent(event));
+		return applyCurrentTeamEvent(state, parseCurrentTeamEvent(normalized));
 	} catch (error) {
 		/* v8 ignore next -- the owned Team transition throws Error instances. */
 		return {
@@ -644,6 +739,25 @@ function applyCurrentTeamEvent(state, event) {
 				delivered: [...state.delivered, event.data.messageId]
 			};
 		}
+		case "team/plan": {
+			const plan = event.data.plan;
+			const index = state.plans.findIndex((candidate) => candidate.id === plan.id);
+			const prior = state.plans[index];
+			if (prior === void 0) {
+				if (plan.status !== "pending") throw new Error(`team plan "${plan.id}" must begin pending`);
+			} else {
+				if (prior.authorId !== plan.authorId || prior.content !== plan.content) throw new Error(`team plan "${plan.id}" changed immutable fields`);
+				if (prior.status !== "pending") throw new Error(`team plan "${plan.id}" was already resolved`);
+				if (plan.status === "pending") throw new Error(`team plan "${plan.id}" has an invalid pending -> pending transition`);
+			}
+			const match = /^plan-(\d+)$/u.exec(plan.id);
+			const number = match === null ? 0 : Number(match[1]);
+			return {
+				...state,
+				plans: replaceAt(state.plans, index, plan),
+				nextPlanNumber: number > 0 ? Math.max(state.nextPlanNumber, number === Number.MAX_SAFE_INTEGER ? number : number + 1) : state.nextPlanNumber
+			};
+		}
 		/* v8 ignore next 2 -- TeamEventType is closed and every member is handled above. */
 		default: return state;
 	}
@@ -677,13 +791,41 @@ const teamTaskViewSchema = z$1.object({
 	ready: z$1.boolean(),
 	writeScopeWarnings: z$1.array(z$1.string())
 }).strict();
+const teamPlanViewSchema = z$1.object({
+	id: z$1.string().min(1),
+	authorName: z$1.string().optional(),
+	content: z$1.string(),
+	status: z$1.enum([
+		"pending",
+		"approved",
+		"rejected"
+	]),
+	feedback: z$1.string().optional()
+}).strict();
 const teamProjectionSchema = z$1.object({
 	members: z$1.array(teamMemberProjectionSchema),
 	tasks: z$1.array(teamTaskViewSchema),
+	plans: z$1.array(teamPlanViewSchema),
 	failure: z$1.string().optional()
 }).strict();
-/** Client views keyed by the member and task collections they were derived from. */
+/** Client views keyed by the member, task, and plan collections they were derived from. */
 const teamProjectionViews = /* @__PURE__ */ new WeakMap();
+/**
+* Derive one plan view with its author's model-facing name.
+* @param state - Team state supplying members.
+* @param plan - durable plan snapshot to view.
+* @returns a detached plan view.
+*/
+function projectPlanView(state, plan) {
+	const authorName = plan.authorId === brandString(state.id) ? "lead" : state.members.find((member) => member.id === plan.authorId)?.name;
+	return {
+		id: plan.id,
+		content: plan.content,
+		status: plan.status,
+		...authorName === void 0 ? {} : { authorName },
+		...plan.feedback === void 0 ? {} : { feedback: plan.feedback }
+	};
+}
 function buildTeamProjection(state) {
 	const members = [{
 		id: brandString(state.id),
@@ -701,6 +843,7 @@ function buildTeamProjection(state) {
 	return {
 		members,
 		tasks: state.tasks.filter((task) => task.status !== "deleted").map((task) => projectTaskView(state, task)),
+		plans: state.plans.map((plan) => projectPlanView(state, plan)),
 		...state.failure === void 0 ? {} : { failure: state.failure }
 	};
 }
@@ -719,10 +862,15 @@ function teamProjectionView(state) {
 		byTasks = /* @__PURE__ */ new WeakMap();
 		teamProjectionViews.set(state.members, byTasks);
 	}
-	let view = byTasks.get(state.tasks);
+	let byPlans = byTasks.get(state.tasks);
+	if (byPlans === void 0) {
+		byPlans = /* @__PURE__ */ new WeakMap();
+		byTasks.set(state.tasks, byPlans);
+	}
+	let view = byPlans.get(state.plans);
 	if (view === void 0) {
 		view = buildTeamProjection(state);
-		byTasks.set(state.tasks, view);
+		byPlans.set(state.plans, view);
 	}
 	return view;
 }
@@ -1211,43 +1359,58 @@ var TeamTaskBoard = class {
 	maxTasks;
 	requireApproval;
 	gate;
+	hooks;
 	/**
 	* @param journal - authoritative Lead-log transaction owner.
 	* @param maxTasks - maximum non-deleted tasks retained by one Team.
-	* @param options - lead approval for member-created tasks and an optional gate command.
+	* @param options - lead approval for member-created tasks, an optional legacy gate command, and per-event hook commands.
 	*/
 	constructor(journal, maxTasks, options = {}) {
 		this.journal = journal;
 		this.maxTasks = maxTasks;
 		this.requireApproval = options.requireApproval === true;
 		this.gate = typeof options.gate === "string" ? options.gate.trim() : "";
+		this.hooks = options.hooks ?? {};
 	}
 	/**
-	* Run the configured gate command before a committed transition; exit code 2 blocks it.
-	* @param type - TaskCreated or TaskCompleted.
-	* @param root - Lead session the event belongs to.
-	* @param view - task view the gate inspects.
+	* Resolve the commands configured for one hook event. The legacy `taskGate`
+	* remains the fallback for the two task events when no map entry is set.
+	* @param type - hook event name.
+	* @returns non-empty command strings in declaration order.
 	*/
-	async runGate(type, root, view) {
-		if (this.gate.length === 0) return;
-		const child = spawn(this.gate, { shell: true, stdio: ["pipe", "ignore", "pipe"] });
+	hookCommands(type) {
+		const configured = Array.isArray(this.hooks[type]) ? this.hooks[type] : typeof this.hooks[type] === "string" ? [this.hooks[type]] : [];
+		const commands = configured.filter((command) => typeof command === "string").map((command) => command.trim()).filter((command) => command.length > 0);
+		if (commands.length > 0) return commands;
+		return (type === "TaskCreated" || type === "TaskCompleted") && this.gate.length > 0 ? [this.gate] : [];
+	}
+	/**
+	* Run one command hook with the event payload on stdin.
+	* @param type - hook event name used in diagnostics.
+	* @param command - shell command to run.
+	* @param payload - JSON value written to stdin.
+	* @returns exit code and bounded stderr.
+	*/
+	async runHook(type, command, payload) {
+		const child = spawn(command, { shell: true, stdio: ["pipe", "ignore", "pipe"] });
 		let stderr = "";
 		child.stderr.on("data", (chunk) => {
 			if (stderr.length < 65536) stderr += String(chunk).slice(0, 65536 - stderr.length);
 		});
-		// A gate that exits without reading stdin makes the write fail with EPIPE.
+		// A hook that exits without reading stdin makes the write fail with EPIPE.
 		child.stdin.on("error", () => {});
-		child.stdin.end(JSON.stringify({
-			type,
-			teamId: TeamId(root.id),
-			task: view
-		}));
+		child.stdin.end(JSON.stringify(payload));
 		const code = await new Promise((resolve, reject) => {
-			// ponytail: kills the shell, not its children; a gate leaving a descendant
-			// holding stderr never emits close, so the timeout settles the wait itself.
+			// ponytail: spawn(shell:true) means kill() only reaches cmd.exe, so Windows
+			// needs taskkill /T to end a hook that spawned its own children.
 			const timer = setTimeout(() => {
-				child.kill();
-				reject(new TeamError(`${type} task gate timed out after 10 s`, "TEAM_TASK_GATE_FAILED"));
+				if (process.platform === "win32" && child.pid !== void 0) {
+					const killer = spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+					// The tree kill needs the shell alive to enumerate its children.
+					killer.on("error", () => child.kill());
+					killer.on("close", () => child.kill());
+				} else child.kill();
+				reject(new TeamError(`${type} team hook timed out after 10 s`, "TEAM_TASK_GATE_FAILED"));
 			}, 10000);
 			child.on("error", (error) => {
 				clearTimeout(timer);
@@ -1258,9 +1421,62 @@ var TeamTaskBoard = class {
 				resolve(exitCode);
 			});
 		});
-		if (code === 0) return;
-		if (code === 2) throw new TeamError(`${type} blocked by task gate: ${stderr.trim() || "no reason given"}`, "TEAM_TASK_BLOCKED");
-		throw new TeamError(`${type} task gate failed with exit code ${code}: ${stderr.trim()}`, "TEAM_TASK_GATE_FAILED");
+		return {
+			code,
+			stderr: stderr.trim()
+		};
+	}
+	/**
+	* Run the configured hook chain before a committed task transition; exit code 2 blocks it.
+	* @param type - TaskCreated or TaskCompleted.
+	* @param root - Lead session the event belongs to.
+	* @param view - task view the hook inspects.
+	*/
+	async runHooks(type, root, view) {
+		for (const command of this.hookCommands(type)) {
+			const payload = {
+				type,
+				hook_event_name: type,
+				teamId: TeamId(root.id),
+				team_id: TeamId(root.id),
+				session_id: root.id,
+				task: view,
+				task_id: view.id,
+				task_subject: view.subject,
+				task_description: view.description,
+				...view.ownerName === void 0 ? {} : { teammate_name: view.ownerName }
+			};
+			const { code, stderr } = await this.runHook(type, command, payload);
+			if (code === 0) continue;
+			if (code === 2) throw new TeamError(`${type} blocked by team hook: ${stderr || "no reason given"}`, "TEAM_TASK_BLOCKED");
+			throw new TeamError(`${type} team hook failed with exit code ${code}: ${stderr}`, "TEAM_TASK_GATE_FAILED");
+		}
+	}
+	/**
+	* Run the TeammateIdle hook chain when one teammate's turn is about to stop.
+	* Exit code 2 keeps the member working with the hook's reason as feedback.
+	* @param membership - exact teammate membership.
+	* @param agent - the teammate whose turn is stopping.
+	* @returns whether the stop is blocked and the feedback to deliver.
+	*/
+	async runTeammateIdle(membership, agent) {
+		for (const command of this.hookCommands("TeammateIdle")) {
+			const { code, stderr } = await this.runHook("TeammateIdle", command, {
+				type: "TeammateIdle",
+				hook_event_name: "TeammateIdle",
+				teamId: membership.id,
+				team_id: membership.id,
+				session_id: agent.session.header.id,
+				teammate_name: membership.name
+			});
+			if (code === 0) continue;
+			if (code === 2) return {
+				blocked: true,
+				reason: stderr || "TeammateIdle hook blocked this teammate from going idle"
+			};
+			throw new TeamError(`TeammateIdle team hook failed with exit code ${code}: ${stderr}`, "TEAM_TASK_GATE_FAILED");
+		}
+		return { blocked: false };
 	}
 	/**
 	* Create one unowned pending task in the Team Lead log.
@@ -1286,7 +1502,7 @@ var TeamTaskBoard = class {
 			};
 			this.assertTaskGraph(state, task);
 			const view = projectTaskView(state, task);
-			await this.runGate("TaskCreated", root, view);
+			await this.runHooks("TaskCreated", root, view);
 			await this.journal.appendAndFlush(root, "team/task", {
 				version: 2,
 				teamId: TeamId(root.id),
@@ -1447,7 +1663,7 @@ var TeamTaskBoard = class {
 			};
 			this.assertTaskGraph(state, task);
 			const view = projectTaskView(state, task);
-			if (request.action === "complete") await this.runGate("TaskCompleted", root, view);
+			if (request.action === "complete") await this.runHooks("TaskCompleted", root, view);
 			await this.journal.appendAndFlush(root, "team/task", {
 				version: 2,
 				teamId: TeamId(root.id),
@@ -1523,11 +1739,13 @@ var TeamService = class extends Service {
 		maxMessageBytes: z.number().step(1).min(1).default(DEFAULT_MAX_MESSAGE_BYTES),
 		disposalTimeoutMs: z.number().step(1).min(1).default(DEFAULT_DISPOSAL_TIMEOUT_MS),
 		requireTaskApproval: z.boolean().default(false),
-		taskGate: z.string().default("")
+		taskGate: z.string().default(""),
+		hooks: z.any().default({})
 	});
 	/** Validated deployment limits used by every Team operation. */
 	config;
 	activity;
+	planWaiters;
 	lifecycle;
 	journal;
 	roster;
@@ -1540,9 +1758,11 @@ var TeamService = class extends Service {
 			maxMessageBytes: positiveLimit("maxMessageBytes", config.maxMessageBytes ?? DEFAULT_MAX_MESSAGE_BYTES),
 			disposalTimeoutMs: positiveLimit("disposalTimeoutMs", config.disposalTimeoutMs ?? DEFAULT_DISPOSAL_TIMEOUT_MS),
 			requireTaskApproval: config.requireTaskApproval === true,
-			taskGate: typeof config.taskGate === "string" ? config.taskGate.trim() : ""
+			taskGate: typeof config.taskGate === "string" ? config.taskGate.trim() : "",
+			hooks: typeof config.hooks === "object" && config.hooks !== null && !Array.isArray(config.hooks) ? config.hooks : {}
 		};
 		this.activity = new TeamActivity();
+		this.planWaiters = new TeamPlanWaiters();
 		this.lifecycle = new TeamRuntimeLifecycle(this.config.disposalTimeoutMs);
 		this.journal = new TeamJournal(ctx, (root) => {
 			this.activity.notify(TeamId(root.id));
@@ -1550,7 +1770,8 @@ var TeamService = class extends Service {
 		this.roster = new TeamRoster(ctx, this.journal, this.lifecycle, this.config.maxMembers);
 		this.tasks = new TeamTaskBoard(this.journal, this.config.maxTasks, {
 			requireApproval: this.config.requireTaskApproval,
-			gate: this.config.taskGate
+			gate: this.config.taskGate,
+			hooks: this.config.hooks
 		});
 		ctx.on("agent/created", ({ agent }) => {
 			this.scheduleRecovery(agent);
@@ -1558,6 +1779,27 @@ var TeamService = class extends Service {
 		ctx.on("agent/status", ({ agent }) => {
 			const membership = this.roster.tryMembership(agent);
 			if (membership !== void 0) this.activity.notify(membership.id);
+		});
+		ctx.on("agent/turn-stopping", ({ agent }) => {
+			const membership = this.roster.tryMembership(agent);
+			if (membership === void 0 || membership.role !== "teammate") return;
+			return this.tasks.runTeammateIdle(membership, agent).then((outcome) => {
+				if (!outcome.blocked || this.lifecycle.disposed) return;
+				agent.steer(createUserMessage({
+					content: [{
+						type: "text",
+						text: `TeammateIdle hook: ${outcome.reason}`
+					}],
+					source: {
+						kind: "agent-message",
+						form: "relay",
+						senderSessionId: agent.id
+					}
+				}));
+			}).catch((error) => {
+				if (this.lifecycle.disposed) return;
+				this.ctx.logger.warn(`Agent Teams TeammateIdle hook failed for "${agent.id}": ${errorMessage(error)}`);
+			});
 		});
 		ctx.effect(() => {
 			const disposeProjection = ctx.root.sessionProjections.register(teamProjectionDefinition);
@@ -1645,6 +1887,109 @@ var TeamService = class extends Service {
 		return await this.tasks.update(caller, this.roster.membership(caller), request);
 	}
 	/**
+	* Submit one teammate plan for Lead approval and wait for the decision.
+	* @param caller - exact live teammate submitting the plan.
+	* @param request - plan text and cancellation for the whole submission.
+	* @returns the resolved plan view.
+	*/
+	async submitPlan(caller, request) {
+		if (this.lifecycle.disposed) throw new TeamError("Agent Teams service is disposing", "TEAM_DISPOSED");
+		const membership = this.roster.membership(caller);
+		if (membership.role !== "teammate") throw new TeamError("only a teammate can submit a plan for approval", "TEAM_TEAMMATE_REQUIRED");
+		const signal = AbortSignal.any([request.signal, this.lifecycle.signal]);
+		const content = requiredText(request.content, "content", 16384);
+		const plan = await this.journal.transact(membership.root.id, async () => {
+			const state = this.journal.state(membership.root);
+			const id = `plan-${state.nextPlanNumber}`;
+			if (state.plans.some((candidate) => candidate.id === id)) throw new TeamError("Team plan id space exhausted", "TEAM_PLAN_LIMIT");
+			const pending = {
+				id,
+				authorId: caller.id,
+				content,
+				status: "pending"
+			};
+			await this.journal.appendAndFlush(membership.root, "team/plan", {
+				version: 2,
+				teamId: TeamId(membership.root.id),
+				plan: pending
+			});
+			return pending;
+		});
+		await this.sendAdmitted(caller, {
+			target: "lead",
+			content: [{
+				type: "text",
+				text: `Teammate "${membership.name}" submitted ${plan.id} and is waiting for your decision. Resolve it with team_plan_resolve. The plan:\n\n${content}`
+			}],
+			signal
+		});
+		await this.planWaiters.wait(plan.id, signal, () => this.journal.state(membership.root).plans.find((candidate) => candidate.id === plan.id)?.status !== "pending");
+		signal.throwIfAborted();
+		const state = this.journal.state(membership.root);
+		return projectPlanView(state, state.plans.find((candidate) => candidate.id === plan.id));
+	}
+	/**
+	* List every durable plan of this Team in submission order.
+	* @param caller - exact live Team member reading the plan board.
+	* @returns detached plan views.
+	*/
+	listPlans(caller) {
+		const { root } = this.roster.membership(caller);
+		const state = this.journal.state(root);
+		return state.plans.map((plan) => projectPlanView(state, plan));
+	}
+	/**
+	* Approve or reject one pending teammate plan.
+	* @param caller - exact live Team Lead deciding the plan.
+	* @param request - plan identity, decision, optional feedback, rejection requires a reason.
+	* @returns the resolved plan view.
+	*/
+	async resolvePlan(caller, request) {
+		const membership = this.roster.membership(caller);
+		if (membership.role !== "lead") throw new TeamError("only the Team Lead can resolve plans", "TEAM_LEAD_REQUIRED");
+		if (request.action !== "approve" && request.action !== "reject") throw new TeamError(`unsupported plan action ${String(request.action)}`, "TEAM_INVALID_ARGUMENT");
+		const feedback = request.feedback === void 0 ? void 0 : requiredText(request.feedback, "feedback", 4096);
+		if (request.action === "reject" && feedback === void 0) throw new TeamError("plan rejection requires feedback", "TEAM_INVALID_ARGUMENT");
+		const { root } = membership;
+		const plan = await this.journal.transact(root.id, async () => {
+			const state = this.journal.state(root);
+			const current = state.plans.find((candidate) => candidate.id === request.planId);
+			if (current === void 0) throw new TeamError(`team plan "${request.planId}" not found`, "TEAM_PLAN_NOT_FOUND");
+			if (current.status !== "pending") throw new TeamError(`team plan "${current.id}" is already ${current.status}`, "TEAM_PLAN_INVALID_TRANSITION");
+			const resolved = {
+				id: current.id,
+				authorId: current.authorId,
+				content: current.content,
+				status: request.action === "approve" ? "approved" : "rejected",
+				...feedback === void 0 ? {} : { feedback }
+			};
+			await this.journal.appendAndFlush(root, "team/plan", {
+				version: 2,
+				teamId: TeamId(root.id),
+				plan: resolved
+			});
+			return resolved;
+		});
+		this.planWaiters.notify(plan.id);
+		return projectPlanView(this.journal.state(root), plan);
+	}
+	/**
+	* Resolve one member's pending plan without throwing, for the read-only guard.
+	* @param agent - candidate exact live Agent.
+	* @returns the pending plan view, or undefined when none is pending.
+	*/
+	pendingPlan(agent) {
+		const membership = this.roster.tryMembership(agent);
+		if (membership === void 0) return void 0;
+		try {
+			const state = this.journal.state(membership.root);
+			const plan = state.plans.find((candidate) => candidate.authorId === agent.id && candidate.status === "pending");
+			return plan === void 0 ? void 0 : projectPlanView(state, plan);
+		} catch {
+			return void 0;
+		}
+	}
+	/**
 	* Wait for the next Team-domain or member-status change.
 	* @param caller - exact live Team member waiting for activity.
 	* @param timeoutMs - bounded wait duration from ten seconds through one hour.
@@ -1715,6 +2060,7 @@ var TeamService = class extends Service {
 	async disposeRuntime() {
 		this.lifecycle.close();
 		this.activity.close();
+		this.planWaiters.close();
 		const failures = [];
 		await this.lifecycle.settle(this.lifecycle.pending(), failures);
 		for (const [root, childIds] of this.roster.liveChildrenByRoot()) try {
