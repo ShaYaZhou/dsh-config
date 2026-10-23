@@ -34,7 +34,7 @@
 
 Team 治理集中在 `modules/team.mjs` 与 `modules/team-tools.mjs`：计划状态是纯数据（append/重放、`hasPendingPlan` 查询与 `TeamPlanWaiters` 唤醒），工具层只做参数校验与只读 guard，不读 UI、不直接写持久记录；计划以 `appendPluginRecord` 的可忽略记录落盘，原生冷读跳过。`hooks` 按事件名解析命令串行执行，`TeammateIdle` 只把原因 steer 回成员，不操作其会话存储。`plugins/team-view` 是纯客户端面板：读 `agentTeam` projectionValues、调 `uiWorkspace.openSession` 和原生 `subagentchat` 资源，不读 DOM 结构、不复制对话渲染器，也不改 Team 服务状态。
 
-技能来源统一在 `skills/`：DSH 侧由 `scripts/harness.mjs` 整棵复制，agent 全局侧由 `scripts/align-skills.mjs` 幂等复制。后者只做文件比较与复制，拒绝覆盖目标里仓库没有的文件，并把 `SKILL.md` 全文写进 `docs/SKILLS-ALIGNMENT.md` 的附录块；不建软链接或目录联接，不接管 DSH 部署，也不读写会话与记忆。
+技能来源统一在 `skills/`，由 `scripts/harness.mjs` 整棵复制到 DSH 的 `agent-capabilities/skills/`。`scripts/align-skills.mjs` 只维护 `docs/SKILLS-ALIGNMENT.md` 附录；仅在显式传入 `--target` 时向该目录幂等复制，用于本机维护，不参与部署。该脚本只做文件比较与复制，拒绝覆盖目标里仓库没有的文件；不建软链接或目录联接，不读写会话与记忆。
 
 `modules/claude-context.mjs` 只做有界读取和格式过滤：`readBounded`、`stripClaudeOnlySyntax`、`claudeProjectSlug` 都是纯函数，`apply` 只注册一个 `systemPrompt.context`；不写 `~/.claude`，不解析记忆内容，只注入索引路径。`modules/usage-report.mjs` 把原生 `sessionController.projections` 的四类投影映射为纯计算 `summarizeUsage`，费率只来自模块配置，不内置价格表，单个会话读取失败只标记不可用。`modules/session-bus.mjs` 的授权、停止和列表是服务层，发送只经原生 `followup` 和 `createUserMessage`；`resolveSessionPrefix` 等状态判断可独立测试，不读取目标会话内容或其他插件私有状态。三个模块都挂在顶层全局 insert：preset 会按 Agent 重复实例化插件，`session-bus` 重复打开同一 storage domain 会失败；只有工具按 Agent 注册，子代理不获得发送入口。详见 [六项能力增强](AGENT-ENHANCEMENTS.md)。
 

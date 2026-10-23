@@ -85,7 +85,7 @@ rtk proxy node scripts/harness.mjs status
 |---|---|
 | 原生能力补丁与浏览器操作指引 | `modules/` |
 | DSH 专用技能 | `skills/<名称>/SKILL.md` 及同目录的 `.mjs`/`.md` 等资源；安装器自动发现，无需登记 |
-| agent 全局技能副本 | `skills/` 经 `scripts/align-skills.mjs` 幂等复制，不建链接；清单与附录见 `docs/SKILLS-ALIGNMENT.md` |
+| 技能部署 | `skills/` 由 `scripts/harness.mjs install` 整棵复制到 DSH 的 `agent-capabilities/skills/`，不写入 agent 全局目录；清单与附录见 `docs/SKILLS-ALIGNMENT.md` |
 | 记忆、BTW、Rewind 本地包及原浏览器资源 | `plugins/` |
 | profile 插件、模型、权限、记忆参数 | `config/*.json` |
 | 可独立恢复的官方原生基线 | `presets/native/` |

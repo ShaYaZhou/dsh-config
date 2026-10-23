@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// 把仓库 skills/<名称> 复制到 agent 的全局技能目录，并刷新对齐文档的附录。
-// 该脚本只做复制，不建立软链接或目录联接；目标里仓库没有的文件一律拒绝覆盖。
+// 维护 docs/SKILLS-ALIGNMENT.md 的附录；仅在显式给出 --target 时，把仓库 skills/<名称> 复制到该目录。
+// 技能的部署只走 DSH：scripts/harness.mjs install 复制到 agent-capabilities/skills/。
+// 不要把 --target 指向 ~/.claude/skills 等 agent 全局目录，否则会被其他 agent 发现。
+// 复制不建立软链接或目录联接；目标里仓库没有的文件一律拒绝覆盖。
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -11,8 +12,8 @@ const DOC_PATH = path.join(repository, "docs", "SKILLS-ALIGNMENT.md");
 const ANNEX_BEGIN = "<!-- annex:begin -->";
 const ANNEX_END = "<!-- annex:end -->";
 
-// 只有这些技能同时属于「本机 agent 全局技能」；其余 skills/<名称> 仅由 DSH 安装器部署。
-export const AGENT_SKILLS = ["dynamic-ui", "think", "pua"];
+// 附录清单，以及显式 --target 时的可选本地复制范围；其余 skills/<名称> 只由 DSH 安装器部署。
+export const ALIGNED_SKILLS = ["dynamic-ui", "think", "pua"];
 // 附录只内联自维护技能的全文；下载来的技能全文以仓库文件为准，文档只给链接。
 export const INLINE_SKILLS = ["dynamic-ui"];
 
@@ -86,7 +87,7 @@ function fenceFor(text) {
 }
 
 export function renderAnnex() {
-  return AGENT_SKILLS.map((name) => {
+  return ALIGNED_SKILLS.map((name) => {
     if (!INLINE_SKILLS.includes(name)) return `### ${name}\n\n第三方下载技能，全文以仓库文件为准：[skills/${name}/SKILL.md](../skills/${name}/SKILL.md)\n`;
     const text = fs.readFileSync(path.join(repository, "skills", name, "SKILL.md"), "utf8").replace(/\r\n/g, "\n").trimEnd();
     return `### ${name}\n\n源文件：\`skills/${name}/SKILL.md\`\n\n${fenceFor(text)}\n`;
@@ -117,25 +118,29 @@ export function writeAnnex() {
 function main(argv) {
   const check = argv.includes("--check");
   const index = argv.indexOf("--target");
-  const targetRoot = index >= 0 ? path.resolve(argv[index + 1]) : path.join(os.homedir(), ".claude", "skills");
+  const targetRoot = index >= 0 ? path.resolve(argv[index + 1]) : undefined;
   let failed = false;
-  console.log(`目标目录：${targetRoot}`);
-  for (const name of AGENT_SKILLS) {
-    const status = planSkill(name, targetRoot);
-    if (status.blocked) {
-      console.log(`${name}: 目标是文件而不是目录，需手工处理`);
-      failed = true;
-      continue;
+  if (targetRoot === undefined) {
+    console.log("未指定 --target：只维护文档附录；技能部署由 scripts/harness.mjs install 完成。");
+  } else {
+    console.log(`目标目录：${targetRoot}（仅本机维护；不要指向 agent 全局目录）`);
+    for (const name of ALIGNED_SKILLS) {
+      const status = planSkill(name, targetRoot);
+      if (status.blocked) {
+        console.log(`${name}: 目标是文件而不是目录，需手工处理`);
+        failed = true;
+        continue;
+      }
+      if (status.localOnly.length > 0) {
+        console.log(`${name}: 目标含仓库没有的文件，未覆盖（${status.localOnly.join(", ")}）`);
+        failed = true;
+        continue;
+      }
+      if (!check) syncSkill(status);
+      const state = status.link ? `目录联接${check ? "待替换" : "已替换"}为真实副本` : status.copy.length === 0 ? "已一致" : `${status.copy.length} 个文件${check ? "待更新" : "已更新"}`;
+      if (check && (status.link || status.copy.length > 0)) failed = true;
+      console.log(`${name}: ${state}`);
     }
-    if (status.localOnly.length > 0) {
-      console.log(`${name}: 目标含仓库没有的文件，未覆盖（${status.localOnly.join(", ")}）`);
-      failed = true;
-      continue;
-    }
-    if (!check) syncSkill(status);
-    const state = status.link ? `目录联接${check ? "待替换" : "已替换"}为真实副本` : status.copy.length === 0 ? "已一致" : `${status.copy.length} 个文件${check ? "待更新" : "已更新"}`;
-    if (check && (status.link || status.copy.length > 0)) failed = true;
-    console.log(`${name}: ${state}`);
   }
   const annex = annexCurrent();
   if (!annex && !check) writeAnnex();

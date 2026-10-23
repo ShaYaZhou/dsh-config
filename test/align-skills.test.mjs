@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { AGENT_SKILLS, INLINE_SKILLS, annexCurrent, planSkill, syncSkill } from "../scripts/align-skills.mjs";
+import { ALIGNED_SKILLS, INLINE_SKILLS, annexCurrent, planSkill, syncSkill } from "../scripts/align-skills.mjs";
 
 const repository = path.resolve(import.meta.dirname, "..");
 
@@ -61,7 +61,7 @@ test("文档附录与仓库技能保持一致", () => {
   const doc = fs.readFileSync(path.join(repository, "docs/SKILLS-ALIGNMENT.md"), "utf8");
   assert.match(doc, /<!-- annex:begin -->[\s\S]+<!-- annex:end -->/);
   assert.equal(annexCurrent(), true);
-  for (const name of AGENT_SKILLS) {
+  for (const name of ALIGNED_SKILLS) {
     const head = fs.readFileSync(path.join(repository, "skills", name, "SKILL.md"), "utf8").replace(/\r\n/g, "\n").slice(0, 40);
     if (INLINE_SKILLS.includes(name)) assert.ok(doc.includes(head), `附录缺少 ${name} 的 SKILL.md 开头`);
     else {

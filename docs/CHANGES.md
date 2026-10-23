@@ -41,7 +41,7 @@
 | `plugins/team-view/lib/client.js` | 侧栏 Team 面板：读取选中会话的 `agentTeam` 投影，列出成员与待审计划，经原生 `subagentchat` 资源并排打开成员；只调用公开会话接口，不读 DOM、不改会话记录 |
 | `plugins/workflow-ptc/lib/index.js` | 由 0.2.1-rc.2 源码构建：规模告警、整体 token/时长预算、一层嵌套守卫、每运行 journal 与前缀续跑、`schemaRetries`（默认 5，仅最终尝试入 journal）；构造函数归一化 schemastery 丢弃的 `default(null)` 预算字段 |
 | `plugins/tool-workflow/lib/index.js` | 由 0.2.1-rc.2 源码构建：工具描述补规模指引、预算、嵌套与续跑说明，并转发 `resume_from_run_id` / `budget_*` / `warnAboveAgents` |
-| `scripts/align-skills.mjs` | 从 `skills/` 幂等复制 agent 全局技能；目标为目录联接时替换成真实副本；拒绝覆盖本机独有文件；同步生成 `docs/SKILLS-ALIGNMENT.md` 附录 |
+| `scripts/align-skills.mjs` | 维护 `docs/SKILLS-ALIGNMENT.md` 附录；仅显式传 `--target` 时幂等复制技能（本机维护用）；目标为目录联接时替换成真实副本；拒绝覆盖本机独有文件 |
 | `skills/think`、`skills/pua` | 从本机全局技能入仓，作为唯一来源；来源与许可证见 `docs/SKILLS-ALIGNMENT.md` |
 | `skills/ponytail`、`skills/check`、`skills/handoff`、`skills/implement`、`skills/grill-me`、`skills/grill-with-docs`、`skills/grilling`、`skills/domain-modeling` | 从本机全局技能入仓，供只有 DSH 的干净环境直接复现；`grill-me` / `grill-with-docs` 的依赖技能一并入仓 |
 

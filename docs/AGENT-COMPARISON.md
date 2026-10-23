@@ -1,13 +1,13 @@
-# DSH 与 Claude Code Agent 能力对照
+# DSH 原版、本仓库与 Claude Code Agent 能力对照
 
-- 对照对象：DeepSeek Harness 0.2.1-rc.2 + 本仓库 `tuned` 配置（deepseek-harness-config）
+- 对照对象：三栏并列——**DSH 原版**（官方 0.2.1-rc.2 桌面默认 profile，只含 `@deepseek-ai/*` 官方包，不含市场插件、本仓库模块与技能）、**本仓库**（同一运行时 + `deepseek-harness-config` 的模块、插件、技能与配置）、**Claude Code**（含 Claude Platform 公开能力）。
 - Claude 侧基线：Anthropic Claude Code / Claude agent 公开文档与官方博客，抓取日期 2026-10-22（文档版本约 v2.1.30x）；agent-teams、workflows、memory、sub-agents 四页于同日重新核对
-- DSH 侧数据：2026-10-23，仓库提交 `aca9bc2`（Team 计划审批、Hook 事件、成员面板与下载技能入仓）
-- 结论口径：只描述本仓库当前启用、且有源码、配置或验收记录支撑的能力；不评价模型质量，不把上游 DSH 的全部潜力算作已具备
+- DSH 侧数据：2026-10-23（Team 计划审批、Hook 事件、成员面板与下载技能入仓；本轮补充 DSH 原版列）
+- 结论口径：只描述本仓库当前启用、且有源码、配置或验收记录支撑的能力；不评价模型质量，不把上游 DSH 的全部潜力算作已具备。DSH 原版列只标官方默认是否具备能力入口，细节与判定以本仓库列为准。
 
 ## 一、结论摘要
 
-1. **整体定位不同。** Claude Code 是跨形态、云端延续的托管式 agent 产品：CLI、IDE、桌面、Web、手机与 CI 共用同一引擎，云会话、远程接管、定时任务和企业治理齐全。DSH 是本地优先、模型无关、可整体发行和回滚的桌面 agent 运行时。两者不是同类产品的强弱关系，而是**广度与可控性**的取舍。
+1. **整体定位不同。** Claude Code 是跨形态、云端延续的托管式 agent 产品：CLI、IDE、桌面、Web、手机与 CI 共用同一引擎，云会话、远程接管、定时任务和企业治理齐全。DSH 原版是本地优先、模型无关的桌面运行时；本仓库在同一运行时上补齐了模块、插件、技能与可回滚配置。两者与 Claude 不是同类产品的强弱关系，而是**广度与可控性**的取舍。
 2. **DSH 仍然完全缺失的是服务与生态层**：云/多端延续、IDE 集成、CI 与托管审查服务、企业可观测与合规治理、Agent SDK、插件市场与评测、跨机器会话消息、可分享产物页与团队聊天（Artifacts / Projects / Claude Tag）、外部事件通道（Channels）。这些属于产品形态差距，不是配置能补齐的。代码审查与安全扫描已从"外部命令"变成仓库内的只读技能与启发式静态扫描，但仍没有 CI 入口和托管的多代理审查。
 3. **DSH 明显较弱的是多代理治理和权限/沙箱精细度**：Team 已有共享任务、依赖、认领、成员消息、worktree 隔离、成员计划审批（提交后阻塞等待 Lead 批准/拒绝，待审期间只读）与 `TaskCreated` / `TaskCompleted` / `TeammateIdle` 三个 Hook 事件；成员可在 Team 面板查看并并排打开。仍缺"成员进入计划模式后自动只读、批准后自动继续"的完整闭环，嵌套会话固定两层。权限只有 3 个预设，模板默认 `workspace-write`，最松一档 `danger-full-access` 需要主动选择。
 4. **DSH 有若干 Claude 没有或做得更彻底的能力**：模型无关与按会话/子会话选模型、配置即代码的安装/回滚/漂移检测、本地优先不留云、可见父子会话树、跨工作区只读历史授权、持久旁问（btw）、空闲期压缩、内置浏览器批注、Windows 原生桌面控制、OpenSpec 规格交付闭环、本地环境定义、确认式后续任务、会话级记忆禁写。本次新增**会话间逐对授权消息**、**按会话的用量与成本汇总**、**Claude 指令文件镜像注入**、**消息内普通文件路径的侧边栏预览**，以及工作流、代码审查、安全审查、用量报告和 Claude 上下文五个技能；补充轮又加入 **Team 计划审批**、**三个 Team Hook 事件**与**Team 成员面板**；同轮把 10 个下载技能入仓（`think`、`pua`、`ponytail`、`check`、`handoff`、`implement`、`grill-me`、`grill-with-docs`、`grilling`、`domain-modeling`），干净环境安装后即可复现，全文以仓库为准。
@@ -28,6 +28,7 @@
 ### 2.2 证据来源
 
 - 本仓库：`README.md`、`docs/*.md`、`config/*.json`、`provenance.json`、`modules/`、`skills/`、`plugins/*/package.json`、`test/*.test.mjs` 与 `package.json` 测试清单。
+- DSH 原版：`config/desktop.package.json` 中的 `@deepseek-ai/*` 官方包与 0.2.1-rc.2 上游源码；本仓库新增项以 `modules/`、`plugins/`、`skills/` 和 `docs/CHANGES.md` 的手工改动表为准。原版列未在未打补丁的默认 profile 上逐项实测。
 - Claude 侧：`code.claude.com/docs`（经 llms.txt 索引核对）、官方 CHANGELOG（截至 2.1.306）、官方博客（dynamic workflows）。抓取日期 2026-10-21。
 - 本报告把"Claude agent"定义为公开可用的整体：Claude Code（CLI/IDE/桌面/Web/手机）+ Claude Platform（Messages API 工具、Agent SDK、Managed Agents）+ Claude in Chrome / Excel。只比较 Claude Code 会漏掉平台层，只比较平台层会漏掉交互式 harness。
 - 只把"文档明确写出，且本仓库有对应实现或验收记录"的项计为能力；只有一边有文档、另一边未验证的，标注为"未验证"，而不是"有"或"无"。
@@ -41,49 +42,50 @@
 - **弱于**：两边都有同类能力，但 DSH 在覆盖面、粒度、规模或证据强度上明显不足。
 - **独有 / 更强**：DSH 有 Claude 公开文档中无等价物的能力，或在同一维度上做得更彻底。
 - **未验证**：配置存在或代码可读，但没有运行时或真实模型验收记录。
+- **DSH 原版列**：`✅ 原生` 表示官方默认即具备；`◐ 原生基础` 表示入口存在但缺少本仓库的治理、UI 或配置；`✗` 表示原版没有该能力。
 
 ## 三、能力对照矩阵
 
-图例：✅ 有且已验收；◐ 部分具备 / 未验收；✗ 无；— 不适用。
+图例：✅ 有且已验收；◐ 部分具备 / 未验收；✗ 无；— 不适用。判定以本仓库列为准；DSH 原版列说明官方默认是否具备。
 
-| 维度 | DeepSeek Harness（本仓库） | Claude Code | 判定 |
-|---|---|---|---|
-| Shell / 文件 / 搜索 | ✅ bash/pwsh、fs、fs-search | ✅ Bash/PowerShell、文件工具 | 持平 |
-| 计划模式 | ✅ plan mode + planner 预设 | ✅ plan mode + Plan 子代理 | 持平 |
-| 目标保持 / 长任务 | ✅ goal 工具 + 命令，带执行时权限检查 | ✅ `/goal` 可验证完成条件，小模型判停 | 接近 |
-| 子代理 | ✅ subagent / fork / list-agents / control；本部署活跃槽位 20、嵌套 3 层（`maxDepth`）；按 ID 冷恢复、父子互发消息、目录/后代查询与祖先中断已用真实模型在隔离宿主验收；主对话工具行内直接显示子代理入口（描述、状态、并排/主视图/检查），已在装好的 Web UI 用真实模型验收 | ✅ 子代理，可按 ID 恢复、可互发消息，默认嵌套 3 层、20 并发 | **接近（恢复、互发、嵌套与主对话内入口已对齐）** |
-| 多代理团队 | ✅ 本地 Team：共享任务（CAS/依赖/认领/改派/审批 `approve`·`reject`）、`send_message`、`list_agents`、`wait_agent`、worktree 隔离；成员计划审批（`team_plan_submit` 阻塞等待，`team_plan_resolve` 仅 Lead，拒绝必须给反馈，待审期间只读）；`TaskCreated` / `TaskCompleted` / `TeammateIdle` 三个 Hook 事件（退出码 2 拦截，`TeammateIdle` 以 steer 让成员继续）；Team 面板可查看成员并并排打开 | ✅ Agent Teams（实验，默认关闭）：共享任务 + mailbox + 计划审批 + 门禁 hook + 分屏 | **基本对齐（成员计划模式仍需手动由 teammate 调用；双方均为可选/实验）** |
-| 嵌套会话 / 状态总览 | ✅ 两层父子会话、并排分屏、待审批/计划待审/问题/停止/失败状态、跨工作区分组（元数据，20 条/批） | ✅ 子代理 + agent view 全局状态、按 ID 恢复 | 接近 |
-| 本地环境 / 多仓库 | ✅ 保存多仓库 + worktree + 只写变量，便携定义导入导出，启动独立会话 | ◐ worktree、`--add-dir`、Projects；无同等环境定义与变量管理 | **DSH 更强** |
-| 后续建议 / 确认式派发 | ✅ `propose_followups` 只提议；owner 确认后独立 worktree 启动或排入当前会话，Tab 采纳草稿 | ✅ 桌面建议提示、采纳后排入 | 接近（DSH 强在确认前不执行） |
-| 工作流编排 | ✅ 本地扩展 `workflow-ptc` / `tool-workflow`（上游 0.2.1-rc.2 源码）：并发 16、单次最多 1000 个子代理、单次调用 4096 项、规模指引（5/10/25）、整体 `budget_tokens` / `budget_ms` 与只读 `budget`、一层嵌套、journal 断点续跑（前缀回放）、schema 失败重试（`schemaRetries` 默认 5，仅最终尝试入 journal）；journal/resume/嵌套/时长预算/schema 重试已本地验收，真实模型 token 触发与真实模型重试未验收 | ✅ JS 编排、schema（失败重试 5 次）、同会话断点续跑、默认 16 并发（可调 1–256）、单次最多 1000 代理 | **接近（缺真实 token 与真实模型重试验收）** |
-| 程序化工具调用 | ✅ PTC 运行时（`dsh-ptc-runtime`、`workflow-ptc`） | ✅ programmatic tool calling + code execution 组合 | 接近 |
-| 会话间消息 | ◐ Team / 任务家族内部 + `session-bus` 同机逐对授权（目标须运行、非子代理、未归档、未被用户停止；单条 16000 字符） | ✅ 本机/跨机/云，accept/hold/refuse | **部分缺失（跨机器）** |
-| 后台任务 | ✅ jobs + 后台完成通知 | ✅ agent view、`--bg`、独立配额、JSON 状态 | 接近 |
-| 定时任务 | ◐ schedule 工具（本机） | ✅ 云托管 routines：cron + API + GitHub 触发，关机仍跑 | **弱** |
-| 跨端延续 | ✗ | ✅ Web / 手机 / 桌面 / teleport / Remote Control / Dispatch | **缺失** |
-| IDE 集成 | ✗ | ✅ VS Code / JetBrains 扩展 | **缺失** |
-| CI / GitHub | ✗ | ✅ GitHub Actions、PR 审阅、Auto-fix、GitLab CI | **缺失** |
-| 代码审查 / 安全 | ◐ 只读技能 `dsh-code-review`（`effort` 分级、`--comment`/`--fix`/`--json`、固定 findings JSON 契约）；`security-review` + 12 条正则规则扫描（`schemaVersion`、`--fail-on` 门禁，本仓库接成 `npm run check`）；无托管 PR 审查与 SARIF | ✅ `/code-review`（可调 effort、`--comment`/`--fix`）、ultrareview、Claude Security（SARIF）、security-guidance | **接近（缺 CI 集成与托管审查服务）** |
-| Computer use | ✅ Windows 原生 UIA + Playwright 隔离浏览器 | ✅ macOS CLI + 桌面（macOS/Win），逐应用授权 | 各有侧重 |
-| 浏览器 | ◐ 两条 Playwright 链路（隔离 / 独立持久 profile）；内置批注（CSS 定位 + 计算样式 + 编号截图） | ✅ Claude in Chrome（真实登录态） | **弱在真实登录态，强在批注交付** |
-| 消息内文件路径 | ✅ 助手消息的行内代码里，普通工作区路径（含 `:行号`、`#L` 锚点）按纯语法识别，点击在侧边栏打开原生预览；产出/交付文件的原匹配优先；链接色、悬停虚线与焦点环沿用原生样式 | ◐ `@` 提及片、工具头路径与「href 本身是路径」的 Markdown 链接可点；正文裸路径与行内代码不链接（2.1.238 实测） | **DSH 更强（识别面；视觉语言本就一致）** |
-| 记忆 | ✅ 14 个 `memory_*` 工具、三级作用域、BM25 + 可选向量、MCP 服务；会话级禁写强制覆盖自动摘要与写工具并继承到子会话；`claude-context` 镜像注入 Claude 侧 CLAUDE.md 与 rules（有截断与过滤） | ✅ 四层 CLAUDE.md + `.claude/rules` 路径规则 + `@import` 递归 4 层 + 按仓库自动记忆（`MEMORY.md` 前 200 行/25KB）；无同等会话级禁写开关 | **接近；DSH 强在禁写边界，弱在注入预算与跨域检索** |
-| 权限 | ◐ 3 预设（模板默认 workspace-write；只读 / 工作区写 / 完全访问） | ✅ 6 模式 + allow/deny/ask + 分类器 + dontAsk | **弱** |
-| 沙箱 | ◐ sandbox-policy 三档，OS 级隔离未见验收 | ✅ macOS/Linux/WSL2 OS 级文件+网络代理；原生 Windows 无沙箱 | **弱（证据不足）** |
-| Hooks | ◐ 兼容层按目标机器上 Hook 文件是否存在启用，仓库不含 Hook 内容 | ✅ 30+ 事件、5 类执行器 | **弱** |
-| 技能 | ✅ 原生 `skill-filesystem` + `tool-skill`；24 个受管技能（18 个本地 + 6 个 OpenSpec），其中 10 个为下载后入仓、全文以仓库为准；安装器自动发现 `SKILL.md` 与同目录资源；技能的实际模型调用未验收 | ✅ 渐进披露、`context: fork`、插件/账号同步 | 接近 |
-| 插件生态 | ◐ 市场 UI 存在，模型侧工具禁用；无评测/治理 | ✅ 市场、mods、插件评测、企业策略 | **弱** |
-| MCP | ✅ 客户端（含两个 Playwright 服务） | ✅ 三种传输 + OAuth + tool search + 大结果落盘 | **弱（未验证认证）** |
-| 回退 / 检查点 | ✅ rewind：会话/文件/两者，code-only 走快照日志 | ✅ 100 个检查点、定向摘要、明确排除项 | 接近，语义不同 |
-| 压缩 | ✅ 自动 + 工具结果剪枝 + 区间摘要 + **空闲压缩** | ✅ 自动压缩 + 定向摘要 | **更强（空闲维度）** |
-| 可观测性 / 成本 | ◐ 原生 detailed usage/performance 面板 + `usage_report` 按会话归因 token、缓存命中、上下文压力与耗时；费用需手工配置费率；无 OTel、按工具/技能归因、预算告警 | ✅ OTel 指标/事件/追踪、`/usage` 归因、`/insights`、Analytics API | **弱** |
-| 企业治理 | ✗ | ✅ 托管设置、网关、Bedrock/Vertex/Foundry、ZDR/HIPAA | **缺失** |
-| SDK / 可嵌入 | ✗ | ✅ Agent SDK | **缺失** |
-| 模型选择 | ✅ DeepSeek / GLM / GPT-6，按会话/子会话 | ✗ 仅 Claude 模型 | **DSH 独有** |
-| 分发与回滚 | ✅ install/status/capture/rollback/clean + 漂移哈希 + provenance | ◐ 托管设置，无同等回滚/漂移检测 | **DSH 更强** |
+| 维度 | DSH 原版 | 本仓库 | Claude Code | 判定 |
+|---|---|---|---|---|
+| Shell / 文件 / 搜索 | ✅ 原生 | ✅ bash/pwsh、fs、fs-search | ✅ Bash/PowerShell、文件工具 | 持平 |
+| 计划模式 | ✅ 原生 | ✅ plan mode + planner 预设 | ✅ plan mode + Plan 子代理 | 持平 |
+| 目标保持 / 长任务 | ✅ 原生 | ✅ goal 工具 + 命令，带执行时权限检查 | ✅ `/goal` 可验证完成条件，小模型判停 | 接近 |
+| 子代理 | ◐ 原生（默认 8 槽位、嵌套 1 层，无内联入口） | ✅ subagent / fork / list-agents / control；本部署活跃槽位 20、嵌套 3 层（`maxDepth`）；按 ID 冷恢复、父子互发消息、目录/后代查询与祖先中断已用真实模型在隔离宿主验收；主对话工具行内直接显示子代理入口（描述、状态、并排/主视图/检查），已在装好的 Web UI 用真实模型验收 | ✅ 子代理，可按 ID 恢复、可互发消息，默认嵌套 3 层、20 并发 | **接近（恢复、互发、嵌套与主对话内入口已对齐）** |
+| 多代理团队 | ◐ 官方实验包（需启用） | ✅ 本地 Team：共享任务（CAS/依赖/认领/改派/审批 `approve`·`reject`）、`send_message`、`list_agents`、`wait_agent`、worktree 隔离；成员计划审批（`team_plan_submit` 阻塞等待，`team_plan_resolve` 仅 Lead，拒绝必须给反馈，待审期间只读）；`TaskCreated` / `TaskCompleted` / `TeammateIdle` 三个 Hook 事件（退出码 2 拦截，`TeammateIdle` 以 steer 让成员继续）；Team 面板可查看成员并并排打开 | ✅ Agent Teams（实验，默认关闭）：共享任务 + mailbox + 计划审批 + 门禁 hook + 分屏 | **基本对齐（成员计划模式仍需手动由 teammate 调用；双方均为可选/实验）** |
+| 嵌套会话 / 状态总览 | ✗ | ✅ 两层父子会话、并排分屏、待审批/计划待审/问题/停止/失败状态、跨工作区分组（元数据，20 条/批） | ✅ 子代理 + agent view 全局状态、按 ID 恢复 | 接近 |
+| 本地环境 / 多仓库 | ✗ | ✅ 保存多仓库 + worktree + 只写变量，便携定义导入导出，启动独立会话 | ◐ worktree、`--add-dir`、Projects；无同等环境定义与变量管理 | **DSH 更强** |
+| 后续建议 / 确认式派发 | ✗ | ✅ `propose_followups` 只提议；owner 确认后独立 worktree 启动或排入当前会话，Tab 采纳草稿 | ✅ 桌面建议提示、采纳后排入 | 接近（DSH 强在确认前不执行） |
+| 工作流编排 | ◐ 原生包（无规模、预算与续跑治理） | ✅ 本地扩展 `workflow-ptc` / `tool-workflow`（上游 0.2.1-rc.2 源码）：并发 16、单次最多 1000 个子代理、单次调用 4096 项、规模指引（5/10/25）、整体 `budget_tokens` / `budget_ms` 与只读 `budget`、一层嵌套、journal 断点续跑（前缀回放）、schema 失败重试（`schemaRetries` 默认 5，仅最终尝试入 journal）；journal/resume/嵌套/时长预算/schema 重试已本地验收，真实模型 token 触发与真实模型重试未验收 | ✅ JS 编排、schema（失败重试 5 次）、同会话断点续跑、默认 16 并发（可调 1–256）、单次最多 1000 代理 | **接近（缺真实 token 与真实模型重试验收）** |
+| 程序化工具调用 | ✅ 原生 | ✅ PTC 运行时（`dsh-ptc-runtime`、`workflow-ptc`） | ✅ programmatic tool calling + code execution 组合 | 接近 |
+| 会话间消息 | ✗ | ◐ Team / 任务家族内部 + `session-bus` 同机逐对授权（目标须运行、非子代理、未归档、未被用户停止；单条 16000 字符） | ✅ 本机/跨机/云，accept/hold/refuse | **部分缺失（跨机器）** |
+| 后台任务 | ✅ 原生 | ✅ jobs + 后台完成通知 | ✅ agent view、`--bg`、独立配额、JSON 状态 | 接近 |
+| 定时任务 | ◐ 原生 schedule 工具 | ◐ schedule 工具（本机） | ✅ 云托管 routines：cron + API + GitHub 触发，关机仍跑 | **弱** |
+| 跨端延续 | ✗ | ✗ | ✅ Web / 手机 / 桌面 / teleport / Remote Control / Dispatch | **缺失** |
+| IDE 集成 | ✗ | ✗ | ✅ VS Code / JetBrains 扩展 | **缺失** |
+| CI / GitHub | ✗ | ✗ | ✅ GitHub Actions、PR 审阅、Auto-fix、GitLab CI | **缺失** |
+| 代码审查 / 安全 | ✗（需市场插件或技能） | ◐ 只读技能 `dsh-code-review`（`effort` 分级、`--comment`/`--fix`/`--json`、固定 findings JSON 契约）；`security-review` + 12 条正则规则扫描（`schemaVersion`、`--fail-on` 门禁，本仓库接成 `npm run check`）；无托管 PR 审查与 SARIF | ✅ `/code-review`（可调 effort、`--comment`/`--fix`）、ultrareview、Claude Security（SARIF）、security-guidance | **接近（缺 CI 集成与托管审查服务）** |
+| Computer use | ✅ 官方包 | ✅ Windows 原生 UIA + Playwright 隔离浏览器 | ✅ macOS CLI + 桌面（macOS/Win），逐应用授权 | 各有侧重 |
+| 浏览器 | ◐ 原生引导 + 需自行接 MCP | ◐ 两条 Playwright 链路（隔离 / 独立持久 profile）；内置批注（CSS 定位 + 计算样式 + 编号截图） | ✅ Claude in Chrome（真实登录态） | **弱在真实登录态，强在批注交付** |
+| 消息内文件路径 | ✗ | ✅ 助手消息的行内代码里，普通工作区路径（含 `:行号`、`#L` 锚点）按纯语法识别，点击在侧边栏打开原生预览；产出/交付文件的原匹配优先；链接色、悬停虚线与焦点环沿用原生样式 | ◐ `@` 提及片、工具头路径与「href 本身是路径」的 Markdown 链接可点；正文裸路径与行内代码不链接（2.1.238 实测） | **DSH 更强（识别面；视觉语言本就一致）** |
+| 记忆 | ✗ 无内置 `memory_*` 工具 | ✅ 14 个 `memory_*` 工具、三级作用域、BM25 + 可选向量、MCP 服务；会话级禁写强制覆盖自动摘要与写工具并继承到子会话；`claude-context` 镜像注入 Claude 侧 CLAUDE.md 与 rules（有截断与过滤） | ✅ 四层 CLAUDE.md + `.claude/rules` 路径规则 + `@import` 递归 4 层 + 按仓库自动记忆（`MEMORY.md` 前 200 行/25KB）；无同等会话级禁写开关 | **接近；DSH 强在禁写边界，弱在注入预算与跨域检索** |
+| 权限 | ✅ 原生 3 预设 | ◐ 3 预设（模板默认 workspace-write；只读 / 工作区写 / 完全访问） | ✅ 6 模式 + allow/deny/ask + 分类器 + dontAsk | **弱** |
+| 沙箱 | ✅ 原生三档 | ◐ sandbox-policy 三档，OS 级隔离未见验收 | ✅ macOS/Linux/WSL2 OS 级文件+网络代理；原生 Windows 无沙箱 | **弱（证据不足）** |
+| Hooks | ◐ 官方协议包（无 Hook 内容） | ◐ 兼容层按目标机器上 Hook 文件是否存在启用，仓库不含 Hook 内容 | ✅ 30+ 事件、5 类执行器 | **弱** |
+| 技能 | ◐ 原生加载器（无随附技能） | ✅ 原生 `skill-filesystem` + `tool-skill`；24 个受管技能（18 个本地 + 6 个 OpenSpec），其中 10 个为下载后入仓、全文以仓库为准；安装器自动发现 `SKILL.md` 与同目录资源；技能的实际模型调用未验收 | ✅ 渐进披露、`context: fork`、插件/账号同步 | 接近 |
+| 插件生态 | ◐ 市场 UI | ◐ 市场 UI 存在，模型侧工具禁用；无评测/治理 | ✅ 市场、mods、插件评测、企业策略 | **弱** |
+| MCP | ✅ 原生 | ✅ 客户端（含两个 Playwright 服务） | ✅ 三种传输 + OAuth + tool search + 大结果落盘 | **弱（未验证认证）** |
+| 回退 / 检查点 | ✗（需插件） | ✅ rewind：会话/文件/两者，code-only 走快照日志 | ✅ 100 个检查点、定向摘要、明确排除项 | 接近，语义不同 |
+| 压缩 | ◐ 原生自动压缩（无空闲维度） | ✅ 自动 + 工具结果剪枝 + 区间摘要 + **空闲压缩** | ✅ 自动压缩 + 定向摘要 | **更强（空闲维度）** |
+| 可观测性 / 成本 | ◐ 原生 detailed usage 面板 | ◐ 原生 detailed usage/performance 面板 + `usage_report` 按会话归因 token、缓存命中、上下文压力与耗时；费用需手工配置费率；无 OTel、按工具/技能归因、预算告警 | ✅ OTel 指标/事件/追踪、`/usage` 归因、`/insights`、Analytics API | **弱** |
+| 企业治理 | ✗ | ✗ | ✅ 托管设置、网关、Bedrock/Vertex/Foundry、ZDR/HIPAA | **缺失** |
+| SDK / 可嵌入 | ✗ | ✗ | ✅ Agent SDK | **缺失** |
+| 模型选择 | ✅ 原生（模型无关） | ✅ DeepSeek / GLM / GPT-6，按会话/子会话 | ✗ 仅 Claude 模型 | **DSH 独有** |
+| 分发与回滚 | ◐ 原生安装（无漂移哈希与回滚） | ✅ install/status/capture/rollback/clean + 漂移哈希 + provenance | ◐ 托管设置，无同等回滚/漂移检测 | **DSH 更强** |
 
-## 四、Claude 有、DSH 完全没有的能力
+## 四、Claude 有、DSH 原版没有的能力（本仓库补齐的另行标注）
 
 按"对实际工作影响"排序：
 
@@ -127,7 +129,7 @@ Claude 可把 Telegram / Discord / iMessage / webhook 事件作为会话输入�
 
 ### 4.9 团队计划审批与任务门禁
 
-Claude Agent Teams 支持 teammate 先进入只读计划模式：计划完成后向 lead 发审批请求，默认由 Claude Code 直接放行（用户手动把该成员切进计划模式时改由 lead 审阅）；并由 TeammateIdle / TaskCreated / TaskCompleted 三个 hook 做质量门禁。DSH 的本地 Team 现在有两层治理：
+Claude Agent Teams 支持 teammate 先进入只读计划模式：计划完成后向 lead 发审批请求，默认由 Claude Code 直接放行（用户手动把该成员切进计划模式时改由 lead 审阅）；并由 TeammateIdle / TaskCreated / TaskCompleted 三个 hook 做质量门禁。DSH 原版没有这三项；本仓库的本地 Team 已补齐两层治理：
 
 - **计划审批**：队友调用 `team_plan_submit` 提交完整计划，随后阻塞等待；工具 guard 在该成员有待审计划时只放行只读工具与消息，直到 Lead 用 `team_plan_resolve` 批准、或带反馈拒绝（拒绝必须给理由）。计划与决策持久化为插件可忽略记录 `plugin:agent-team-local/plan`，`team_plan_list` 可随时回看状态与反馈。
 - **任务与空闲门禁**：`TaskCreated` / `TaskCompleted` / `TeammateIdle` 三个 Hook 事件把事件 JSON 写到命令 stdin，超时 10 秒；退出码 0 放行、2 拦截（任务返回 `TEAM_TASK_BLOCKED`，空闲把理由 steer 回成员让本轮继续）、其他非 0 记门禁失败。`requireTaskApproval` 仍可让队友创建的任务先停在 `awaiting_approval`，旧配置 `taskGate` 继续作为两个任务事件的回退命令。
@@ -147,7 +149,9 @@ Claude 在 harness 之外还有一整层平台能力：Messages API 的服务端
 
 Claude 把会话产出发布为 claude.ai 上的 Artifacts（原地更新、版本、分享、评论，可经查看者的 MCP 拉实时数据），用 Projects 协调多条并行云线程，用 Claude Tag 在 Slack 里以组织身份工作，用 Mods 在进程内改写 Claude Code 自己的界面与工具调用。DSH 的交付物是工作区文件与浏览器批注图片；没有可分享的托管产物页、跨线程协调层、团队聊天入口或界面级 mod。**影响**：产出需要自己找地方托管，团队协作仍停在"人发文件"。
 
-## 五、两边都有、但 DSH 明显较弱的能力
+## 五、两边都有、但 DSH 明显较弱的能力（本仓库相对原版已有补强）
+
+本节以本仓库配置评估；DSH 原版通常更弱，缺少本地模块、技能与调参。
 
 ### 5.1 多代理编排：协议接近，治理与规模落后
 
@@ -218,7 +222,9 @@ desktop profile 有 MCP、Team、worktree、plan mode、tool-result pruner、区
 
 三档预设本身没问题，模板默认是 `workspace-write`；`danger-full-access` 配 `approval: never`，选到这一档时几乎没有审批摩擦，也就没有护栏。Claude 的默认是 Manual/auto 审查。**影响**：DSH 的安全性更依赖用户自觉选档，但这已不再是模板默认状态。
 
-## 六、DSH 有、Claude 没有（或更强）的能力
+## 六、DSH 有、Claude 没有（或更强）的能力（原版原生 + 本仓库新增）
+
+本节合并 DSH 原版原生能力与本仓库新增；依赖本地模块、插件或技能的，归本仓库增量。
 
 ### 6.1 模型无关与按会话路由
 
@@ -281,6 +287,7 @@ OpenSpec 1.14.3 + `dsh-spec-delivery`：从提案到实现到归档的完整 ski
 | 风险 | 说明 | 建议 |
 |---|---|---|
 | 插件与宿主强绑定 | 原生 `plugin peers check` 仍返回 1；本地模块绑定 0.2.1-rc.2；本地环境的 PowerShell/PTY 适配器以薄子类接入原生类；`plugins/file-links` 包装固定版本的 `chatFileMentions.forClosing` | 升级前做真实宿主验收，不只看单测；重点复核适配器断言的实际运行类与 `chatFileMentions` 形状 |
+| DSH 原版列未逐项验收 | 原版列依据官方包与上游源码判定，未在未打补丁的默认 profile 上逐项实测 | 需要精确结论时，用干净的 `DSH_HOME` 复测 |
 | 新能力只验收到装配层 | 三个模块与五个技能在隔离 `DSH_HOME` 中完成工具注册、技能解析与系统提示装配，但没有真实模型调用；`usage_report` 未端到端执行 | 用真实会话跑一次发送、用量汇总、审查与扫描，再写进能力承诺 |
 | 本地审查技能能力有限 | `dsh-code-review` 的 effort 分级、`--comment`、`--fix` 与 findings JSON 契约已补齐，但仍是会话内技能，没有托管 PR 审查；`scan.mjs` 是 12 条正则线索，没有依赖审计、污点分析或 SARIF | 当作第一道线索，不替代 SAST 或人工审查；不要宣称等价于 Claude 的托管审查 |
 | 扫描脱敏范围 | 仅密钥类规则把命中替换为 `[redacted]`；非密钥规则输出截断后的原始匹配 | 扫描结果按敏感输出处理，不要直接贴进共享渠道 |

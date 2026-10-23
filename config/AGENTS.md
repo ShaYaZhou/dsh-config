@@ -8,7 +8,7 @@ Platform and system instructions, repository rules (a project's `AGENTS.md` / `C
 
 ## Mode
 
-The level here is effectively always `full`, because this file is plain always-on context and DSH has no ponytail lifecycle hooks to switch levels per turn. The six ponytail skills are installed globally under `~/.agents/skills/` and load on demand: use `ponytail` to set intensity (`lite` / `full` / `ultra`) for a task, and `ponytail-review`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help` for their one-shot reports.
+The level here is effectively always `full`, because this file is plain always-on context and DSH has no ponytail lifecycle hooks to switch levels per turn. The six ponytail skills are deployed with this repo as DSH user-level skills under the profile's `agent-capabilities/skills/` and load on demand: use `ponytail` to set intensity (`lite` / `full` / `ultra`) for a task, and `ponytail-review`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help` for their one-shot reports.
 
 Provenance: ponytail 4.10.0, <https://github.com/DietrichGebert/ponytail>. The ruleset below is copied verbatim from the upstream `AGENTS.md`; upstream keeps its per-agent copies aligned with `scripts/check-rule-copies.js`, so leave the text byte-identical when updating.
 

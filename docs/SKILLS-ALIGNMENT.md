@@ -1,13 +1,15 @@
 # 技能与部署环境对齐
 
-这份文档是给 AI agent 执行的对齐手册：读完即可把一台机器上的 Harness 部署、插件和技能副本对齐到本仓库状态。仓库是唯一来源，本机不保留第二份可编辑副本，也不再使用目录联接。
+这份文档是给 AI agent 执行的对齐手册：读完即可把一台机器上的 Harness 部署、插件和技能副本对齐到本仓库状态。仓库是唯一来源，本机不保留第二份可编辑副本，也不再使用目录联接。技能只落 DSH 的 `agent-capabilities/skills/`，不写入 `~/.claude/skills`、`~/.agents/skills`、`~/.codex/skills` 等 agent 全局目录，避免被其他 agent 发现。
 
 ## 一、执行须知
 
 - 只按本文和仓库文件操作；发现本机有仓库没有的文件时停下报告，不要删除或覆盖。
 - 不建立软链接或目录联接；技能一律复制成真实文件。
 - 不提交 `.local/`、会话、记忆、凭据和展开后的本机路径。
-- DSH 部署与技能复制是两件事：前者走 `scripts/harness.mjs`，后者走 `scripts/align-skills.mjs`。
+- 技能只进 DSH：`scripts/harness.mjs install` 把 `skills/<名称>/` 整棵复制到 `DSH_HOME/profiles/desktop/agent-capabilities/skills/`。
+- 不把技能复制到 `~/.claude/skills`、`~/.agents/skills`、`~/.codex/skills`：这些是各 agent 的全局目录，会被其他 agent 发现；DSH 的外部技能 provider 优先级还高于桌面 `customSkillDirs`，同名会互相覆盖。
+- `scripts/align-skills.mjs` 只维护文档附录；本机确实需要额外副本时，才显式传 `--target`。
 
 ## 二、对齐清单
 
@@ -27,20 +29,20 @@
 
 ### 2.2 技能
 
-| 技能 | 仓库来源 | agent 全局目标 | DSH 目标 | 附带文件 |
-|---|---|---|---|---|
-| `dynamic-ui` | [`skills/dynamic-ui`](../skills/dynamic-ui/) | `~/.claude/skills/dynamic-ui` | `agent-capabilities/skills/dynamic-ui` | `preview.py` + `patterns/` 20 个 |
-| `think` | [`skills/think`](../skills/think/) | `~/.claude/skills/think` | 同上 | `references/` 3 个 |
-| `pua` | [`skills/pua`](../skills/pua/) | `~/.claude/skills/pua` | 同上 | 无 |
-| `ponytail`、`check`、`handoff`、`implement`、`grill-me`、`grill-with-docs`、`grilling`、`domain-modeling` | [`skills/`](../skills/)（自本机 `~/.claude/skills`、`~/.agents/skills` 入仓） | 不复制 | 同上 | 见各自目录；`grill-me` 依赖 `grilling`，`grill-with-docs` 依赖 `grilling` + `domain-modeling`，四项必须同时部署 |
-| 其余 DSH 专用技能 | [`skills/`](../skills/) | 不复制 | 同上 | 见各自目录 |
+| 技能 | 仓库来源 | DSH 目标 | 附带文件 |
+|---|---|---|---|
+| `dynamic-ui` | [`skills/dynamic-ui`](../skills/dynamic-ui/) | `agent-capabilities/skills/dynamic-ui` | `preview.py` + `patterns/` 20 个 |
+| `think` | [`skills/think`](../skills/think/) | 同上 | `references/` 3 个 |
+| `pua` | [`skills/pua`](../skills/pua/) | 同上 | 无 |
+| `ponytail`、`check`、`handoff`、`implement`、`grill-me`、`grill-with-docs`、`grilling`、`domain-modeling` | [`skills/`](../skills/)（自本机 `~/.claude/skills`、`~/.agents/skills` 入仓） | 同上 | 见各自目录；`grill-me` 依赖 `grilling`，`grill-with-docs` 依赖 `grilling` + `domain-modeling`，四项必须同时部署 |
+| 其余 DSH 专用技能 | [`skills/`](../skills/) | 同上 | 见各自目录 |
 
-`~` 指当前用户主目录。DSH 侧由安装器整棵复制 `skills/<名称>/`，不需要单独登记；agent 全局侧只同步上表前三项。附录只内联自维护的 `dynamic-ui` 全文；`think`、`pua` 及其余下载技能只写仓库链接。
+目标均在 `DSH_HOME/profiles/desktop/agent-capabilities/skills/<名称>/`，由安装器整棵复制，不需要单独登记。技能不再复制到 agent 全局目录。目标机若在 `~/.claude/skills`、`~/.agents/skills`、`~/.codex/skills` 已有同名技能，DSH 的外部 provider 可能优先加载那些副本；本仓库不写入也不删除这些目录，需要时由机器所有者自行处理。附录只内联自维护的 `dynamic-ui` 全文；`think`、`pua` 及其余下载技能只写仓库链接。
 
 ### 2.3 不纳入
 
 - `~/.claude/skills` 下的 Lark、视频、抓取类技能：体积可达数十 MB，且与本仓库能力无关，只在需要的机器上单独安装。
-- `computer-use`：全局路径指向 `~/.agents/skills`，由该目录自己维护。
+- `computer-use` 的 agent 全局副本：全局路径指向 `~/.agents/skills`，由该目录自己维护；DSH 副本仍随 `skills/computer-use` 部署。
 - 任何插件专属的内部状态、会话、记忆和快照。
 
 ## 三、执行顺序
@@ -48,14 +50,13 @@
 ```powershell
 rtk proxy node --test test/align-skills.test.mjs
 rtk proxy node scripts/align-skills.mjs --check
-rtk proxy node scripts/align-skills.mjs
 rtk proxy node --test test/portable.test.mjs
 rtk proxy node scripts/harness.mjs install --dry-run
 rtk proxy node scripts/harness.mjs install
 rtk proxy node scripts/harness.mjs status
 ```
 
-安装结束后完全退出 Harness 再打开，新会话才会加载新技能。
+`align-skills.mjs` 不带 `--target` 时只刷新或检查附录，不复制技能；技能落点由安装器决定。安装结束后完全退出 Harness 再打开，新会话才会加载新技能。
 
 ### 3.1 `align-skills.mjs` 的行为
 
@@ -67,7 +68,7 @@ rtk proxy node scripts/harness.mjs status
 | 含仓库没有的文件 | 跳过该技能，列出文件名，退出码 1 |
 | `--check` | 只读比较，不写任何文件 |
 
-默认目标 `~/.claude/skills`；其他 agent 用 `--target <目录>` 指向其技能根目录。
+不带 `--target` 时只刷新或检查附录，不复制任何文件。显式传入 `--target <目录>` 才按上表复制；该参数只供本机维护，正规部署不要使用，更不要指向 agent 全局目录。
 
 ### 3.2 文档附录
 
@@ -75,7 +76,7 @@ rtk proxy node scripts/harness.mjs status
 
 ## 四、不能运行脚本时
 
-WorkBuddy 等只能读写的 agent 按此逐项核对：
+WorkBuddy 等只能读写的 agent 按此逐项核对；目标一律是 `DSH_HOME/profiles/desktop/agent-capabilities/skills/`，不要写 agent 全局目录：
 
 1. 打开 `skills/<名称>/`，记录相对路径清单。
 2. 在目标目录按相同相对路径逐个比较内容；内容相同即视为已对齐。

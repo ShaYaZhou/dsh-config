@@ -3,7 +3,7 @@
 ## 2026-10-23 干净环境技能同步
 
 - 入仓技能：`skills/` 新增 `ponytail`、`check`、`handoff`、`implement`、`grill-me`、`grill-with-docs`、`grilling`、`domain-modeling`，来源为本机 `~/.claude/skills` 与 `~/.agents/skills`。`grill-me` 依赖 `grilling`，`grill-with-docs` 依赖 `grilling` + `domain-modeling`，四项必须同时部署。
-- 部署路径：安装器按 `skills/*/SKILL.md` 自动发现，复制到 `profiles/desktop/agent-capabilities/skills/<名称>/`；只有 DSH 的机器执行 `install` 即得到 24 个受管技能（18 个本地 + 6 个 OpenSpec）。这些技能不进入 `align-skills.mjs` 的 agent 全局同步清单。
+- 部署路径：安装器按 `skills/*/SKILL.md` 自动发现，复制到 `profiles/desktop/agent-capabilities/skills/<名称>/`；只有 DSH 的机器执行 `install` 即得到 24 个受管技能（18 个本地 + 6 个 OpenSpec）。这些技能不进入 `align-skills.mjs` 的附录清单，也不写入 agent 全局目录。
 - 验证：`install --dry-run` 从 65 个受管文件增至 94 个；安装后 `~/.dsh/profiles/desktop/agent-capabilities/skills` 列出全部 24 个技能，`status` 无漂移；`test/portable.test.mjs` 13 项与完整 `npm test` 157 项通过，其中「versioned sources contain neither personal host paths nor credential files」覆盖新增文件。
 - 未验证：只在安装目录层面确认技能落盘，未在真实 DSH 会话里逐个触发这些技能的模型调用。
 
