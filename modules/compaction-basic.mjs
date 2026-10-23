@@ -903,6 +903,17 @@ var BasicCompactionEngine = class extends CompactionEngine {
 		return summarizeWithLlm(this.ctx, config, input, agent, signal);
 	}
 	/**
+	* Apply the owner's compaction percentage preference (idle-settings service)
+	* to the resolved pressure policy without touching stored session state.
+	* @param target - exact routed provider/model.
+	* @returns the policy with the live threshold when a preference is set.
+	*/
+	_livePolicy(target) {
+		const policy = resolveTargetPolicy(this.config, target);
+		const ratio = this.ctx.get("compactionThreshold")?.ratio?.();
+		return ratio === void 0 || ratio === policy.thresholdRatio ? policy : { ...policy, thresholdRatio: ratio };
+	}
+	/**
 	* Compact for replayed step-boundary pressure or one provider-confirmed context
 	* overflow. Both triggers price the latest durable routed request envelope;
 	* overflow bypasses the normal threshold and retained-tail policy so it can
@@ -915,7 +926,7 @@ var BasicCompactionEngine = class extends CompactionEngine {
 	async compactIfNeeded(agent, trigger, signal) {
 		const target = routedTarget(agent.session);
 		if (target === void 0) return null;
-		const policy = resolveTargetPolicy(this.config, target);
+		const policy = this._livePolicy(target);
 		const meter = this.ctx.tokenMeter;
 		let measurement = meter.measure(agent.session);
 		switch (trigger) {

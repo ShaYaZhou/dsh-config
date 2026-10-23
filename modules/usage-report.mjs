@@ -107,6 +107,7 @@ class UsageReport {
       throw new Error('Session is not accessible');
   }
   async report(agent, args, signal) {
+    if (this.ctx.get('enhancementSettings')?.enabled('usageReport') === false) throw new Error('usage_report 已在“Harness增强”设置中关闭');
     const ids = [...new Set(args.session_ids?.length ? args.session_ids : [agent.id])];
     if (ids.length > 20) throw new Error('At most 20 sessions per usage report');
     const timeout = AbortSignal.timeout(30000);
@@ -168,6 +169,7 @@ export function apply(ctx, config = {}) {
   const service = new UsageReport(ctx, config.pricing);
   const installed = new Map();
   const install = (agent) => {
+    if (ctx.get('enhancementSettings')?.enabled('usageReport') === false) return;
     if (installed.has(agent)) return;
     installed.set(agent, installTools(agent, service));
   };

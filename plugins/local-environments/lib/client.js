@@ -652,10 +652,10 @@ window.__ModuleLoader__.load({
         document.head.append(style);
         return () => style.remove();
       });
-      ctx.slots.inject("settings.section", () =>
+      ctx.slots.inject("settings.enhancement.panel", () =>
         ctx.slots.register(
           {
-            name: "settings.section",
+            name: "settings.enhancement.panel",
             id: "local-environments",
             order: 28,
             label: "本地环境",

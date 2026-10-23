@@ -1,0 +1,3 @@
+- insert:
+    - id: enhancement-settings
+      name: '@local/dsh-enhancement-settings'

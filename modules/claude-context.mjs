@@ -98,6 +98,7 @@ export function apply(ctx) {
     name: 'claude-context',
     order: 950,
     text: (context) => {
+      if (ctx.get('enhancementSettings')?.enabled('claudeContext') === false) return '';
       const cwd = context?.agent?.session?.header?.cwd ?? process.cwd();
       try {
         return loadClaudeContext({cwd});

@@ -29,6 +29,7 @@ function setup({archived = [], agents = {}} = {}) {
   }};
   const flushed = [];
   const ctx = {
+    get: () => undefined,
     workspaceRegistry: {archivedSessionIds: archived},
     agents: {get: (id) => agents[id]},
     sessions: {flush: async (session) => { flushed.push(session); }},

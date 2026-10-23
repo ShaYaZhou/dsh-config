@@ -91,13 +91,10 @@ test('enhanced modules and skills deploy with bounded workflow and both browser 
  assert.deepEqual(workflow.config,{provider:'spawn',maxConcurrentAgents:16,maxTotalAgents:1000});
  const subagent=config.find(row=>row.id==='subagent');
  assert.deepEqual(subagent.config,{maxActiveSubagents:20,maxDepth:3});
- const cc=config.flatMap(row=>row.insert??[]).find(row=>row.id==='preset-cc');
- assert(cc,'CC preset must be declared');
- assert.equal(cc.config.id,'cc');
- assert.deepEqual(cc.config.plugins.at(-1),{id:'agent-tool-presentation',name:'@deepseek-ai/dsh-agent-tool-presentation',config:{mode:'ptc'}});
- assert.deepEqual(cc.config.plugins.slice(0,-1),preset.config.plugins,'CC preset must track the standard plugin list');
+ const presetIds=config.flatMap(row=>row.insert??[]).map(row=>row.id);
+ assert(!presetIds.includes('preset-cc'),'retired cc preset must not be declared');
  const allowed=preset.config.plugins.find(row=>row.id==='delegation').config.find(row=>row.id==='tool-subagent').config.allowedAgentPresets;
- assert(allowed.includes('cc'),'CC preset must be selectable for delegated agents');
+ assert(!allowed.includes('cc'),'retired cc preset must not be selectable');
 
  const browsers=config.flatMap(row=>row.insert??[]).filter(row=>row.id?.startsWith('mcp-playwright'));
  assert.equal(browsers.length,2);

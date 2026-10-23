@@ -1,6 +1,6 @@
-# Agent 能力增强（六项能力与 CC 模式）
+# Agent 能力增强（六项能力）
 
-2026-10-22。桌面 profile 在原配置上增加了三个本地模块（`claude-context`、`usage-report`、`session-bus`）和六个技能（`workflow-orchestration`、`dsh-code-review`、`security-review`、`claude-context`、`usage-report`、`dynamic-ui`）。`dynamic-ui` 带 `patterns/` 子目录（19 个图元 + `manifest.json`）和 `preview.py` 自检脚本，部署时随技能目录整棵复制。另提供额外可选 `cc` preset（CC 模式），把这些能力按 PTC 工具形态组合。`think`、`pua` 也已纳入 `skills/`，随安装器部署到 DSH 的 `agent-capabilities/skills/`，不再建目录联接；这些技能不写入 `~/.claude/skills` 等 agent 全局目录，避免被其他 agent 发现。全部是受管文件，安装后必须从菜单真正退出 Harness 再打开才加载。
+2026-10-22。桌面 profile 在原配置上增加了三个本地模块（`claude-context`、`usage-report`、`session-bus`）和六个技能（`workflow-orchestration`、`dsh-code-review`、`security-review`、`claude-context`、`usage-report`、`dynamic-ui`）。`dynamic-ui` 带 `patterns/` 子目录（19 个图元 + `manifest.json`）和 `preview.py` 自检脚本，部署时随技能目录整棵复制。`think`、`pua` 也已纳入 `skills/`，随安装器部署到 DSH 的 `agent-capabilities/skills/`，不再建目录联接；这些技能不写入 `~/.claude/skills` 等 agent 全局目录，避免被其他 agent 发现。全部是受管文件，安装后必须从菜单真正退出 Harness 再打开才加载。
 
 2026-10-23 补充：又把 8 个下载技能（`ponytail`、`check`、`handoff`、`implement`、`grill-me`、`grill-with-docs`、`grilling`、`domain-modeling`）入仓，由安装器自动发现并部署，干净环境安装后即可复现。它们与 `think`、`pua` 一样只以仓库为准；`docs/SKILLS-ALIGNMENT.md` 附录只内联自维护的 `dynamic-ui`，下载技能一律只给 [`skills/`](../skills/) 下的仓库链接。
 
@@ -26,19 +26,11 @@
 
 边界：工作流子级不继承父会话的 cwd、preset 或 reasoning effort；一层嵌套的代价是“子代理里想再拆，只能把结果交回父级再编排”。token 预算要求宿主已挂载 `session-query`，只统计已结算子会话的 `tokenUsage` 投影，回放调用不计；没有该服务时只能设时长预算。每次 schema 重试都是一次完整的子代理运行，成本按尝试累加，真实模型下重试能否修正 structured 输出尚未验收。journal 含 prompt 文本，只落在 `DSH_HOME` 下，不纳入 Git。原生 subagent 活跃槽位已从默认 8 调到 20，工作流占 16，手工 `subagent` 保留 4；这些是协作式配额，不是硬性调度保证。工作流在被调用方的文件沙箱策略下运行，不能用来绕过权限。
 
-## CC 模式
+## CC 模式（已移除）
 
-额外可选 preset `cc`（显示名“CC 模式”，order 2），默认仍是 `standard`。它的插件列表是 `preset-standard` 的完整克隆，再追加一行：
+2026-10-23 按用户反馈移除 `cc` preset：它只是 standard 的完整克隆再加一行 PTC 呈现，实际使用中没有带来独立价值。`preset-cc` 已从 `config/desktop.patch.json` 删除，`tool-subagent.allowedAgentPresets` 不再列出 `cc`，单测改为断言两者都不存在。
 
-```json
-{"id":"agent-tool-presentation","name":"@deepseek-ai/dsh-agent-tool-presentation","config":{"mode":"ptc"}}
-```
-
-PTC 只向模型暴露 `run_code`；文件、shell、skills、`subagent`、`workflow` 等能力通过生成的 SDK 在代码里调用。因为克隆了 standard，planning、compaction、delegation（16/1000）和技能目录都在。`claude-context`、`usage-report`、`session-bus`、Team、worktree、记忆和空闲压缩是顶层全局挂载，不随 preset 复制，CC 同样继承。`cc` 也加进了 `tool-subagent` 的 `allowedAgentPresets`，standard 或 CC 会话都能把它作为子代理角色选择；`start_session` 的 fresh 子会话也可指定 `agent_preset: "cc"`。
-
-原生 preset 没有继承机制，插件列表必须复制；单测断言“CC = standard + presentation 行”，standard 改动后忘记同步 CC 会直接失败。PTC 需要宿主已组装 `ctx.ptcRuntime`（base 的 `ptc-runtime` 行），缺失时 preset 在挂载阶段拒绝，不会拖到第一条消息；每个 agent 只能声明一次呈现方式。
-
-不设为默认：PTC 改变模型调用工具的方式，普通交互任务用 native 形态更直接；需要代码式编排时再选 CC。PTC 只改变工具呈现，不改变权限、沙箱和子代理继承边界；工作流的续跑、预算与一层嵌套由本地引擎提供，与是否选择 CC 无关。
+升级前曾用 `agent_preset: "cc"` 创建的会话不会自动迁移；如仍有这类会话需要打开，先按 `scripts/harness.mjs migrate-liangshen` 的思路把 `agent-preset/selected` 记录改指 `standard`，否则解析预设会失败。
 
 ## 会话间消息
 
@@ -151,6 +143,14 @@ DSH 原生已经给消息里的文件提及着色（`--dsw-alias-link`），悬�
 `plugins/file-links` 在客户端包装原生 `chatFileMentions.forClosing`：先交给原生解析，未命中时用保守的语法判定识别 `src/main.ts`、`README.md:42`、`./a/b.c#L7`、盘符开头的绝对路径这类 token，再走同一个 `owner.openFile` 打开侧边栏。含空白、URL、UNC、引号、`and/or`、`3.5`、`e.g` 以及目录名（如 `src/`）的一律保持纯文本。它不注册第二个服务，也不改样式，因此观感与原生的文件 chip 一致。
 
 限制：路径是否存在要点击后由预览确认，缺失文件显示原生预览错误；绝对路径与相对路径都按当前会话 cwd 解析。该行为依赖宿主 0.2.1-rc.2 的内部接口形状，升级 Harness 后必须重新验收。
+
+## 会话内可视化与 ultracode 开关
+
+模型做交互 UI 时不再写 `.html` 交付文件。`plugins/dynamic-ui-view` 注册 `render_widget`（`html` 片段、`title`、`height`），客户端按 wire 名挂 `tool.call.toolview`，把片段放进 `sandbox="allow-scripts allow-forms"` 的 iframe：没有 `allow-same-origin`，片段读不到父文档、存储或原生 API；文档壳再加 CSP `default-src 'none'`、`style-src`/`script-src 'unsafe-inline'`、`img-src data: blob:`、`connect-src 'none'`，禁掉全部网络。片段上限 200000 字符，`height` 只作为初始帧高夹在 200–900；带 `<!doctype>`/`<html>`/`<body>` 的整页会被拒绝，模型据错误重试。卡片高度最终由内容决定：文档壳在片段后追加一段内联脚本，用 `ResizeObserver` 量 `body.scrollHeight` 并 `postMessage` 上报，父文档只接受来自该帧的消息，夹在 200–2400 后设给 iframe，因此内容不会被固定高度裁掉；极长内容超过 2400 时仍由外层滚动。`skills/dynamic-ui` 的通道 1 已改用它，写文件交付降为兜底。宿主会把完成的工具调用折进 `hidden="until-found"`（先是「已完成，用时…」，再是「已调用工具」两级）。`tool.call.toolview` 槽位在工具调用节点内部，卡片必然跟着折叠，所以客户端改为搬出去渲染：卡片旁留一个隐藏锚点，挂载后每 250ms 沿祖先找最外层折叠分组，把 `.dyn-widget-host` 容器插到该分组之后，再用 `createPortal` 把卡片渲染进去——分组保持原生折叠，卡片独立完整显示。锚点不在折叠区时收回容器、卡片退回槽位内联；宿主重建节点导致容器脱落时轮询会重新插入。工具描述同时要求片段不要自带固定高度加 `overflow` 的滚动容器，高度一律交给卡片按内容撑开，不再依赖用户提醒。这段 DOM 适配只在客户端单点实现，固定宿主 0.2.1-rc.2，升级须重验。
+
+`plugins/ultracode-control` 在 composer 工具行、模型选择器左侧放一个 `role="switch"` 药丸。状态读原生 `ultracode` projection；会话还没写过记录（`active: null`）时显示「Harness增强」里的新会话默认值。点击只发送现有 `/ultracode on|off`，切换会像 `/permission` 一样在会话里留下原生命令节点；不新增记录、不复制设置。开启时药丸带缓慢流光与呼吸点，`prefers-reduced-motion: reduce` 下全部静止。
+
+限制：模型弹出菜单（`conversation.input.model`）是 single 槽，宿主只允许一个占用者，无法在其中加行，所以开关放在同一行的左侧而非菜单内；该位置也是会话作用域，每个会话独立。
 
 ## 验收
 

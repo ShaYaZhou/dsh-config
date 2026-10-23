@@ -59,7 +59,7 @@ test("starting from native settings closes the owning panel after navigation", (
     },
   };
   apply(ctx);
-  const page = entries.get("settings.section")({
+  const page = entries.get("settings.enhancement.panel")({
     close: () => calls.push("close settings"),
   });
   page.props.onNavigate("environment");

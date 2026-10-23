@@ -26,9 +26,18 @@ importers:
       '@local/dsh-browser-review':
         specifier: file:../../local-plugins/${BROWSER-REVIEW_TGZ}
         version: file:../../local-plugins/${BROWSER-REVIEW_TGZ}
+      '@local/dsh-delete-session':
+        specifier: file:../../local-plugins/${DELETE-SESSION_TGZ}
+        version: file:../../local-plugins/${DELETE-SESSION_TGZ}(zod@4.4.3)
       '@local/dsh-desktop-commands':
         specifier: file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}
         version: file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}
+      '@local/dsh-dynamic-ui-view':
+        specifier: file:../../local-plugins/${DYNAMIC-UI-VIEW_TGZ}
+        version: file:../../local-plugins/${DYNAMIC-UI-VIEW_TGZ}
+      '@local/dsh-enhancement-settings':
+        specifier: file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}
+        version: file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}(@deepseek-ai/schemastery@3.18.5)
       '@local/dsh-file-links':
         specifier: file:../../local-plugins/${FILE-LINKS_TGZ}
         version: file:../../local-plugins/${FILE-LINKS_TGZ}
@@ -37,7 +46,7 @@ importers:
         version: file:../../local-plugins/${FOLLOW-UPS_TGZ}(@local/dsh-local-environments@file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(zod@4.4.3))(zod@4.4.3)
       '@local/dsh-idle-settings':
         specifier: file:../../local-plugins/${IDLE-SETTINGS_TGZ}
-        version: file:../../local-plugins/${IDLE-SETTINGS_TGZ}
+        version: file:../../local-plugins/${IDLE-SETTINGS_TGZ}(@deepseek-ai/schemastery@3.18.5)
       '@local/dsh-local-environments':
         specifier: file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}
         version: file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(zod@4.4.3)
@@ -50,6 +59,9 @@ importers:
       '@local/dsh-tool-workflow':
         specifier: file:../../local-plugins/${TOOL-WORKFLOW_TGZ}
         version: file:../../local-plugins/${TOOL-WORKFLOW_TGZ}(@deepseek-ai/dsh-util-values@0.2.1-rc.2)(@deepseek-ai/schemastery@3.18.5)
+      '@local/dsh-ultracode-control':
+        specifier: file:../../local-plugins/${ULTRACODE-CONTROL_TGZ}
+        version: file:../../local-plugins/${ULTRACODE-CONTROL_TGZ}
       '@local/dsh-workflow-ptc':
         specifier: file:../../local-plugins/${WORKFLOW-PTC_TGZ}
         version: file:../../local-plugins/${WORKFLOW-PTC_TGZ}(@deepseek-ai/dsh-util-values@0.2.1-rc.2)(@deepseek-ai/schemastery@3.18.5)
@@ -92,8 +104,8 @@ packages:
   '@chevrotain/types@11.1.2':
     resolution: {integrity: sha512-U+HFai5+zmJCkK86QsaJtoITlboZHBqrVketcO2ROv865xfCMSFpELQoz1GkX5GzME8pTa+3kbKrZHQtI0gdbw==}
 
-  '@codemirror/autocomplete@6.20.3':
-    resolution: {integrity: sha512-tlosUqb+3BbxCxZdu4tKeRghPFC+QM7q4X5YhKV2eCmPG+1r2F3f4AaSz5sCrFqUtX4Jh20VFTKecl16MgiV9g==}
+  '@codemirror/autocomplete@6.20.4':
+    resolution: {integrity: sha512-yF8RhOf2SXlg00+qtupzLhrglcas61boqaONiNcbPIebHCpJocpqTBA6dyrtUrQO47hqyTdeob/3XnYilT7TaQ==}
 
   '@codemirror/commands@6.11.1':
     resolution: {integrity: sha512-O/4hG3SC1YwcmQ0d2UVNDs+AsaNWd1iHVxbTeEBuqH+6bExAiPK3iS/BvpY6rZGURALv4ZD3sIgcCmRvw3ehBg==}
@@ -161,8 +173,8 @@ packages:
   '@codemirror/streamparser@6.0.0':
     resolution: {integrity: sha512-JTFPF6xrfjt0mnfGPgzcLiMwYmvIyNaoizp8BYzv8FE8KrT6GBGDZ190rtt+O7Wke3gG/MFHyiY9YGNeimof4w==}
 
-  '@codemirror/view@6.43.14':
-    resolution: {integrity: sha512-hC45YnmJNR1rz42OF57BLoQNFMV12/13drnvibDsR2quNDmldcb4WvYVV81hFQg56i9lcqQMEDqilhX2QDcGQQ==}
+  '@codemirror/view@6.43.15':
+    resolution: {integrity: sha512-HHsfpqFeHyXLs983pSRe38Xajs0vFWZQ2BuX0m7Ki8w3jZ5iD8cuR3lBz2/5/X53Dhf32SBHKh6rtSTB6tKeGw==}
 
   '@deepseek-ai/cosmokit@1.8.6':
     resolution: {integrity: sha512-ZSD/fN52L498LBIOYwjIOlaLv5veY6ZEwI2yzvZUKQtctn0QAPqu8tKdJ+OF5+Tv6NBq1U+wJWH+QI6OGy5EvQ==}
@@ -279,8 +291,8 @@ packages:
   '@lezer/lr@1.4.11':
     resolution: {integrity: sha512-UwgZcl1R66H2hDzBrA7kWyYmX6s8p5TQ+e/t7CuvgCtBEPxbEPaHYHu+pJBvTvDotEJpuQkJjbXuHiw5Cixxgw==}
 
-  '@lezer/markdown@1.8.0':
-    resolution: {integrity: sha512-X6w3A2NpyhdtGqTWRJB8gR4QDXBaFMbTOs780ZdZ15KKCfBXOQTKcB3Vr+W6tqJHVlealt53tLmHRvOqPTQgYA==}
+  '@lezer/markdown@1.8.1':
+    resolution: {integrity: sha512-M5YmEcKWO4mJ45Y1hECwqyu8cLv25EiXOK554PVOvDOWOP0olwelHHQUWr9sjF+d1bENVhy0nfJ8E57XZUTiXg==}
 
   '@lezer/php@1.0.6':
     resolution: {integrity: sha512-QJ2xNXPmsm/Z3IpThq8fnJrEIVpxhsIoj6GZBW0JYEd/l9zxpJZW216X4fzqQY4vgpdGIumypvI4uQjd4tnYtw==}
@@ -301,9 +313,28 @@ packages:
     resolution: {integrity: ${BROWSER-REVIEW_INTEGRITY}, tarball: file:../../local-plugins/${BROWSER-REVIEW_TGZ}}
     version: 1.2.0
 
+  '@local/dsh-delete-session@file:../../local-plugins/${DELETE-SESSION_TGZ}':
+    resolution: {integrity: ${DELETE-SESSION_INTEGRITY}, tarball: file:../../local-plugins/${DELETE-SESSION_TGZ}}
+    version: 1.0.0
+    peerDependencies:
+      '@deepseek-ai/dsh-home-paths': 0.2.1-rc.2
+      '@deepseek-ai/dsh-typert-protocol': 0.2.1-rc.2
+      zod: ^4.0.0
+
   '@local/dsh-desktop-commands@file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}':
     resolution: {integrity: ${DESKTOP-COMMANDS_INTEGRITY}, tarball: file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}}
     version: 1.0.2
+
+  '@local/dsh-dynamic-ui-view@file:../../local-plugins/${DYNAMIC-UI-VIEW_TGZ}':
+    resolution: {integrity: ${DYNAMIC-UI-VIEW_INTEGRITY}, tarball: file:../../local-plugins/${DYNAMIC-UI-VIEW_TGZ}}
+    version: 1.0.0
+
+  '@local/dsh-enhancement-settings@file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}':
+    resolution: {integrity: ${ENHANCEMENT-SETTINGS_INTEGRITY}, tarball: file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}}
+    version: 1.0.0
+    peerDependencies:
+      '@deepseek-ai/cordis': ^4.0.5
+      '@deepseek-ai/schemastery': 3.18.5
 
   '@local/dsh-file-links@file:../../local-plugins/${FILE-LINKS_TGZ}':
     resolution: {integrity: ${FILE-LINKS_INTEGRITY}, tarball: file:../../local-plugins/${FILE-LINKS_TGZ}}
@@ -324,6 +355,9 @@ packages:
   '@local/dsh-idle-settings@file:../../local-plugins/${IDLE-SETTINGS_TGZ}':
     resolution: {integrity: ${IDLE-SETTINGS_INTEGRITY}, tarball: file:../../local-plugins/${IDLE-SETTINGS_TGZ}}
     version: 1.0.0
+    peerDependencies:
+      '@deepseek-ai/cordis': ^4.0.5
+      '@deepseek-ai/schemastery': 3.18.5
 
   '@local/dsh-local-environments@file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}':
     resolution: {integrity: ${LOCAL-ENVIRONMENTS_INTEGRITY}, tarball: file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}}
@@ -366,6 +400,10 @@ packages:
       '@deepseek-ai/dsh-util-values': 0.2.1-rc.2
       '@deepseek-ai/dsh-workflow': 0.2.1-rc.2
       '@deepseek-ai/schemastery': ^3.18.0
+
+  '@local/dsh-ultracode-control@file:../../local-plugins/${ULTRACODE-CONTROL_TGZ}':
+    resolution: {integrity: ${ULTRACODE-CONTROL_INTEGRITY}, tarball: file:../../local-plugins/${ULTRACODE-CONTROL_TGZ}}
+    version: 1.0.0
 
   '@local/dsh-workflow-ptc@file:../../local-plugins/${WORKFLOW-PTC_TGZ}':
     resolution: {integrity: ${WORKFLOW-PTC_INTEGRITY}, tarball: file:../../local-plugins/${WORKFLOW-PTC_TGZ}}
@@ -1003,8 +1041,8 @@ packages:
   isexe@2.0.0:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
 
-  jose@6.2.12:
-    resolution: {integrity: sha512-9NiFmJEex0sy2Dk58j2UGBSHgUs2ypF9eZSu4L6vjOX3Dp96Sw1F3uL+H+D1sx02jZZdzUT0HgvCy59CuvXcWw==}
+  jose@6.2.13:
+    resolution: {integrity: sha512-7TIg10ZE1x82YediN+lcrPNvGMKge9yFHQD+Qho/b8y2adfugU3AsvvHfxV0fzyFllT6l9xCjf4RWY9g/Z9PJQ==}
 
   js-yaml@4.3.2:
     resolution: {integrity: sha512-SFNOvSJ+Dgf/9An904Yx+CgSlIPCkIpao4qo51lpee25TIRejdH3rhR4EZMGoNx3/TP3O+wzWuiTFl4sqbltzA==}
@@ -1159,18 +1197,18 @@ snapshots:
 
   '@chevrotain/types@11.1.2': {}
 
-  '@codemirror/autocomplete@6.20.3':
+  '@codemirror/autocomplete@6.20.4':
     dependencies:
       '@codemirror/language': 6.13.1
       '@codemirror/state': 6.7.6
-      '@codemirror/view': 6.43.14
+      '@codemirror/view': 6.43.15
       '@lezer/common': 1.5.3
 
   '@codemirror/commands@6.11.1':
     dependencies:
       '@codemirror/language': 6.13.1
       '@codemirror/state': 6.7.6
-      '@codemirror/view': 6.43.14
+      '@codemirror/view': 6.43.15
       '@lezer/common': 1.5.3
 
   '@codemirror/lang-cpp@6.0.3':
@@ -1180,7 +1218,7 @@ snapshots:
 
   '@codemirror/lang-css@6.3.1':
     dependencies:
-      '@codemirror/autocomplete': 6.20.3
+      '@codemirror/autocomplete': 6.20.4
       '@codemirror/language': 6.13.1
       '@codemirror/state': 6.7.6
       '@lezer/common': 1.5.3
@@ -1188,7 +1226,7 @@ snapshots:
 
   '@codemirror/lang-go@6.0.1':
     dependencies:
-      '@codemirror/autocomplete': 6.20.3
+      '@codemirror/autocomplete': 6.20.4
       '@codemirror/language': 6.13.1
       '@codemirror/state': 6.7.6
       '@lezer/common': 1.5.3
@@ -1196,12 +1234,12 @@ snapshots:
 
   '@codemirror/lang-html@6.4.12':
     dependencies:
-      '@codemirror/autocomplete': 6.20.3
+      '@codemirror/autocomplete': 6.20.4
       '@codemirror/lang-css': 6.3.1
       '@codemirror/lang-javascript': 6.2.5
       '@codemirror/language': 6.13.1
       '@codemirror/state': 6.7.6
-      '@codemirror/view': 6.43.14
+      '@codemirror/view': 6.43.15
       '@lezer/common': 1.5.3
       '@lezer/css': 1.3.9
       '@lezer/html': 1.3.13
@@ -1213,11 +1251,11 @@ snapshots:
 
   '@codemirror/lang-javascript@6.2.5':
     dependencies:
-      '@codemirror/autocomplete': 6.20.3
+      '@codemirror/autocomplete': 6.20.4
       '@codemirror/language': 6.13.1
       '@codemirror/lint': 6.9.7
       '@codemirror/state': 6.7.6
-      '@codemirror/view': 6.43.14
+      '@codemirror/view': 6.43.15
       '@lezer/common': 1.5.3
       '@lezer/javascript': 1.5.6
 
@@ -1228,13 +1266,13 @@ snapshots:
 
   '@codemirror/lang-markdown@6.5.2':
     dependencies:
-      '@codemirror/autocomplete': 6.20.3
+      '@codemirror/autocomplete': 6.20.4
       '@codemirror/lang-html': 6.4.12
       '@codemirror/language': 6.13.1
       '@codemirror/state': 6.7.6
-      '@codemirror/view': 6.43.14
+      '@codemirror/view': 6.43.15
       '@lezer/common': 1.5.3
-      '@lezer/markdown': 1.8.0
+      '@lezer/markdown': 1.8.1
 
   '@codemirror/lang-php@6.0.2':
     dependencies:
@@ -1246,7 +1284,7 @@ snapshots:
 
   '@codemirror/lang-python@6.2.1':
     dependencies:
-      '@codemirror/autocomplete': 6.20.3
+      '@codemirror/autocomplete': 6.20.4
       '@codemirror/language': 6.13.1
       '@codemirror/state': 6.7.6
       '@lezer/common': 1.5.3
@@ -1259,7 +1297,7 @@ snapshots:
 
   '@codemirror/lang-sql@6.10.0':
     dependencies:
-      '@codemirror/autocomplete': 6.20.3
+      '@codemirror/autocomplete': 6.20.4
       '@codemirror/language': 6.13.1
       '@codemirror/state': 6.7.6
       '@lezer/common': 1.5.3
@@ -1277,16 +1315,16 @@ snapshots:
 
   '@codemirror/lang-xml@6.1.0':
     dependencies:
-      '@codemirror/autocomplete': 6.20.3
+      '@codemirror/autocomplete': 6.20.4
       '@codemirror/language': 6.13.1
       '@codemirror/state': 6.7.6
-      '@codemirror/view': 6.43.14
+      '@codemirror/view': 6.43.15
       '@lezer/common': 1.5.3
       '@lezer/xml': 1.0.6
 
   '@codemirror/lang-yaml@6.1.3':
     dependencies:
-      '@codemirror/autocomplete': 6.20.3
+      '@codemirror/autocomplete': 6.20.4
       '@codemirror/language': 6.13.1
       '@codemirror/state': 6.7.6
       '@lezer/common': 1.5.3
@@ -1298,7 +1336,7 @@ snapshots:
     dependencies:
       '@codemirror/state': 6.7.6
       '@codemirror/streamparser': 6.0.0
-      '@codemirror/view': 6.43.14
+      '@codemirror/view': 6.43.15
       '@lezer/common': 1.5.3
       '@lezer/highlight': 1.2.5
       '@lezer/lr': 1.4.11
@@ -1311,13 +1349,13 @@ snapshots:
   '@codemirror/lint@6.9.7':
     dependencies:
       '@codemirror/state': 6.7.6
-      '@codemirror/view': 6.43.14
+      '@codemirror/view': 6.43.15
       crelt: 1.0.7
 
   '@codemirror/search@6.7.2':
     dependencies:
       '@codemirror/state': 6.7.6
-      '@codemirror/view': 6.43.14
+      '@codemirror/view': 6.43.15
       crelt: 1.0.7
 
   '@codemirror/state@6.7.6':
@@ -1326,7 +1364,7 @@ snapshots:
 
   '@codemirror/streamparser@6.0.0': {}
 
-  '@codemirror/view@6.43.14':
+  '@codemirror/view@6.43.15':
     dependencies:
       '@codemirror/state': 6.7.6
       crelt: 1.0.7
@@ -1438,7 +1476,7 @@ snapshots:
     dependencies:
       '@lezer/common': 1.5.3
 
-  '@lezer/markdown@1.8.0':
+  '@lezer/markdown@1.8.1':
     dependencies:
       '@lezer/common': 1.5.3
       '@lezer/highlight': 1.2.5
@@ -1475,7 +1513,17 @@ snapshots:
 
   '@local/dsh-browser-review@file:../../local-plugins/${BROWSER-REVIEW_TGZ}': {}
 
+  '@local/dsh-delete-session@file:../../local-plugins/${DELETE-SESSION_TGZ}(zod@4.4.3)':
+    dependencies:
+      zod: 4.4.3
+
   '@local/dsh-desktop-commands@file:../../local-plugins/${DESKTOP-COMMANDS_TGZ}': {}
+
+  '@local/dsh-dynamic-ui-view@file:../../local-plugins/${DYNAMIC-UI-VIEW_TGZ}': {}
+
+  '@local/dsh-enhancement-settings@file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}(@deepseek-ai/schemastery@3.18.5)':
+    dependencies:
+      '@deepseek-ai/schemastery': 3.18.5
 
   '@local/dsh-file-links@file:../../local-plugins/${FILE-LINKS_TGZ}': {}
 
@@ -1484,7 +1532,9 @@ snapshots:
       '@local/dsh-local-environments': file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(zod@4.4.3)
       zod: 4.4.3
 
-  '@local/dsh-idle-settings@file:../../local-plugins/${IDLE-SETTINGS_TGZ}': {}
+  '@local/dsh-idle-settings@file:../../local-plugins/${IDLE-SETTINGS_TGZ}(@deepseek-ai/schemastery@3.18.5)':
+    dependencies:
+      '@deepseek-ai/schemastery': 3.18.5
 
   '@local/dsh-local-environments@file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(zod@4.4.3)':
     dependencies:
@@ -1500,6 +1550,8 @@ snapshots:
     dependencies:
       '@deepseek-ai/dsh-util-values': 0.2.1-rc.2
       '@deepseek-ai/schemastery': 3.18.5
+
+  '@local/dsh-ultracode-control@file:../../local-plugins/${ULTRACODE-CONTROL_TGZ}': {}
 
   '@local/dsh-workflow-ptc@file:../../local-plugins/${WORKFLOW-PTC_TGZ}(@deepseek-ai/dsh-util-values@0.2.1-rc.2)(@deepseek-ai/schemastery@3.18.5)':
     dependencies:
@@ -1526,7 +1578,7 @@ snapshots:
       cross-spawn: 7.0.6
       eventsource: 3.0.7
       eventsource-parser: 3.1.1
-      jose: 6.2.12
+      jose: 6.2.13
       pkce-challenge: 5.0.1
       zod: 4.4.3
 
@@ -1981,7 +2033,7 @@ snapshots:
       '@codemirror/legacy-modes': 6.5.5
       '@codemirror/search': 6.7.2
       '@codemirror/state': 6.7.6
-      '@codemirror/view': 6.43.14
+      '@codemirror/view': 6.43.15
       '@deepseek-ai/schemastery': 3.18.5
       '@formkit/auto-animate': 0.10.0
       '@lezer/highlight': 1.2.5
@@ -2039,7 +2091,7 @@ snapshots:
 
   isexe@2.0.0: {}
 
-  jose@6.2.12: {}
+  jose@6.2.13: {}
 
   js-yaml@4.3.2:
     dependencies:

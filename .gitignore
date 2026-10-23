@@ -11,3 +11,5 @@ memories/
 agent-memory/
 backups/
 .DS_Store
+.deck/
+package-lock.json

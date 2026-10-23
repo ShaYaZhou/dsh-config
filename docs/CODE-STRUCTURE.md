@@ -28,7 +28,11 @@
 
 `test-worktree-delivery.cjs` 仅负责隔离合成项目的原生/代理验收，不提供产品 Git 操作服务。产品继续使用原生 worktree 和工作目录服务；主会话的准备、审阅和整合指引由既有协作提示与交付技能维护。恢复验收仅支持首次 revert 之前，回滚标记防止意外重放。
 
-空闲压缩的全局策略与各角色隔离引擎通过自己的公开绑定服务协作，使用原生 scope API；归档活动和停止走 workspace 公开事件。`plugins/idle-settings` 只用原生 ConfigForms/Switch 渲染设置页，不复制业务状态。详见 `IDLE-COMPACTION.md`。
+空闲压缩的全局策略与各角色隔离引擎通过自己的公开绑定服务协作，使用原生 scope API；归档活动和停止走 workspace 公开事件。`plugins/idle-settings` 只用原生 ConfigForms/Switch 与数值输入渲染设置页（空闲开关、压缩阈值、还原默认），不复制业务状态。详见 `IDLE-COMPACTION.md`。
+
+Harness增强设置集中在 `plugins/enhancement-settings`：它是唯一注册根级 `settings.section` 的本地设置页，声明子插槽 `settings.enhancement.panel`，其他设置插件只向该插槽注册分页。服务端以 volatile ConfigForm 字段和公开服务 `enhancementSettings` 暴露开关；`modules/ultracode.mjs` 用可忽略记录 `plugin:ultracode/mode` 与 projection 保存会话内模式，并只按开关注入策略段。
+
+会话内 ultracode 开关在 `plugins/ultracode-control`：客户端只读原生 `ultracode` projection 和 `enhancement-settings` 的 ConfigForm 快照，写路径复用已有的 `/ultracode on|off` 会话命令，不新增记录类型、远程方法或第二份设置。`plugins/dynamic-ui-view` 把模型写的 HTML 片段变成会话卡片：服务端 `render_widget` 只校验并夹取参数，客户端按 wire 工具名注册 `tool.call.toolview`，用无同源的沙箱 iframe 加禁网 CSP 隔离片段；片段校验与文档壳拼接是纯函数，与 UI 分开测试。无同源意味着父文档读不到片段高度，所以由文档壳里的上报脚本把 `body.scrollHeight` 用 `postMessage` 报给客户端，客户端校验消息来自本帧后夹取设高。卡片挂载后每 250ms 沿祖先找最外层 `hidden="until-found"` 折叠分组，把 `.dyn-widget-host` 容器插到分组之后并用 `createPortal` 渲染卡片，折叠分组保持原生行为而卡片独立显示；`outerHidden` 与 `requestMeasure` 是纯函数，单独测试。搬移会让 iframe 重新挂载，消息监听的 effect 因此同时依赖片段与容器状态，否则新帧的高度上报会被旧帧的 `event.source` 校验全部丢掉；文档壳用 `scrollbar-gutter:stable` 固定滚动条槽，避免内容变高时滚动条挤掉宽度再换行。这段 DOM 适配只在客户端单点实现，并固定宿主 0.2.1-rc.2。
 
 文件路径交互集中在 `plugins/file-links`：只包装原生 `chatFileMentions.forClosing`，让助手消息里出现的普通工作区路径复用既有的侧边栏预览，产出/交付文件的匹配仍然优先。识别是纯语法判断，不探磁盘、不读会话；不注册同名服务（Cordis 会拒绝重复 `provide`）、不改 Markdown 渲染器或 CSS。该接缝固定宿主 0.2.1-rc.2 的 `chatFileMentions` 形状，升级须重新验收。
 

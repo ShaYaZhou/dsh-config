@@ -11,7 +11,11 @@
 - `modules/idle-compaction.mjs`：全局策略、live 开关、计时、停止/归档准入与取消。
 - `modules/idle-compaction-agent.mjs`：在角色 compaction 隔离组绑定引擎与 tokenMeter。公开的 `scopeOf` / `scopeChainOf` 选择最近 composition，不遍历 Loader 私有树。
 - 四个内置角色各有独立原生引擎。只读角色没有新增 shell 或项目写入权限。
-- `plugins/idle-settings`：仅提供最小设置 companion。当前宿主的插件库存页只读，需要这个 UI 包；它不实现计时、摘要、存储或另一套 RPC。
+- `plugins/idle-settings`：最小设置 companion。当前宿主的插件库存页只读，需要这个 UI 包；它不实现计时、摘要、存储或另一套 RPC。另提供上下文压缩阈值 `thresholdPercent`（默认 80，范围 20–100），经公开服务 `compactionThreshold` 供压缩引擎读取。
+
+## 压缩阈值
+
+设置页「上下文压缩」可改阈值百分比，带「还原默认」按钮，并提示当前值与默认 80%。保存的是 `idle-settings` 条目的 volatile 字段；`compaction-basic` 在每次压力检查时读取，不需要重启。未设置时沿用原生 `thresholdRatio = 0.8`；一旦设置，优先于按模型的 `modelPolicies` 阈值。阈值只改变触发点，`retainRatio` 与 headroom 仍走原生逻辑。
 
 原生表单写当前 profile，源码部署仍以仓库模板为准。部署前用 `status` 检查 GUI 设置漂移，需要固定的设置同步到源配置；安装备份可恢复原 profile。不要把机器配置和测试历史推送 Git。
 

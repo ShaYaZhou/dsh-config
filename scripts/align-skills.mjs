@@ -13,7 +13,7 @@ const ANNEX_BEGIN = "<!-- annex:begin -->";
 const ANNEX_END = "<!-- annex:end -->";
 
 // 附录清单，以及显式 --target 时的可选本地复制范围；其余 skills/<名称> 只由 DSH 安装器部署。
-export const ALIGNED_SKILLS = ["dynamic-ui", "think", "pua"];
+export const ALIGNED_SKILLS = ["dynamic-ui", "think", "pua", "rtk-reference"];
 // 附录只内联自维护技能的全文；下载来的技能全文以仓库文件为准，文档只给链接。
 export const INLINE_SKILLS = ["dynamic-ui"];
 

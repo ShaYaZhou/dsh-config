@@ -21,7 +21,7 @@ test('native desktop skill belongs to each Agent and is removed on unload',async
  const agent=id=>({id,ctx:{get:()=>({register:skill=>{registered.push({id,skill});return ()=>disposed++;}})}});
  const first=agent('first'),second=agent('second');
  try{
-  const {apply}=await import(pathToFileURL(modulePath));apply({agents:{list:()=>[first]},systemPrompt:{section:()=>{}},on:(name,fn)=>handlers.set(name,fn),effect:fn=>{cleanup=fn();}});
+  const {apply}=await import(pathToFileURL(modulePath));apply({get:()=>undefined,agents:{list:()=>[first]},systemPrompt:{section:()=>{}},on:(name,fn)=>handlers.set(name,fn),effect:fn=>{cleanup=fn();}});
   handlers.get('agent/created')({agent:first});handlers.get('agent/created')({agent:second});assert.equal(registered.length,2);
   assert.equal(registered[0].skill.source,'runtime');assert.equal(registered[0].skill.name,'computer-use');assert(!registered[0].skill.content.startsWith('---'));assert(registered[0].skill.content.includes('cua_driver_native__'));
   handlers.get('agent/disposed')({agent:first});assert.equal(disposed,1);cleanup();assert.equal(disposed,2);

@@ -12,7 +12,7 @@
 | `profiles/desktop/pnpm-workspace.yaml` | 保留 hoisted、禁用自动补装 peer 及构建策略 | `config/pnpm-workspace.json` |
 | `profiles/headless/cordis.patch.yml` | 同一 proxy、默认模型、记忆与有效 Hooks 引用 | `config/headless.patch.json` |
 | `profiles/headless/package.json`、锁与 workspace 文件 | 版本匹配的 Hooks 组件及包管理输出；初轮未对其所有文件留有基线，不能逐文件证明前后差异 | 对应 headless 模板和共用 workspace 模板 |
-| `profiles/desktop/agent-capabilities/*.mjs` | 13 个本地模块，见下表 | `modules/` |
+| `profiles/desktop/agent-capabilities/*.mjs` | 14 个本地模块，见下表 | `modules/` |
 | `profiles/desktop/agent-capabilities/skills/*` | 受管技能目录，见下表 | `skills/`、`.dsh/skills/` |
 | `profiles/desktop/agent-capabilities/manifest.json` | 生成的来源、版本和哈希记录 | 安装器生成 |
 | `local-plugins/*.tgz` | 本地调校插件；旧的重复 tgz 保留，不被加载 | 从 `plugins/` 重打包 |
@@ -24,7 +24,7 @@
 
 | 模块/插件 | 具体补齐 |
 |---|---|
-| `modules/compaction-basic.mjs` | 在原生 compactNow 增加可选摘要区间与关注点，保留原事务、锁和错误处理 |
+| `modules/compaction-basic.mjs` | 在原生 compactNow 增加可选摘要区间与关注点，保留原事务、锁和错误处理；每次压力检查经公开服务读取用户阈值偏好，未设置时沿用原生 0.8 |
 | `modules/range-commands.mjs` | 将用户消息锚点映射到 before/from 区间 |
 | `modules/role-policy.mjs` | 角色权限、项目范围独立记忆和写入 guard |
 | `modules/team.mjs` | 传递角色、模型、cwd，并在队友启动前创建 worktree；新增 `awaiting_approval` 状态、Lead 的 `approve`/`reject`、可选 `requireTaskApproval`、`taskGate` 回退与 `hooks`（TaskCreated/TaskCompleted/TeammateIdle，退出码 2 拦截，空闲以 steer 继续）；新增成员计划审批（提交阻塞、Lead 决定、待审只读）并把计划存为 `plugin:agent-team-local/plan` 可忽略记录；Hook 超时在 Windows 上以 `taskkill /T` 结束整棵进程树 |
@@ -34,6 +34,12 @@
 | `modules/usage-report.mjs` | 从原生会话投影汇总 token、缓存命中、上下文压力与耗时；价格只来自配置费率，缺省为 null |
 | `modules/session-bus.mjs` | 用户逐对授权的会话间消息；复用原生 followup 与 agent-message relay，持久保存授权与用户停止标记 |
 | `modules/browser-guidance.mjs` | 提示同时说明隔离浏览器与持久 profile 两条链路；修正模板字符串中的反引号语法错误 |
+| `modules/ultracode.mjs` | 会话内 ultracode 模式：`/ultracode on|off|status` 写入可忽略记录 `plugin:ultracode/mode`，projection 恢复状态；开启时注入“实质性任务默认用原生 workflow 编排”的策略段，关闭时该段为空。默认值由“Harness增强”设置提供，不改变工具集、权限或沙箱 |
+| `plugins/enhancement-settings/lib/index.js`、`lib/client.js` | 设置页「Harness增强」：用原生 `settings.section` 集中 Team、worktree、浏览器指引、会话总线、Claude 上下文、用量报告六个开关与 ultracode 新会话默认值；声明子插槽 `settings.enhancement.panel`，原「上下文压缩」「本地环境」「后续建议」页改为其分页；服务端经公开服务 `enhancementSettings` 提供开关读取，字段均为 volatile ConfigForm |
+| `plugins/idle-settings/lib/index.js`、`lib/client.js` | 设置页「上下文压缩」：volatile `thresholdPercent`（默认 80，范围 20–100）、还原默认按钮与默认值提示；经 `compactionThreshold` 服务供压缩引擎读取 |
+| `plugins/delete-session/lib/index.js`、`lib/trash.js` | 会话「…」菜单的删除：先停止并归档，再把会话目录整体移入 `DSH_HOME/dsh-delete-session-trash/`，不做 unlink |
+| `plugins/ultracode-control/lib/client.js` | composer 工具行、模型选择器左侧的 ultracode 药丸：读原生 `ultracode` projection，显式开关优先，未设置时回落「Harness增强」的新会话默认值；只经现有 `/ultracode on|off` 命令写入，不新增记录类型、远程方法或第二份设置；开启时渐变流光，遵循 `prefers-reduced-motion` |
+| `plugins/dynamic-ui-view/lib/index.js`、`lib/client.js` | `render_widget` 工具与 `tool.call.toolview` 卡片：模型写的 HTML 片段在会话内以沙箱 iframe 渲染（不同源、CSP 禁网、片段上限 200000 字符），替代单独生成 `.html` 文件；无原生同名工具，不抢占原生 toolview。卡片经隐藏锚点每 250ms 定位最外层折叠分组，把 `.dyn-widget-host` 插到分组之后再用 `createPortal` 渲染，折叠分组照常折叠而卡片独立完整显示；`height` 只作初始帧高，帧内脚本上报 `body` 实际高度并在首帧后补报几次（样式落地前会量偏小），搬移导致 iframe 重挂载时重建消息监听并主动请求重测，卡片按内容撑开（上限 2400），文档壳用 `scrollbar-gutter:stable` 防止滚动条挤宽导致高度抖动；工具描述要求片段不自带滚动容器 |
 | `plugins/memory/lib/index.js` | headless 结束前等待记忆写回；移除固定十分钟合并门槛 |
 | `plugins/btw/lib/index.js` | 最近 20 对旁问历史、跨进程保存、转有工具的后台会话 |
 | `plugins/rewind/lib/index.js` | 文件独立回退，复用原快照日志和原生维护锁 |
@@ -44,6 +50,7 @@
 | `scripts/align-skills.mjs` | 维护 `docs/SKILLS-ALIGNMENT.md` 附录；仅显式传 `--target` 时幂等复制技能（本机维护用）；目标为目录联接时替换成真实副本；拒绝覆盖本机独有文件 |
 | `skills/think`、`skills/pua` | 从本机全局技能入仓，作为唯一来源；来源与许可证见 `docs/SKILLS-ALIGNMENT.md` |
 | `skills/ponytail`、`skills/check`、`skills/handoff`、`skills/implement`、`skills/grill-me`、`skills/grill-with-docs`、`skills/grilling`、`skills/domain-modeling` | 从本机全局技能入仓，供只有 DSH 的干净环境直接复现；`grill-me` / `grill-with-docs` 的依赖技能一并入仓 |
+| `skills/dynamic-ui/SKILL.md` | 渲染通道 1 改为宿主 `render_widget`（片段直接内联成会话卡片），写 `<图名>.html` 降级为宿主都没有时的兜底；交互只做本地计算，不假设宿主桥可用 |
 
 三个插件都保留原浏览器模块、类型文件、资源和许可证。`package.json` 记录本地构建来源与版本；原生能力绑定 0.2.1-rc.2。记忆独立 MCP 启动文件中的上游机器路径示例改为了相对路径注释，不改变运行行为。
 

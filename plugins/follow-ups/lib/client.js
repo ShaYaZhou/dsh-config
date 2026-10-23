@@ -609,10 +609,10 @@ window.__ModuleLoader__.load({
           (props) => h(Ghost, { ...props, ctx }),
         ),
       );
-      ctx.slots.inject("settings.section", () =>
+      ctx.slots.inject("settings.enhancement.panel", () =>
         ctx.slots.register(
           {
-            name: "settings.section",
+            name: "settings.enhancement.panel",
             id: "follow-ups",
             order: 29,
             label: "后续建议",

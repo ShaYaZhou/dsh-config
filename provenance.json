@@ -40,7 +40,21 @@
       "localChanges": {
         "unpublishedLocalBuild": true,
         "changes": [
-          "Native settings section for the separate idle maintenance capability; uses ConfigForms and Switch without a second settings store."
+          "Native settings section for the separate idle maintenance capability; uses ConfigForms and Switch without a second settings store.",
+          "Same page sets the compaction threshold percentage (default 80, range 20-100) with a reset-to-default action and a hint showing the default; compaction-basic reads it through the public compactionThreshold service and keeps the native 0.8 when unset."
+        ]
+      }
+    },
+    {
+      "id": "enhancement-settings",
+      "package": "@local/dsh-enhancement-settings",
+      "version": "1.0.0",
+      "license": "UNLICENSED",
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "changes": [
+          "Native settings section that gathers local enhancement pages behind one entry and exposes feature toggles through ConfigForms.",
+          "Hosts the feature switches for Team, worktree, browser guidance, session bus, Claude context and usage report, plus the ultracode default, through the public enhancementSettings service; modules fall back to enabled when the plugin is absent."
         ]
       }
     },
@@ -207,6 +221,45 @@
         "changes": [
           "sizeGuideline config states the expected agent scale in the tool description and forwards the matching warning threshold to the engine.",
           "resume_from_run_id, budget_tokens, and budget_ms parameters forwarded to the engine on both foreground and background starts."
+        ]
+      }
+    },
+    {
+      "id": "delete-session",
+      "package": "@local/dsh-delete-session",
+      "version": "1.0.0",
+      "license": "UNLICENSED",
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "changes": [
+          "The session row menu gains a delete action: stop and archive the session, then move its stored log directory into DSH_HOME/dsh-delete-session-trash for manual recovery.",
+          "Uses the public sidebar session menu and shell overlay slots; assumes no native session deletion API."
+        ]
+      }
+    },
+    {
+      "id": "ultracode-control",
+      "package": "@local/dsh-ultracode-control",
+      "version": "1.0.0",
+      "license": "UNLICENSED",
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "changes": [
+          "Composer pill left of the model selector toggles the current session's ultracode mode, reading the native ultracode projection and falling back to the Harness enhancement default.",
+          "Writes only through the existing /ultracode on|off command; no new record type, remote method or settings store."
+        ]
+      }
+    },
+    {
+      "id": "dynamic-ui-view",
+      "package": "@local/dsh-dynamic-ui-view",
+      "version": "1.0.0",
+      "license": "UNLICENSED",
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "changes": [
+          "render_widget tool renders a model-authored HTML fragment inline in the conversation as a sandboxed card instead of a standalone .html file.",
+          "The frame document adds a CSP that blocks all network access and its sandbox withholds same-origin, so the fragment cannot reach the app or its storage."
         ]
       }
     }

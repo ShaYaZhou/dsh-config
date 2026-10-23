@@ -21,26 +21,21 @@ description: 在回答旁内联渲染紧凑可视化——方案对比卡、分�
 
 先选通道，再写代码。三个通道的宿主约束不同，本 skill 只按最严的那个写：**零网络、不依赖任何宿主主题属性**。最严的宿主能跑通，宽松的必然也能跑通。
 
-1. **AgentDeck Visualize（首选）**：把请求写成 body 文件再调用。
-   ```json
-   {"command":"@agent-deck/visualize.render","args":[{"title":"图名","html":"<style>…</style>…"}]}
-   ```
-   `rtk agent-deck execute-command --body-file <body.json>`；本机注册了多个 workspace 时加 `--project <workspace 路径>`。
-   覆盖同一张图要传 `id`，且必须是已渲染过的 `viz_[A-Za-z0-9_-]{8,80}`；新图不传 `id`，返回值里带 `id` 和 `embedHandle`。
-   宿主事实：iframe `sandbox="allow-scripts allow-forms"`；CSP `default-src 'none'`、`script-src 'unsafe-inline'`、`connect-src 'none'`、`font-src data:`；fragment 上限 1 MiB；宿主只在 `:root` 设 `color-scheme` 与 `--adv-*`，**不写任何 `data-*` 主题属性**。
+1. **DSH `render_widget`（首选）**：直接调宿主工具，参数 `html`（片段）、`title`（图名）、`height`（初始帧高 200–900，默认 420；卡片随后按内容自报高度撑开，不用猜最终高度）。图渲染在会话内的一张卡片里，不落文件。
+   宿主事实：iframe `sandbox="allow-scripts allow-forms"`（不同源）；CSP `default-src 'none'`、`style-src 'unsafe-inline'`、`script-src 'unsafe-inline'`、`img-src data: blob:`、`connect-src 'none'`；片段上限 200000 字符；**只接受片段**——不传 `<!doctype>`、`<html>`、`<head>`、`<body>`，宿主自己套文档壳并在根上设 `color-scheme`。
 2. **其他内联宿主**（Trae 的 `PureShowWidget` 等）：直接调该宿主的 widget 工具，同一段代码不用改。它们允许 CDN、会注入 `data-widget-theme`、支持流式预览和图片导出，但本 skill 不依赖这些能力。
-3. **都没有（纯终端）**：把同一段代码写进 `<图名>.html`，文件头补 `<!doctype html><meta charset="utf-8"><style>:where(html){color-scheme:light dark}</style><body style="max-width:680px;margin:24px auto">`，交付文件。
+3. **都没有**：才退回写 `<图名>.html`，文件头补 `<!doctype html><meta charset="utf-8"><style>:where(html){color-scheme:light dark}</style><body style="max-width:680px;margin:24px auto">`，交付文件。宿主有 `render_widget` 时一律走通道 1，不要生成网页文件。
 
 决定出图后，下一步直接调用通道：不在正文预告"我来画个图"，不贴代码草稿，布局推演在心里完成。
 
-图上选择要回传 Agent 时用 `window.agentDeckVisualize.emit('选名字', {小数据})`：先弹确认，用户点确认后才写入 inbox `visualize/event`（`agent-deck inbox wait --tag visualize/event`）。宿主提供 `sendPrompt` 时才用它，且只用于需要模型推理的追问。
+图上的交互只做本地计算与显示，不回传 Agent；需要模型推理的追问由用户自己发消息。宿主提供 `sendPrompt` 时才用它。DSH 卡片不同源，`window.agentDeckVisualize` 一类宿主桥在卡片内不可用。
 
 ## 3. 运行时硬约束
 
 - 顺序：`<style>`（§4.2 套件 + 本图专用类）→ 内容 → 至多一个收尾 `<script>`。无 DOCTYPE / html / head / body，无任何注释。
 - 根节点 `<div class="dui" data-w="图名">`，第一个子元素是 `<h2 class="sr-only">一句话概述</h2>`。脚本用 `document.querySelector('.dui[data-w="图名"]')` 取根，所有查询限定在根内，用 `addEventListener` 绑定，不写内联 `on*`。
 - 流式输出期间内容必须可见：不用 `display:none` 藏内容，不用 tabs、轮播；交互态由脚本加载后切换。
-- 禁止 `position:fixed`、嵌套滚动、全屏 API。
+- 禁止 `position:fixed`、嵌套滚动、全屏 API。宿主的卡片按内容自动撑高，所以不要给根节点或任何容器写 `height` 加 `overflow:auto/scroll`；内容按自然高度排，滚动交给宿主页面。
 - **零网络**：不写 `<script src>`、`<link href>`、`@import`、`url(http…)`、`<img src="http…">`。图表用内联 SVG 或纯 HTML 自己算，不引 Chart.js / D3 / 图标字体。需要外部图片时用 Data URI，且只在确有必要时。
 - 脚本失败时图仍可读：几何绘制一律自带静态兜底（脚本算出 `<path>` 之前，HTML/SVG 里已有一份可读的文字或静态记号）。
 - `sendPrompt('…')` 只用于需要模型推理的追问；切换、筛选、计算用本地 JS。显示出来的数字一律取整或 `toFixed`。

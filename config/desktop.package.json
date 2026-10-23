@@ -20,12 +20,16 @@
     "@local/dsh-nested-sessions": "@artifact/nested-sessions",
     "@local/dsh-browser-review": "@artifact/browser-review",
     "@local/dsh-idle-settings": "@artifact/idle-settings",
+    "@local/dsh-enhancement-settings": "@artifact/enhancement-settings",
     "@local/dsh-local-environments": "@artifact/local-environments",
     "@local/dsh-follow-ups": "@artifact/follow-ups",
     "@local/dsh-file-links": "@artifact/file-links",
     "@local/dsh-team-view": "@artifact/team-view",
     "@local/dsh-workflow-ptc": "@artifact/workflow-ptc",
-    "@local/dsh-tool-workflow": "@artifact/tool-workflow"
+    "@local/dsh-tool-workflow": "@artifact/tool-workflow",
+    "@local/dsh-delete-session": "@artifact/delete-session",
+    "@local/dsh-ultracode-control": "@artifact/ultracode-control",
+    "@local/dsh-dynamic-ui-view": "@artifact/dynamic-ui-view"
   },
   "dsh": {
     "profile": {
@@ -46,10 +50,14 @@
         "@local/dsh-nested-sessions",
         "@local/dsh-browser-review",
         "@local/dsh-idle-settings",
+        "@local/dsh-enhancement-settings",
         "@local/dsh-local-environments",
         "@local/dsh-follow-ups",
         "@local/dsh-file-links",
-        "@local/dsh-team-view"
+        "@local/dsh-team-view",
+        "@local/dsh-delete-session",
+        "@local/dsh-ultracode-control",
+        "@local/dsh-dynamic-ui-view"
       ]
     }
   }

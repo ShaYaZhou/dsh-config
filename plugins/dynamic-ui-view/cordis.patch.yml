@@ -1,0 +1,3 @@
+- insert:
+    - id: dynamic-ui-view
+      name: '@local/dsh-dynamic-ui-view'
