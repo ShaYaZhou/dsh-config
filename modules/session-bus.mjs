@@ -261,7 +261,6 @@ export async function apply(ctx) {
     name: 'session-bus',
     order: 975,
     text: (context) => {
-      if (!on()) return '';
       const agent = context?.agent;
       if (!agent) return '';
       const ids = service.authorized(agent.id).filter((id) => {

@@ -348,3 +348,11 @@ DSH 侧栏静态核对只针对已安装 0.2.1-rc.2 的工作区组件选定文�
 - 本轮补齐的三项：`dynamic-ui-view` 的折叠轮询改为 `MutationObserver`（`hidden` 属性 + `childList` + 子树）；`delete-session` 在搬目录前于服务端经 `workspace/session-activity` 和已归档状态复核；`@local/dsh-shared` 提供 `./session-id`、`./config`、`./remote`，由 delete-session、enhancement-settings、follow-ups、local-environments、nested-sessions 共用，`package`、bundle、provenance、锁模板与漂移检查同步。
 - `test/enhancement-settings.test.cjs` 重写为 3 项：槽位与子插槽声明（`options.children` 跨 vm realm，按 JSON 归一后比较）、四个页签的选中状态与按 `only` 渲染面板、`include:` 前缀条目下的开关写入与只读禁用。完整 `npm test` 189 项、`test/portable.test.mjs` 13 项通过，无跳过。
 - `build` → `plan`（96 files）→ `deploy`（备份 `backups/portable-harness-2026-10-23T10-08-05-793Z`）→ `status` 报告无漂移。真机侧栏「Harness增强」入口、四个页签与七个开关（六个功能 + ultracode 默认值）均已确认渲染。
+
+## 会话总线 `on is not defined` 回归修复（2026-10-23 晚）
+
+- 现象：真实会话「测试会话A」每轮都以「处理失败 / 本轮运行失败: on is not defined」结束，`turn/end` 记录 `{"kind":"error","error":{"message":"on is not defined","code":"UNKNOWN"}}`，失败回合没有任何工具调用，说明请求在系统提示组装阶段就抛错。
+- 根因：`d18409c` 把功能开关迁到原生 pluginManager 时删掉了 `session-bus` 里的 `const on = () => ...`，漏删 `systemPrompt.context` 的 `text()` 中残留的 `if (!on()) return '';`。该方法在每轮组装时执行，`ReferenceError` 直接让整回合失败。
+- 复现与验证：用 `git show d18409c:modules/session-bus.mjs` 取旧版模块，在 vm 沙箱里跑同一个 `apply` 与 `text()` 调用，得到 `ReferenceError: on is not defined`；删除残留行后同一调用返回 `''`。
+- 回归测试：`test/session-bus.test.mjs` 新增「apply registers a prompt context that tolerates a missing agent」，mock `storage/agents/on/effect/commands/systemPrompt` 后调用 `apply` 捕获 `systemPrompt.context`，断言无 agent 与未授权 agent 都返回 `''`；旧模块跑该断言会抛错。`npm test` 190 项、`test/portable.test.mjs` 13 项通过，无跳过。
+- `build` → `plan`（96 files）→ `deploy`（备份 `backups/portable-harness-2026-10-23T10-44-24-549Z`）→ `status` 报告无漂移。已开着的窗口需要用新模块：从菜单真正退出 Harness 再打开。

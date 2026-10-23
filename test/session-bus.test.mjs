@@ -19,7 +19,7 @@ const code = fs.readFileSync(new URL('../modules/session-bus.mjs', import.meta.u
   .replace(/^import .*;\r?\n/gm, '')
   .replace(/^export /gm, '');
 vm.createContext(sandbox);
-vm.runInContext(code + '\nthis.BusService = BusService; this.resolveSessionPrefix = resolveSessionPrefix; this.formatBusList = formatBusList;', sandbox);
+vm.runInContext(code + '\nthis.BusService = BusService; this.resolveSessionPrefix = resolveSessionPrefix; this.formatBusList = formatBusList; this.apply = apply;', sandbox);
 
 function setup({archived = [], agents = {}} = {}) {
   let stored = {grants: {}};
@@ -110,6 +110,22 @@ test('a user-stopped target is refused until the user sends a message again', as
   await service.observe({id: 'b'}, {type: 'user/message', data: {source: {kind: 'user'}}});
   assert.equal((await service.send('a', 'b', 'hello')).sent, true);
   assert(!new sandbox.BusService(ctx, domain).stopped.has('b'));
+});
+
+test('apply registers a prompt context that tolerates a missing agent', async () => {
+  let prompt;
+  const ctx = {
+    storage: {domain: {open: async () => ({global: {get: () => ({grants: {}}), set: async () => {}}})}},
+    agents: {list: () => []},
+    on: () => {},
+    effect: (fn) => fn(),
+    commands: {register: () => () => {}},
+    systemPrompt: {context: (config) => { prompt = config; return () => {}; }},
+  };
+  await sandbox.apply(ctx);
+  assert.equal(prompt.order, 975);
+  assert.equal(prompt.text(undefined), '');
+  assert.equal(prompt.text({agent: {id: 'a', session: {header: {origin: 'user'}}}}), '');
 });
 
 test('the list output trims long IDs and marks running sessions', () => {
