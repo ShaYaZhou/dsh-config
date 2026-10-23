@@ -26,6 +26,20 @@
 
 边界：工作流子级不继承父会话的 cwd、preset 或 reasoning effort；一层嵌套的代价是“子代理里想再拆，只能把结果交回父级再编排”。token 预算要求宿主已挂载 `session-query`，只统计已结算子会话的 `tokenUsage` 投影，回放调用不计；没有该服务时只能设时长预算。每次 schema 重试都是一次完整的子代理运行，成本按尝试累加，真实模型下重试能否修正 structured 输出尚未验收。journal 含 prompt 文本，只落在 `DSH_HOME` 下，不纳入 Git。原生 subagent 活跃槽位已从默认 8 调到 20，工作流占 16，手工 `subagent` 保留 4；这些是协作式配额，不是硬性调度保证。工作流在被调用方的文件沙箱策略下运行，不能用来绕过权限。
 
+## 委派入口对照
+
+三个入口都通过原生 `ctx.subagents` seam 启动子级，可以同时启用，不占同一个槽位，只共享子代理深度与活跃槽位额度；它们是叠加关系，不是替代关系。
+
+| 入口 | 形态 | 能拿到什么 | 位置 |
+|---|---|---|---|
+| `subagent` / `subagent_fork` | 进程内子会话 | 子会话可打开可回看；`send_message` 中途引导、`interrupt_agent` 停当前轮但保留收件箱与后代、`list_agents` 列举；`fork` 带父会话前缀 | `delegation` 组的 `@deepseek-ai/dsh-tool-subagent` |
+| Team（`agent-team-local` / `tool-agent-team-local`） | 本地改造的多智能体 | 成员名册、共享任务 DAG、计划审批、Hook 事件、worktree 前置 | `modules/team.mjs`、`modules/team-tools.mjs`；模板中原生 `agent-team` / `tool-agent-team` 为 `disabled` |
+| Claude Code 子智能体（`@deepseek-ai/dsh-subagent-claude-code`） | 原生可选 bundle，独立进程 | 一段任务文本进、最终答案出；推理、工具通信、stderr、工作区 diff 不回流 | 原生插件页开关；本机在 `node_modules/.ignored/`，未启用 |
+
+- 「Harness增强」里的「团队协作」开关控制上表第二行那两个本地文件。原生 experimental team 包在模板里是 `disabled`，所以打开开关得到的是改造版（计划审批、Hook、worktree 前置），不是原生版。
+- Claude Code 子智能体是唯一一条「换执行栈」的入口：自带平台锁定的运行时，不会回退到宿主的 `claude` 可执行文件；沿用 `~/.claude` 的原生设置与身份验证，`env` 叠在剥离凭据的父环境之上，`permissionMode` 默认 `dontAsk`。它适合不需要看过程、只要结论的委派；需要追问、续接或看过程的活仍用 `subagent`。
+- 同赛道比较时，进程内子代理在续接、可观测、上下文继承、编排规模与控制粒度上都更强，代价是与父代理共享进程和沙箱。子代理和父代理共用同一套工具与权限，独立进程不构成绕过权限的通道。
+
 ## CC 模式（已移除）
 
 2026-10-23 按用户反馈移除 `cc` preset：它只是 standard 的完整克隆再加一行 PTC 呈现，实际使用中没有带来独立价值。`preset-cc` 已从 `config/desktop.patch.json` 删除，`tool-subagent.allowedAgentPresets` 不再列出 `cc`，单测改为断言两者都不存在。

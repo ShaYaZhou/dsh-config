@@ -336,7 +336,7 @@ OpenSpec 1.14.3 + `dsh-spec-delivery`：从提案到实现到归档的完整 ski
 本仓库：
 
 - `README.md`：定位、能力清单、两种历史层、安全边界
-- `docs/AGENT-ENHANCEMENTS.md`：工作流、会话间消息、代码/安全审查、双浏览器链路、用量成本、Claude 指令注入、消息内文件路径交互，以及 Team 计划审批、Hook 事件与成员面板
+- `docs/AGENT-ENHANCEMENTS.md`：工作流、会话间消息、代码/安全审查、双浏览器链路、用量成本、Claude 指令注入、消息内文件路径交互，Team 计划审批、Hook 事件与成员面板，以及原生子代理、Team 与 Claude Code 子智能体三个委派入口的对照
 - `docs/CODE-STRUCTURE.md`：模块职责与依赖规则
 - `docs/NESTED-SESSIONS.md`：两层嵌套、消息、权限继承、跨工作区授权
 - `docs/WORKTREE-DELIVERY.md`：隔离、集成、验收
