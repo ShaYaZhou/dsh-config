@@ -47,7 +47,7 @@ async function main(){
     for(const file of [a,b,stopped])fs.writeFileSync(file,'0');
     const increment=file=>`Read ${file}, parse its integer, then write that integer plus one to the SAME file exactly once with the write tool. Do not use bash or raw filesystem APIs. Return the resulting integer. Do not retry or delegate.`;
     const script=`const a=await agent(${JSON.stringify(increment(a))}); const b=await agent(${JSON.stringify(increment(b))}); return {a,b};`;
-    const args={budget_ms:180000,meta:{name:'recover-two-writes',description:'Synthetic counter recovery'},script,args:{}};
+    const args={budget_ms:180000,run_in_background:false,meta:{name:'recover-two-writes',description:'Synthetic counter recovery'},script,args:{}};
     let parent;
     const lastRun=agent=>agent.session.snapshotEvents().findLast(e=>e.type==='tool-workflow/run-start')?.data.runId;
     const command=async(agent,text)=>ctx.commands.execute(agent,text,[],AbortSignal.timeout(120000));
@@ -94,7 +94,7 @@ async function main(){
         attempts++;
         return {...activation,result:activation.result.then(value=>({...value,structured:undefined})),dispose:()=>activation.dispose()};
       };
-      const uncertainArgs={meta:{name:'lost-structured-write',description:'Missing structured result after a real write'},script:`return await agent(${JSON.stringify(increment(uncertainFile))},{schema:{type:'object',properties:{value:{type:'number'}},required:['value'],additionalProperties:false}});`,args:{}};
+      const uncertainArgs={budget_ms:180000,run_in_background:false,meta:{name:'lost-structured-write',description:'Missing structured result after a real write'},script:`const value = await agent(${JSON.stringify(increment(uncertainFile))},{schema:{type:'object',properties:{value:{type:'number'}},required:['value'],additionalProperties:false}}); if (!value) return await agent(${JSON.stringify(increment(uncertainFile))}); return value;`,args:{}};
       await prompt(uncertainParent,uncertainArgs);
       subagents.startActivation=startActivation;
       assert.equal(attempts,1,'A writable schema retry repeated its side effects');

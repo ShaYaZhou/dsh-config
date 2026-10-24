@@ -46,7 +46,7 @@ export function apply(ctx) {
         mode: 'queue',
         content: [{
           type: 'text',
-          text: '用户通过 /workflow 明确选择本次使用 workflow 工具；不修改任何模式开关。Ultracode 开启时 /collaborate on 仍选择 Workflow 内的持久关联执行者，不能绕过这一选择。先确认范围与验收条件，再安排必要的工作、独立验证并收集实际结果。保持当前权限、沙箱、停止与深度限制；工具拒绝时报告原因，不改用其他委派入口绕过。后台执行后等待实际终态再汇总，列出失败与未覆盖项。\n\n' + (request ? '严格使用此原始调用续跑，不更改脚本、输入或目录：\n' + JSON.stringify(request) : task),
+          text: '用户通过 /workflow 明确选择本次使用 workflow 工具；不修改任何模式开关。Ultracode 开启时 /collaborate on 偏好 Workflow 内的持久关联执行者，临时任务可选子代理，不能绕过 Workflow。先确认范围与验收条件，再按真实依赖安排并行工作、验证并收集实际结果。保持当前权限、沙箱、停止与深度限制；工具拒绝时报告原因，不改用其他委派入口绕过。后台执行后等待实际终态再汇总，列出失败与未覆盖项。\n\n' + (request ? '严格使用此原始调用续跑，不更改脚本、输入或目录：\n' + JSON.stringify(request) : task),
         }],
       }, signal); } catch(error) {revoke?.();throw error;}
       return { kind: 'success', text: '本次工作流请求已提交；执行进度与结果将在原生工作流卡片中显示。' };

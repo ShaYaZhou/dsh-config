@@ -123,4 +123,4 @@ REA 的后台 Evidence：`ev_97f38f33a2f2b33f6018128f97ac49d8a4435a72c0ea05dd829
 
 明确要求“先写 spec，再自动实现和验收”时使用 [自然语言交付流程](OPENSPEC.md)：主会话写规格并调度，standard 子会话实现，fresh reviewer 独立审查，主会话运行实际验收并维护任务状态。`start_session` 可指定 `agent_preset`，fresh 模式支持 standard/explore/planner/reviewer/cc；fork 继续保持源角色，不允许同时覆盖角色。
 
-Ultracode 开启时，`/collaborate on` 选择 Workflow 内的持久关联执行者，不能绕过工作流；`auto` 按是否需要持续追问选择，`off` 禁止关联执行者。关闭 Ultracode 后保留原关联分工行为。`/workflow 任务` 不改变这些开关。
+Ultracode 开启时，`/collaborate on` 偏好 Workflow 内的持久关联执行者，临时阶段仍可选择 session:"subagent"；`auto` 按持续追问或真正的目录隔离需求选择，`off` 禁止关联执行者。不能绕过 Workflow。当前原生子代理 cwd 不改变沙箱根，隔离 worktree 的写入者需通过 fresh 关联会话以目标 cwd 创建，并在派发前验证边界。关闭 Ultracode 后保留原关联分工行为。`/workflow 任务` 不改变这些开关。

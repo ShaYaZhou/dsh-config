@@ -50,7 +50,9 @@
       "One-level nesting guard: a workflow child session may not start another workflow.",
       "Per-run JSONL journal and prefix replay behind resume_from_run_id, stopping at the first changed agent() call.",
       "schemaRetries (default 5) is limited to read-only runs with missing structured output. Writable, failed and cancelled child executions are not automatically retried; token usage accumulates across allowed read-only attempts.",
-      "Ultracode uses the existing serial limiter and linked-session public activation when requested; journal identity binds worker mode; no new scheduler or sandbox relaxation."
+      "Preserve configured parallelism; enforce overlapping writable-root and shared-browser admission, retain uncertain leases, use native read-only workers and fresh linked sessions for genuinely isolated cwd; bind per-call execution capabilities to replay.",
+      "Confine the orchestration process to the native read-only sandbox independently of admitted worker permissions; node:vm is not a filesystem security boundary.",
+      "Retain a failed writable result's directory lease until the current script settles, rejecting replacement writers without blocking unrelated isolated work."
     ]
   }
 }

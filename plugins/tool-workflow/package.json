@@ -42,7 +42,8 @@
     "changes": [
       "sizeGuideline config states the expected agent scale in the tool description and forwards the matching warning threshold to the engine.",
       "resume_from_run_id, budget_tokens, and budget_ms parameters forwarded to the engine on both foreground and background starts.",
-      "Honor mandatory Ultracode orchestration, remove contradictory explicit-only guidance, and expose worker_mode for ordinary or persistent linked workers."
+      "Honor mandatory Ultracode orchestration, remove contradictory explicit-only guidance, and expose worker_mode for ordinary or persistent linked workers.",
+      "PTC workflows default to existing native background jobs even with a dispatch budget; retain explicit short foreground calls and collect completion rather than extending run_code timeouts."
     ]
   }
 }

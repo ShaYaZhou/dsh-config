@@ -105,16 +105,18 @@ function createWorkflowRecorder(ctx) {
     }
   };
 }
-var DESCRIPTION = `Run a JavaScript workflow script that orchestrates subagents at scale. Use this for work that fans out across many independent pieces \u2014 an audit over many files, a migration, multi-angle research, adversarial verification of findings \u2014 where you write the orchestration as a script instead of delegating turn by turn.
+var DESCRIPTION = `Run a small JavaScript orchestration script for a substantive task. A concise prose plan may come first. Dispatch goals and constraints to workers; do not implement the deliverable inside the coordinator or construct large reporting schemas. Express actual dependencies with await and independent work with parallel. Derive domain answers, detailed design decisions and concrete verification steps inside workers, not in a prewritten coordinator specification. Refine from observed results instead of expanding all possible branches in advance; there is no character-count target or cap. One worker is valid when sufficient. Use concise text results by default; a schema is only for a few scalar fields needed by a later branch. Use the tools already mounted; do not add environment inventories or extra proof obligations unless a concrete failure requires them.
+
+A user task may span successive small workflow runs. Return necessary discovery first when downstream decisions are unknown; then compose the next run from the observed results instead of prewriting the entire lifecycle.
 
 Script-body hooks:
-- \`agent(prompt, opts?): Promise<any>\` \u2014 run one subagent to completion. Without \`opts.schema\` it resolves to the child's final text; with \`opts.schema\` (an object-rooted JSON Schema using ONLY type/properties/required/additionalProperties/items/enum/const/oneOf) it resolves to the validated object. Resolves \`null\` when the child fails (filter with \`.filter(Boolean)\`). Other opts: \`label\` (display), \`phase\` (progress group), and independent \`provider\`/\`model\` LLM target overrides.
+- \`agent(prompt, opts?): Promise<any>\` \u2014 run one subagent to completion. Without \`opts.schema\` it resolves to the child's final text; with \`opts.schema\` (an object-rooted JSON Schema using ONLY type/properties/required/additionalProperties/items/enum/const/oneOf) it resolves to the validated object. Resolves \`null\` when the child fails (filter with \`.filter(Boolean)\`). Execution opts: \`read_only\` (native read-only sandbox), \`cwd\` (pre-created isolated worktree), \`browser\` (exclusive shared browser owner), \`session\` (subagent or linked). Await conflicting writers or browser users before handoff; use parallel for independent readers or isolated writers. Other opts: \`label\` (display), \`phase\` (progress group), and independent \`provider\`/\`model\` LLM target overrides.
 - \`pipeline(items, ...stages): Promise<any[]>\` \u2014 run each item through the stages independently with NO barrier between stages (prefer this for multi-stage work). Each stage receives \`(prev, item, index)\`. A stage throw drops that ITEM to \`null\` and skips its remaining stages.
 - \`parallel(thunks): Promise<any[]>\` \u2014 run zero-argument functions concurrently and await ALL of them (a barrier; use only when a stage genuinely needs every prior result together). A throwing thunk resolves to \`null\`.
 - \`phase(title)\` \u2014 start a progress phase; \`log(message)\` \u2014 narrate progress; \`args\` \u2014 the tool call's \`args\` input, verbatim.
 - \`budget\` \u2014 read-only allowance view: \`total\`/\`timeLimitMs\` (null when unlimited), \`spent()\`, \`remaining()\`, \`elapsedMs()\`, \`timeRemainingMs()\`. Use it for dynamic loops: \`while (budget.total && budget.remaining() > 50_000) { ... }\`.
 
-Misused hooks (bad arguments, unknown options, unsupported schemas, tripped caps) end the whole script instead of producing \`null\`. The script has no filesystem, network, timer, or Node.js APIs; the agents do the work. A workflow cannot nest another workflow: a child of a workflow run may not call this tool (one level only).
+Misused hooks (bad arguments, unknown options, unsupported schemas, tripped caps) end the whole script instead of producing \`null\`. Do not prewrite a worker's solution or fallback implementations; obtain independent discovery results before composing dependent work. A failed or null writable result may already have changed files: its directory stays occupied for the rest of this script, so automatic replacement writers are refused. Specific repairs after successful execution and failed acceptance are legitimate new work. Only the documented hooks are supported; use agents for I/O. The orchestration process uses a native read-only sandbox because the JavaScript VM is not a filesystem security boundary. A workflow cannot nest another workflow: a child of a workflow run may not call this tool (one level only).
 
 Recovery: use resume_from_run_id only for the identical original script, inputs, owning session, directory, sandbox and model. Confirmed completed calls replay without new child activations. Changed, corrupt, legacy, unfinished or failed-child checkpoints are refused rather than re-executed. A source run has exactly one successor; use the newest run ID for further recovery. Stopped or failed owners require a human /workflow resume <runId> or /workflow <new task> before further workflow execution. Do not switch tools to evade this refusal. Writable child calls missing structured output are not automatically retried.`;
 function sizeGuidelineText(guideline) {
@@ -194,6 +196,10 @@ function renderResult(name2, agentsStarted, value, maxChars) {
 Return value:
 ${clipped}`;
 }
+function wantsBackground(args, mode, enabled) {
+  if (args.run_in_background !== undefined) return args.run_in_background;
+  return enabled && mode === "ptc";
+}
 function startBackgroundRun(ctx, args, parent, toolCall, recordsRun, deps) {
   const jobs = ctx.get("jobs");
   if (jobs === void 0) {
@@ -247,7 +253,7 @@ function apply(ctx, config) {
   ctx.systemPrompt.section({
     name: `tool:${toolName}`,
     order: ctx.systemPrompt.getSectionOrder("TOOL_WORKFLOW"),
-    text: `When Ultracode is enabled, substantive tasks MUST use ${toolName}. Otherwise use it for explicit workflows or substantial orchestration: you write a JavaScript script (the tool description documents the exact format) that fans work out across many subagents with phases and structured results. With Ultracode off, one or two delegations may use plain subagent calls. With Ultracode on, use agent() inside this workflow. /collaborate on selects linked workers within this workflow, never a competing dispatch path.`
+    text: `When Ultracode is enabled, substantive tasks MUST use ${toolName}. Otherwise use it for explicit workflows or substantial orchestration: you write a JavaScript script (the tool description documents the exact format) that expresses only the dependencies and acceptance the task needs. Phases and schemas are optional; prefer brief text results. With Ultracode off, one or two delegations may use plain subagent calls. With Ultracode on, use agent() inside this workflow. /collaborate on prefers linked workers within this workflow; temporary stages may select session:subagent. Never create a competing dispatch path.`
   });
   ctx.tools.register(defineTool({
     name: toolName,
@@ -258,7 +264,7 @@ ${sizeGuidelineText(sizeGuideline)}`,
       worker_mode: {
         type: "string",
         enum: ["subagent", "linked"],
-        description: "Worker lifecycle: subagent by default, linked for persistent followable conversations. With Ultracode on, /collaborate on requires linked and off refuses linked. Linked agent() calls return text and must omit schema. All Ultracode workers run serially in the existing engine."
+        description: "Worker lifecycle: subagent by default, linked for persistent followable conversations. With Ultracode on, /collaborate on prefers linked and off refuses linked. Per-agent session may choose temporary subagent execution. Linked agent() calls return text and must omit schema. Existing concurrency limits apply; only overlapping writable roots or shared browser ownership conflict."
       },
       script: {
         type: "string",
@@ -298,7 +304,7 @@ ${sizeGuidelineText(sizeGuideline)}`,
       ...enableRunInBackground ? {
         run_in_background: {
           type: "boolean",
-          description: "Run as a background job: return a job id immediately instead of waiting; the return value arrives with the completion notice."
+          description: "Run as a native background job and collect completion with job_output. PTC defaults to background, including calls with budget_ms. For real investigation, implementation or browser tasks in PTC, omit this flag or set true. Explicit false is only for very short calls: budget_ms does not interrupt an already running child and cannot protect a foreground call from run_code's deadline. Other modes default to foreground."
         }
       } : {},
       resume_from_run_id: {
@@ -348,7 +354,7 @@ ${sizeGuidelineText(sizeGuideline)}`,
       if (!parent) {
         throw new Error("workflow tool requires a calling agent (exec.agent was undefined)");
       }
-      if (args.run_in_background === true) {
+      if (wantsBackground(args, ctx.tools.modeFor(parent), enableRunInBackground)) {
         if (!enableRunInBackground) {
           throw new Error("run_in_background is disabled for this tool");
         }

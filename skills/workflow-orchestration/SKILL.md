@@ -9,6 +9,12 @@ description: Orchestrate many DSH subagents with the native workflow tool for au
 
 `/collaborate on` 选择 Workflow 内的持久关联执行者，`auto` 按是否需要独立追问选择，`off` 禁止关联执行者。`/workflow 任务` 不改变这些设置。Ultracode 关闭后才沿用小任务直接 subagent、长期分支 start_session 的方式。禁止重复派发或换工具绕过停止。
 
+允许先用简短文字确定目标、依赖、分工与验收，再生成最小可执行编排；根据实际结果补充修复和复验，不提前展开所有可能分支。脚本长度没有机械上限或目标值，轻量不等于串行：无依赖的工作应并行。脚本只承载依赖、派发和结果收集，任务实现交给执行者。
+
+先派发必要的独立调查，再依据实际返回值安排下一项工作；不要在首次脚本里预写执行者的整套方案、备用实现与重试分支。实现者返回空值或失败时可能已经写入，不能自动重派。成功执行后根据验收发现修复具体缺陷，是合法的新工作。
+
+一项用户任务可以使用连续的小型 Workflow。后续决策依赖未知发现时，先返回发现，再依据它生成下一次调用；不必把完整生命周期塞入首次脚本。领域技能的设计、数学或其他准备步骤由对应执行者完成。
+
 ## 调用契约
 
 - 工具参数含 `worker_mode`（`subagent` 或 `linked`），后者保留各阶段会话、仅返回文本，agent() 不传 schema。省略时遵从 collaborate 偏好。其他参数是 `meta`、`script`、`args`、`run_in_background`，以及可选的 `resume_from_run_id`、`budget_tokens`、`budget_ms`。`meta` 单独传，包含 `name`、`description`、可选 `whenToUse` 和 `phases`；`script` 只放脚本体，**不要**写 `export const meta`。
@@ -16,10 +22,14 @@ description: Orchestrate many DSH subagents with the native workflow tool for au
 - 脚本可用顶层 `await`，钩子包括 `agent()`、`parallel()`、`pipeline()`、`phase()`、`log()`，以及只读的 `budget`（`total`、`spent()`、`remaining()`、`elapsedMs()`、`timeRemainingMs()`）。以当前工具 schema 的钩子说明为准。
 - `agent()` 返回子代理的文本或 schema 校验后的对象；普通子代理失败返回 `null`，不是抛异常。用 `.filter(Boolean)`，并在汇总里说明缺失项。
 - 长任务用 `run_in_background: true`。返回 `jobId` 后不要忙等；用 `job_output` 查看状态，完成通知会带回最终返回值。取消用 `job_kill`。
+- PTC 默认使用已有后台作业，包括传入 budget_ms 时；真实调查、实现和浏览器任务应省略 run_in_background 或设 true。budget_ms 只约束下一次派发，不会中断正在运行的子级，不能据此认定前台调用有完成时限。显式 false 只留给很短的合成检查。后台启动不代表完成，必须通过短时有界的 job_output 等待收取实际结果，不提高传输超时来代替作业生命周期。
 
 ## 本部署上限
 
-- Ultracode 主会话启动的运行通过现有限流器串行执行各阶段，`parallel()` 也会排队；不改变文件沙箱。不在执行者内部另派写入者或留下后台写入进程。Ultracode 关闭时，并发 `agent()` 16 个，单次运行最多 1000 个子代理，单次 `parallel()`/`pipeline()` 最多 4096 项。超过 16 的调用会排队，不要一次塞几百个短任务来“提速”。
+- Ultracode 保留既有并发上限 16。独立只读任务使用 `agent(prompt,{read_only:true})` 并行；独立实现优先 `create_worktree({enter:false})` 后将路径传入 `agent(prompt,{cwd})`。源目录未提交文件不会复制。单次运行最多 1000 个执行者，单次 parallel()/pipeline() 最多 4096 项。
+- 当前原生子代理的 cwd 不改变其沙箱根，因此不同 cwd 自动使用现有关联会话创建路径；显式 session:"subagent" 搭配不同 cwd 会拒绝。/collaborate off 时这条隔离路径不可用。不要将该限制表述为完整的原生子代理隔离支持。
+- 同一或包含关系的可写目录不能同时入场；共享浏览器使用 `browser:true` 声明独占。冲突请求被拒绝，不会排入另一套队列；通过 await 表达交接，无关隔离工作可继续。整合回交付 checkout 后再验收该版本。不要留下后台写入进程。
+- 浏览器执行者使用普通浏览器工具和默认输出目录。服务端 unsafe 代码与自选 filename 导出可能绕过文件沙箱，因此拒绝；截图无需指定 filename。只读浏览器验收仍须显式 browser:true，占用同一浏览器资源。
 - 原生 subagent 的活跃槽位在本部署调到 20；工作流占 16，给手工 subagent 留 4。出现 `ACTIVATION_LIMIT_REACHED` 时降低并发或分批，不要重试同一波。
 - 整体预算默认不限，可用 `budget_tokens` / `budget_ms` 按单次调用收紧（只能低于部署配置）。越过预算后的下一次 `agent()` 被拒绝，已收集的结果照常返回；脚本里可读 `budget` 提前停手。`syncTimeoutMs` 只限制脚本最初同步片段（5 秒）；不要把长循环写成同步代码。费用仍以 `usage_report` 为准。
 - 规模阈值按部署配置（本机 medium：约 10 个代理），越过时引擎发出告警；任务确实更大就明确说明，不要悄悄截断覆盖范围。
@@ -29,10 +39,10 @@ description: Orchestrate many DSH subagents with the native workflow tool for au
 - 有写权限的子代理缺少结构化输出时不自动重试，避免重复修改文件。未完成子调用或失败结果不能被脚本包装成整体成功。
 
 - 工作流只允许一层嵌套：工作流子代理不能再启动工作流。每个 `agent()` 的输出要自包含；跨阶段需要的中间结果写进返回值或文件。
-- 工作流子级通过原生调用传入父会话的工作目录；不要假定它继承 agent preset 或 reasoning effort。需要独立的目录或角色时，在提示词里写清，或改用普通 `subagent` 或持久关联会话 `start_session`。
-- 工作流在调用方的文件沙箱策略下运行。`read-only` 或 `workspace-write` 需要 PTC 运行时支持相应约束；不安全的组合会在执行前失败。不要靠工作流绕过权限。
+- 工作流子级通过原生接口继承权限；目录和只读能力通过 agent() 的 cwd/read_only 参数表达，不能只靠提示词声明，也不能直接 start_session 绕过 Workflow。session:"linked" 用于持续追问，session:"subagent" 用于临时工作；/collaborate on 是偏好，不要求所有阶段持久化。
+- 编排进程在原生只读沙箱中运行，不能通过原始 Node 或 shell 绕过写入分工；执行者继续继承调用方权限，并受自己的 cwd/read_only 约束。无法约束编排进程的运行时在执行前拒绝，不靠工作流绕过权限。
 
-PTC 主会话只使用单次 JSON 调用：`console.log(await tools.workflow({...}));`，对象必须是 JSON，script 用 JSON 字符串。禁止额外语句、变量或原始文件系统操作；复杂代码放在执行者中。原生工具检查仍作用于内层调用。
+PTC 能力限制：workspace-write 主会话仍使用单次 JSON 传输调用：`console.log(await tools.workflow({...}));`。原生接口尚不能仅收紧一次 run_code 的文件权限，因此不能安全开放该主会话任意代码。Workflow 脚本仍支持计算、循环和批量并行；read-only 主会话可以使用普通 PTC 计算和批量只读工具。内层调用仍经过原生 guard。这不是任意 PTC 编排代码的完整等价支持。
 
 ## 编排模式
 
@@ -40,8 +50,7 @@ PTC 主会话只使用单次 JSON 调用：`console.log(await tools.workflow({..
 2. **优先 `pipeline()`**：每个条目独立走完“检查→验证”，不要在每个阶段之间加同步屏障。只有需要跨条目去重、合并或全局判断时才用 `parallel()` 汇合。
 3. **独立验证**：默认一名未参与实现的验收者；只有具体争议才增加其他视角。不要为小任务制造多层 planner/reviewer。
 4. **多视角**：正确性、安全、性能、可复现性分别派一个视角，比三个相同的“再审一遍”更容易发现盲点。
-5. **完整性批评**：收尾前派一个子代理问“哪些文件没读、哪些结论没证据、哪些模式没跑”，把缺口变成下一轮任务。
-6. **直到枯竭**：未知规模的排查用“连续两轮没有新发现”停止，不要只按固定条数截断；如果确实截断了，必须在最终报告里写明丢弃了什么。
+5. **针对缺口补查**：验收发现未覆盖的范围或证据矛盾时再追加调查，不机械增加完整性审查轮次。按任务目标和预算停止；如果截断了范围，报告未完成内容。
 
 ## 子代理提示
 

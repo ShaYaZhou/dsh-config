@@ -95,7 +95,7 @@ export class WorkflowJournal {
       if(this.replayed.size!==this.replay.size) fail('script tried new work before replaying all completed calls');
       return undefined;
     }
-    const expected={seq:request.seq,prompt:request.prompt,provider,model:request.model??null,schema:request.schema??null};
+    const expected={seq:request.seq,prompt:request.prompt,provider,model:request.model??null,schema:request.schema??null,...Object.fromEntries(["cwd","read_only","browser","session"].filter(key=>request[key]!==undefined).map(key=>[key,request[key]]))};
     const {t,...recorded}=entry.call;
     if(this.replayed.has(request.seq) || !isDeepStrictEqual(recorded,expected)) fail('replayed call changed or repeated');
     this.replayed.add(request.seq);
@@ -110,7 +110,7 @@ export class WorkflowJournal {
   recordIntent(request,provider) {
     if(this.seen.has(request.seq)) fail('duplicate live call sequence');
     this.seen.add(request.seq);
-    this.append({t:'intent',seq:request.seq,prompt:request.prompt,provider,model:request.model??null,schema:request.schema??null});
+    this.append({t:'intent',seq:request.seq,prompt:request.prompt,provider,model:request.model??null,schema:request.schema??null,...Object.fromEntries(["cwd","read_only","browser","session"].filter(key=>request[key]!==undefined).map(key=>[key,request[key]]))});
     this.pending.add(request.seq);
   }
   recordCall(request,_provider,childId) { this.append({t:'call',seq:request.seq,childId}); }

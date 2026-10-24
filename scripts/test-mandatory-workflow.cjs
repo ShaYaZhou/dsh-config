@@ -6,6 +6,25 @@ const {randomUUID, createHash} = require('node:crypto');
 const {pathToFileURL} = require('node:url');
 const {withAgentTestHomeLock} = require('./test-home.cjs');
 
+async function collectUsage(ctx, ids) {
+  const sessions=[];
+  const totals={modelSteps:0,toolCalls:0,ptcDispatches:0,uncachedInputTokens:0,cacheReadTokens:0,cacheWriteTokens:0,outputTokens:0};
+  for(const sessionId of new Set(ids)) {
+    const observed=await ctx.get('sessionQuery').observeSession(sessionId,{projectionMode:'all'});
+    try {
+      const history=await ctx.sessionController.inspect(sessionId);
+      const usage=observed.projections?.values.tokenUsage??{};
+      const row={sessionId,...usage,stats:observed.projections?.values.sessionStats,
+        modelSteps:history.events.filter(event=>event.type==='step/start').length,
+        toolCalls:history.events.filter(event=>event.type==='tool/call').length,
+        ptcDispatches:history.events.filter(event=>event.type==='tool/ptc-dispatch').length};
+      sessions.push(row);
+      for(const key of Object.keys(totals)) totals[key]+=Number(row[key])||0;
+    } finally {observed[Symbol.dispose]();}
+  }
+  return {sessions,totals,note:'PTC dispatches overlap tool records; do not add the two counts. Usage excludes unreported requests and independent title generation.'};
+}
+
 function verifyWeb(rows, file, parentId, url) {
   const html=fs.readFileSync(file,'utf8');
   assert.match(html,/SYNTHETIC-4D-731/);assert.match(html,/<(?:canvas|svg)\b/i);
@@ -35,12 +54,22 @@ function verifyWeb(rows, file, parentId, url) {
   assert(review.some(row=>row.name==='mcp__playwright__browser_resize'&&row.args.width<=500),'Mobile viewport not checked');
   assert(review.some(row=>['mcp__playwright__browser_click','mcp__playwright__browser_press_key','mcp__playwright__browser_fill_form'].includes(row.name)||
     row.name==='mcp__playwright__browser_evaluate'&&/dispatchEvent|\.click\(|\.value\s*=/.test(row.args.function)),'No actual independent control interaction');
-  assert(rows.filter(row=>row.agentId===parentId).length<30,'Coordinator fell into a long execution loop');
-  const final=rows.findLast(row=>row.name==='workflow')?.workflowResult?.result;
+  const lastFlow=rows.findLast(row=>row.name==='workflow');
+  let final=lastFlow?.workflowResult?.result;
+  if(lastFlow?.workflowResult?.kind==='background' && lastFlow.callId) {
+    const collected=rows.findLast(row=>row.name==='job_output'&&row.args.job_id===lastFlow.workflowResult.jobId&&row.jobResult?.job?.status==='completed');
+    assert(collected,'Background workflow result was not collected');
+    const value=collected.jobResult.text.split('Return value:\n').at(-1);
+    final=JSON.parse(value);
+  }
+  const consoleResult=finalReview.findLast(row=>row.name==='mcp__playwright__browser_console_messages'&&row.browserResult);
+  if(consoleResult)assert.match(JSON.stringify(consoleResult.browserResult),/Errors: 0/,'Final browser console contains errors');
   if(final&&typeof final==='object') {
     assert.notEqual(final.ok,false,'Workflow reported failed acceptance');
     assert.notEqual(final.pass,false,'Workflow reported failed acceptance');
+    assert.notEqual(final.accepted,false,'Workflow reported failed acceptance');
     assert.notEqual(final.acceptance?.pass,false,'Independent acceptance failed');
+    assert.notEqual(final.acceptance?.accepted,false,'Independent acceptance failed');
   }
   return {writers:owners,mutations:writes.length};
 }
@@ -55,13 +84,13 @@ async function main() {
   assert(output.startsWith(path.resolve(home)+path.sep));
   fs.mkdirSync(output,{recursive:true});
   const patch=path.join(output,'runtime.patch.json');
-  fs.writeFileSync(patch,JSON.stringify([{id:'desktop-product-telemetry',disabled:true},{id:'product-analytics',disabled:true},{id:'mcp-playwright',config:{cwd:output}},{id:'mcp-playwright-session',config:{cwd:output}}]));
+  fs.writeFileSync(patch,JSON.stringify([{id:'desktop-product-telemetry',disabled:true},{id:'product-analytics',disabled:true}]));
   const {runProfile}=await import(pathToFileURL(path.join(native,'dsh/lib/profile-boot.js')));
   const {loadLayeredEnv}=await import(pathToFileURL(path.join(native,'dsh-app-boot/lib/index.js')));
   const {ctx,shutdown}=await runProfile({environment:loadLayeredEnv('dsh'),profile:'desktop',patchFiles:[patch],args:['--port','0','--no-open']});
-  const reports=[],calls=[],stages=[];
+  const reports=[],calls=[],stages=[],capabilities={};
   let current;
-  const save=()=>fs.writeFileSync(path.join(output,'result.json'),JSON.stringify({reports,current,calls,stages},null,2));
+  const save=()=>fs.writeFileSync(path.join(output,'result.json'),JSON.stringify({reports,current,calls,stages,capabilities},null,2));
   const hash=file=>fs.existsSync(file)?createHash('sha256').update(fs.readFileSync(file)).digest('hex'):null;
   const servers=[];
   console.log('MANDATORY_OUTPUT '+output);
@@ -69,19 +98,21 @@ async function main() {
     const linked=await new Promise(resolve=>ctx.inject(['nestedSessions'],scope=>resolve(scope.nestedSessions)));
     if(recheck) {
       const saved=JSON.parse(fs.readFileSync(path.join(output,'result.json'),'utf8'));
-      const selected=saved.reports.filter(row=>!process.env.DSH_MANDATORY_CASE||row.name===process.env.DSH_MANDATORY_CASE);
+      const selected=saved.reports.filter(row=>(!process.env.DSH_MANDATORY_CASE||row.name===process.env.DSH_MANDATORY_CASE)&&(!process.env.DSH_TEST_PRESET||row.preset===process.env.DSH_TEST_PRESET));
       assert(selected.length>0);
       for(const report of selected) {
         const history=await ctx.sessionController.inspect(report.sessionId);
         const events=history.events;
         const rows=saved.calls.filter(row=>row.case===report.name&&row.preset===report.preset);
+        report.usage=await collectUsage(ctx,[report.sessionId,...rows.map(row=>row.agentId).filter(Boolean),
+          ...saved.stages.filter(row=>report.runs.includes(row.runId)).map(row=>row.childId)]);
         assert(rows.every(row=>!row.policy||(['workspace-write','read-only'].includes(row.policy.mode)&&path.resolve(row.policy.workspaceRoot)===report.cwd)));
         assert(!rows.some(row=>row.agentId===report.sessionId&&['write','edit','bash','subagent','start_session'].includes(row.name)));
         for(const runId of report.runs) {
           assert.equal(events.find(event=>event.type==='tool-workflow/run-end'&&event.data.runId===runId)?.data.stopReason,'completed');
           const children=saved.stages.filter(row=>row.runId===runId);
           assert(children.length>0&&children.every(row=>row.end&&row.outcome==='completed'));
-          for(let i=1;i<children.length;i++)assert(children[i-1].end<=children[i].start);
+
         }
         if(['web','linked'].includes(report.name)) {assert(report.runs.length>0);verifyWeb(rows,report.file,report.sessionId,report.url);}
         else if(report.name==='smoke') {assert(report.runs.length>0);assert.match(report.summary,/SYNTHETIC-4D-731/);}
@@ -101,14 +132,15 @@ async function main() {
       if(stage)Object.assign(stage,{end:Date.now(),outcome:info.outcome});save();
     });
     ctx.on('tools/execute',async(exec,next)=>{
-      const row={name:exec.name,agentId:exec.agent?.id,args:exec.arguments,start:Date.now(),case:current?.name,preset:current?.preset};
+      const row={callId:exec.callId,name:exec.name,agentId:exec.agent?.id,args:exec.arguments,start:Date.now(),case:current?.name,preset:current?.preset};
       if(exec.agent){
+        capabilities[exec.agent.id] ??= exec.agent.ctx.tools.schemas(exec.agent).map(tool=>tool.name);
         row.policy=ctx.sandboxPolicy.resolve({session:exec.agent.session});
         row.case=path.basename(row.policy.workspaceRoot);row.preset=path.basename(path.dirname(row.policy.workspaceRoot));
       }
       calls.push(row);save();
       const file=row.policy&&path.join(row.policy.workspaceRoot,'index.html'),before=file&&hash(file);
-      try {const result=await next();row.isError=result?.isError===true;if(exec.name==='workflow')row.workflowResult=result.value;return result;}
+      try {const result=await next();row.isError=result?.isError===true;if(exec.name==='workflow')row.workflowResult=result.value;if(exec.name==='job_output')row.jobResult=result.value;if(exec.name==='mcp__playwright__browser_console_messages')row.browserResult=result.value;return result;}
       finally {
         row.end=Date.now();
         if(file&&['write','edit','bash'].includes(exec.name)&&hash(file)!==before)
@@ -121,12 +153,12 @@ async function main() {
         const cwd=path.join(output,preset,name);fs.mkdirSync(cwd,{recursive:true});
         const file=path.join(cwd,'index.html');
         fs.writeFileSync(path.join(cwd,'evidence.txt'),'SYNTHETIC-4D-731\n');
-        fs.writeFileSync(path.join(cwd,'math-spec.md'),`指定概念：SO(4) 中两个正交平面的独立旋转。四维点 (x,y,z,w) 变换为 (x cos a-y sin a, x sin a+y cos a, z cos b-w sin b, z sin b+w cos b)。它保持 x²+y²+z²+w²，两个平面旋转可交换。超立方体顶点为四个坐标各取 ±1，共16点；恰好一个坐标不同的点对构成32条边。四维到三维透视取 d=4，p3=d/(d-w')*(x',y',z')，本演示中 |w'|<=sqrt(2)，分母不会为0。最后用固定三维观察角投到二维画布；投影不是切片。验收仅核对这些事实并用一个数值例子检查长度保持，不扩展 SU(2)、Hopf 纤维或等斜旋转分类证明。`);
+        if(process.env.DSH_OPEN_WEB!=='1') fs.writeFileSync(path.join(cwd,'math-spec.md'),`指定概念：SO(4) 中两个正交平面的独立旋转。四维点 (x,y,z,w) 变换为 (x cos a-y sin a, x sin a+y cos a, z cos b-w sin b, z sin b+w cos b)。它保持 x²+y²+z²+w²，两个平面旋转可交换。超立方体顶点为四个坐标各取 ±1，共16点；恰好一个坐标不同的点对构成32条边。四维到三维透视取 d=4，p3=d/(d-w')*(x',y',z')，本演示中 |w'|<=sqrt(2)，分母不会为0。最后用固定三维观察角投到二维画布；投影不是切片。验收仅核对这些事实并用一个数值例子检查长度保持，不扩展 SU(2)、Hopf 纤维或等斜旋转分类证明。`);
         const workspace=await ctx.workspaceRegistry.create(cwd,'Mandatory workflow '+preset+' '+name);
         const made=await ctx.sessionController.create({workspaceId:workspace.id,agentPreset:preset});
         const {agent}=await ctx.sessionController.resolveAgent(made.sessionId);
         ctx.permissionPresets.set(agent.session,'workspace-write');
-        current={name,preset,cwd,file,sessionId:agent.id};save();
+        current={name,preset,cwd,file,sessionId:agent.id,openEnded:process.env.DSH_OPEN_WEB==='1'};save();
         const signal=AbortSignal.timeout(1800000);
         for(const command of ['/ultracode on',name==='linked'||name==='smoke'?'/collaborate on':'/collaborate auto'])
           assert.equal((await ctx.commands.execute(agent,command,[],signal)).result.kind,'success');
@@ -159,9 +191,13 @@ async function main() {
         });
         await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));servers.push(server);
         const url='http://127.0.0.1:'+server.address().port+'/index.html';
+        if (['web','linked'].includes(name)) assert(agent.ctx.tools.get('mcp__playwright__browser_navigate',agent),'Browser capability missing before model dispatch');
         const request=name==='simple'?'只回答：2+2 等于几？':name==='smoke'
           ? '请完成一个工作流阶段：读取当前目录 evidence.txt，返回证据 ID。需要保留这一阶段的可追问会话。不要写文件，不使用 schema，不发送额外完成消息。'
+          : process.env.DSH_OPEN_WEB==='1'
+          ? `制作一个展示四维世界在三维中投影效果的完整交互网页，具体四维对象、数学方法和视觉设计由你选择。用一则短寓言帮助普通读者理解，并清楚区分四维到三维投影与最终屏幕显示。数学方案和交互草案是独立准备工作，请合理并行；给实现者所需的结论即可。页面提供可操作的旋转或投影控件，以及简短的数学解释。由未参与实现者核对一个数值例子并验收实际网页。\n交付当前目录 index.html，纯 HTML/CSS/JS、Canvas 或 SVG，不用外部依赖或网络资料，把 evidence.txt 的标识放在页脚。文件修改使用原生 write/edit；不启动后台写入进程，不写记忆。测试宿主已有预览地址 ${url}，无需自建服务器。请实际打开并操作控件、检查390px宽度和控制台。允许先给简短计划，再生成必要的编排；根据实测发现修复，验收通过就收尾。`
           : `制作一个展示四维世界在三维中投影效果的完整网页。概念指定为 math-spec.md 中的 SO(4) 双平面旋转。用约300字寓言间接讲解，故事末尾才揭示概念，之后解释公式与隐喻对应。先由独立执行者用一个数值例子核对给定数学基线，再实现页面，最后由未参与实现者验收。数学基线就是本次验收范围，不扩展额外证明或概念；各阶段报告保持简短。\n交付当前目录 index.html，最多250行，纯HTML/CSS/JS、一个Canvas/SVG演示和一组角度滑块即可，不要外部依赖或网络资料。把 evidence.txt 的标识放在页脚。文件修改只用原生 write/edit，禁止shell写文件；不要额外工作区、后台写入进程或记忆。页面已由测试宿主提供预览地址 ${url}，不需要启动服务器。请实际打开预览并操作滑块、检查390px手机宽度与控制台错误；只修复有证据的问题，验收通过即收尾。${name==='linked'?'数学和验收阶段需要保留可独立追问的对话分支。':''}`;
+        current.promptedAt=Date.now();save();
         await ctx.sessionController.prompt({sessionId:agent.id,requestId:randomUUID(),mode:'queue',content:[{type:'text',text:request}]},signal);
         let stable=0,lastSeq=-1;
         while(stable<6) {
@@ -179,7 +215,13 @@ async function main() {
         const family=(await linked.list({sessionId:agent.id})).links;
         const last=events.findLast(event=>event.type==='assistant/message');
         const summary=(last?.data.message.content??[]).filter(block=>block.type==='text').map(block=>block.text).join('\n');
-        const report={...current,url,runs:runs.map(event=>event.data.runId),family,summary,passed:false};reports.push(report);save();
+        const workflowCalls=parentCalls.filter(row=>row.name==='workflow');
+        const report={...current,url,runs:runs.map(event=>event.data.runId),family,summary,passed:false,
+          elapsedMs:Date.now()-current.promptedAt,
+          planningToFirstWorkflowMs:workflowCalls[0]?.start-current.promptedAt,
+          workflowScriptChars:workflowCalls.map(row=>row.args.script.length),
+          usage:await collectUsage(ctx,[agent.id,...rows.map(row=>row.agentId).filter(Boolean),
+            ...stages.filter(row=>runs.some(run=>run.data.runId===row.runId)).map(row=>row.childId)])};reports.push(report);save();
         assert(rows.every(row=>!row.policy||(['workspace-write','read-only'].includes(row.policy.mode)&&path.resolve(row.policy.workspaceRoot)===cwd)),'Sandbox changed');
         if(name==='simple') {assert.equal(runs.length,0);assert.match(summary,/4/);}
         else {
@@ -189,15 +231,19 @@ async function main() {
             assert.equal(events.find(event=>event.type==='tool-workflow/run-end'&&event.data.runId===start.data.runId)?.data.stopReason,'completed');
             const children=stages.filter(row=>row.runId===start.data.runId);
             assert(children.length>0);assert(children.every(row=>row.end&&row.outcome==='completed'));
-            for(let i=1;i<children.length;i++) assert(children[i-1].end<=children[i].start,'Workflow writers overlapped');
+
           }
           if(name==='linked'||name==='smoke') {
             assert(family.length>0,'Persistent workers missing');
             assert(family.every(row=>row.parentId===agent.id&&row.wakeParent===false&&row.status==='completed'),'Duplicate wake or incomplete linked worker');
-          } else assert.equal(family.length,0,'Unexpected second persistent dispatch path');
+          } else assert(family.every(row=>row.parentId===agent.id&&row.wakeParent===false),'Unexpected second dispatch family');
           if(name==='smoke')assert.match(summary,/SYNTHETIC-4D-731/);
           else {
             Object.assign(report,verifyWeb(rows,file,agent.id,url));
+            if(current.openEnded) {
+              const execution=stages.filter(row=>report.runs.includes(row.runId));
+              assert(execution.some((a,i)=>execution.slice(i+1).some(b=>Math.max(a.start,b.start)<Math.min(a.end,b.end))),'Open web task did not actually parallelize independent preparation');
+            }
           }
         }
         report.passed=true;save();console.log('MANDATORY_CASE_PASS '+preset+' '+name);

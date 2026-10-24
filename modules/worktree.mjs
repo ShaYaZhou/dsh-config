@@ -236,7 +236,8 @@ var WorktreeService = class extends Service {
 	async create(agent, request = {}, signal) {
 		const operationSignal = signal === void 0 ? this.lifetime.signal : AbortSignal.any([this.lifetime.signal, signal]);
 		operationSignal.throwIfAborted();
-		const operation = this.createCheckout(agent, this.resolve(request), operationSignal);
+		if (request.enter !== undefined && typeof request.enter !== "boolean") throw new Error("worktree enter must be boolean");
+		const operation = this.createCheckout(agent, { ...this.resolve(request), enter: request.enter !== false }, operationSignal);
 		this.pending.add(operation);
 		try {
 			return await operation;
@@ -254,7 +255,7 @@ var WorktreeService = class extends Service {
 			revision
 		};
 	}
-	async createCheckout(agent, { branch, revision }, signal) {
+	async createCheckout(agent, { branch, revision, enter = true }, signal) {
 		const cwd = await this.ctx.workingDirectory.ensure(agent, signal);
 		const policy = this.ctx.sandboxPolicy.resolve({ session: agent.session });
 		const run = (directory, args, allowedExitCodes, env) => runCommand(this.ctx, this.config, policy, directory, [
@@ -354,7 +355,7 @@ var WorktreeService = class extends Service {
 				baseCommit
 			], void 0, overrides);
 			return {
-				path: await this.ctx.workingDirectory.set(agent, path, signal),
+				path: enter ? await this.ctx.workingDirectory.set(agent, path, signal) : path,
 				branch,
 				baseCommit,
 				repositoryRoot

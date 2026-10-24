@@ -12,8 +12,9 @@ const inject = ["tools", "worktrees"];
 function apply(ctx) {
 	ctx.tools.register(defineTool({
 		name: "create_worktree",
-		description: "Create a new Git branch and worktree from a local commit, branch, or tag, then change this session's working directory to it. Defaults to HEAD and a generated name. Uncommitted files stay in the source checkout. Existing names fail. Use working_directory with cd to leave; the checkout and branch remain.",
+		description: "Create a new Git branch and worktree from a local commit, branch, or tag, then change this session's working directory to it. Set enter=false when preparing a checkout for a new worker: its session must be created with the returned cwd to obtain that sandbox boundary. Defaults to HEAD and a generated name. Uncommitted files stay in the source checkout. Existing names fail. Use working_directory with cd to leave; the checkout and branch remain.",
 		parameters: {
+			enter: { type: "boolean", description: "Whether to enter the checkout. Default true; false preserves the caller directory for parallel worker preparation." },
 			name: {
 				type: "string",
 				description: "New branch name, also used as the checkout directory. Omit to generate a unique name."

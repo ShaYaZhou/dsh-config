@@ -12,38 +12,39 @@ const RECORD = "plugin:ultracode/mode";
 
 // Coordinator policy and monotonic tool guard share the existing Ultracode service.
 const POLICY = [
-  "Ultracode is on: substantive tasks MUST enter workflow before implementation, browser execution, or",
-  "delegation. Simple questions and clarifications may be answered directly; render_widget may present an answer or completed workflow result. A few",
-  "read/glob/grep/skill calls may establish scope; they are not an alternative implementation loop. A webpage",
-  "with research, writing, interaction and acceptance is substantive even if it is one HTML file. Use one SMALL",
-  "workflow with research, implementation and independent acceptance (usually 2-3 stages). Return concise text by",
-  "default. Do not invent large nested output schemas, separate planner/reviewer layers, or repeat the whole",
-  "brief in every stage; use a small schema only when later code must branch on a few fields. A mandatory",
-  "workflow is not a mandate for more agents or paperwork. Do not dispatch the same assignment through multiple",
-  "tools. Workflow agent() already creates its workers: do not also launch those assignments outside the",
-  "workflow. Workers run serially through the existing engine limit so they cannot concurrently modify the shared",
-  "workspace. Keep one implementation owner; additional subagents inside a worker must use",
-  "explore/planner/reviewer and remain read-only. Stop after acceptance passes; repeat verification only for a",
-  "specific change or failure. Preserve failure/stop/resume protections and never evade a refusal by another",
-  "tool. /collaborate on selects worker_mode=\"linked\" within workflow; auto lets you choose linked only for",
-  "persistent independently followable conversations; off disallows linked workers. Linked workers return text,",
-  "so omit agent() schema options for linked mode. Ordinary workers use worker_mode=\"subagent\" (the default in",
-  "auto). Do not nest workflows. PTC coordinators must use the auditable single-call envelope console.log(await",
-  "tools.workflow(JSON_ARGUMENTS)); with a literal JSON object, including the script as a JSON string. The same",
-  "envelope can call an allowed read/status tool. No other code, imports, variables, filesystem access or",
-  "multiple calls are allowed in coordinator run_code; complex computation belongs inside workflow agents. Await",
-  "completed results (job_output for background work), verify the deliverable, and report failures honestly.",
-  "Do not use workflow as a scratch REPL or start empty probe runs. Correct reported syntax/JSON errors before task execution.",
+  "Ultracode is on: substantive tasks MUST enter workflow before implementation, browser execution or delegation.",
+  "Simple questions and clarifications may be answered directly. Read-only scoping has no arbitrary call-count cap.",
+  "Express actual dependencies and acceptance criteria using the existing workflow hooks; do not mechanically add roles, phases or schemas.",
+  "You may first outline goals, dependencies and acceptance in concise prose. Then start the smallest runnable workflow and refine it from observed results; do not expand every possible branch in advance. Keep independent work parallel. There is no character-count target or cap.",
+  "The coordinator writes orchestration, not a full specification: domain answers, detailed design decisions and concrete verification steps belong to workers. Give workers the necessary user goal and constraints, without solving their assignment in advance.",
+  "Do not precompute the workers' entire solution, invent fallback implementations, or retry an implementation because its result is null. Dispatch independent discovery first, then use its actual results for the next necessary call. Concrete fixes after successful execution and failed acceptance are legitimate new work.",
+  "One user task may span successive small workflow runs. When later work depends on unknown findings, return those findings first and compose the next run from them instead of packing a speculative full lifecycle into the first script. Skill-specific design or domain preparation belongs to the assigned workers.",
+  "Default to concise text results. If code must branch, use only the few scalar fields needed for that branch and a brief explanation, not nested evidence or reporting schemas. Use mounted tools directly; do not invent environment inventories or extra proof obligations without a concrete failure.",
+  "Use parallel() for independent work within the existing concurrency budget. agent(prompt,{read_only:true}) creates a sandboxed read-only worker.",
+  "Prefer separate worktrees for independent implementations: create_worktree({enter:false}) prepares a checkout without moving the coordinator;",
+  "pass its path as agent() cwd. On this host isolated cwd uses a fresh linked session because native subagent cwd does not change its sandbox boundary. Uncommitted changes are not copied.",
+  "Same or overlapping writable directories and shared browser use cannot overlap. Await the owner before handing off; unrelated isolated work may continue.",
+  "Browser workers use normal browser tools with default export paths; unsafe server code and custom filename exports are denied. Use browser:true only for the worker that needs the shared browser. Integrate isolated outputs into the delivery checkout and verify that exact version.",
+  "Workflow owns scheduling, results and acceptance; agent() already dispatches execution. Do not duplicate assignments outside it or nest workflows.",
+  "Select session:'linked' only for independently followable persistent work; session:'subagent' is sufficient for temporary work.",
+  "/collaborate on prefers linked workers but does not require every stage to persist; off disallows linked workers. Linked workers return text, not schema output.",
+  "Clarifications and progress may use existing family communication. Return completion through Workflow once rather than sending duplicate completion messages.",
+  "PTC coordinator limitation: with workspace-write, run_code currently accepts only a literal JSON tool-call envelope; arbitrary root code is not safely confined to read-only.",
+  "Normal orchestration computation, loops and parallel batches belong in the workflow script. A read-only coordinator may use ordinary PTC computation and batched allowed tools.",
+  "PTC workflows default to native background jobs, even with budget_ms. Omit run_in_background or set true for real investigation, implementation and browser tasks; collect their result with job_output using short bounded waits. budget_ms checks further dispatch and does not interrupt a running child, so it cannot bound a foreground call. Reserve explicit foreground for very short synthetic calls.",
+  "Do not change tool spellings or loosen permissions to evade these boundaries. Preserve stop, failure, resume, logs and inherited permissions.",
+  "Await completed results (job_output for background work), verify the integrated deliverable, and report failures honestly. Never start empty probe workflows.",
 ].join(' ');
 
 const COORDINATOR_TOOLS = new Set([
-  'workflow', 'render_widget',
+  'workflow', 'render_widget', 'create_worktree',
   'read', 'read_image', 'glob', 'grep', 'skill',
   'ask_user', 'todo_write', 'job_output', 'job_kill', 'stop_session', 'interrupt_agent',
   'wait_agent', 'wait_for_sessions', 'list_agents', 'list_linked_sessions', 'read_session',
+  'send_message', 'send_session_message',
   'list_recent_sessions', 'read_local_session', 'list_session_models', 'usage_report',
 ]);
-const PREPARATION_TOOLS = new Set(['read','read_image','glob','grep','skill','list_recent_sessions','read_local_session']);
+const WORKER_READ_TOOLS = new Set([...COORDINATOR_TOOLS].filter(name => !['workflow','create_worktree','render_widget'].includes(name)));
 const READ_ONLY_ROLES = new Set(['explore','planner','reviewer']);
 
 // A transport envelope, not a JavaScript evaluator. JSON cannot execute code.
@@ -98,9 +99,16 @@ function active(ctx, session) {
 }
 
 // Public read-only contract supplied by nestedSessions; no private store access.
+function unavailableReason(ctx, agent) {
+  if (ctx.tools.get('workflow', agent) === undefined) return '当前模式没有 workflow 工具';
+  const policy = ctx.get('sandboxPolicy')?.resolve({session:agent.session});
+  if (policy && !['read-only','workspace-write'].includes(policy.mode))
+    return '当前沙箱不能提供 Workflow 所需的受限写入边界';
+  return '';
+}
 function effectiveMode(ctx, agent) {
   if (!active(ctx, agent.session)) return 'off';
-  if (ctx.tools.get('workflow', agent) === undefined) return 'unavailable';
+  if (unavailableReason(ctx, agent)) return 'unavailable';
   const mode = ctx.get('nestedSessions')?.delegationMode(agent.id ?? agent.session.id);
   if (agent.session.header?.origin === 'subagent' || mode === 'worker') return 'worker';
   return mode === 'linked' ? 'linked' : 'workflow';
@@ -108,10 +116,12 @@ function effectiveMode(ctx, agent) {
 function statusText(ctx, agent) {
   const mode = effectiveMode(ctx, agent);
   if (mode === 'off') return 'ultracode 当前已关闭。';
-  if (mode === 'unavailable') return 'ultracode 已开启，但当前模式没有 workflow 工具，自动编排策略未生效。';
-  if (mode === 'linked') return 'ultracode 已开启且生效：实质性任务必须经 Workflow；当前使用持久关联会话执行各阶段。';
+  if (mode === 'unavailable') return `ultracode 偏好已保留，但${unavailableReason(ctx, agent)}，自动编排策略未生效。`;
+  const limited = ctx.tools.modeFor?.(agent) === 'ptc' && ctx.get('sandboxPolicy')?.resolve({session:agent.session}).mode !== 'read-only';
+  const suffix = limited ? ' PTC 主会话传输仍受限；计算与批量并行可在 Workflow 脚本中执行。' : '';
+  if (mode === 'linked') return 'ultracode 已开启且生效：实质性任务必须经 Workflow；优先使用持久关联会话，临时任务仍可用子代理。' + suffix;
   if (mode === 'worker') return 'ultracode 已开启；当前是关联工作会话，按主会话分工执行，不自动启动第二套编排。';
-  return 'ultracode 已开启且生效：实质性任务必须经 Workflow；简单问答直接处理。';
+  return 'ultracode 已开启且生效：实质性任务必须经 Workflow；简单问答直接处理。' + suffix;
 }
 
 const statusInitializers = [];
@@ -122,7 +132,7 @@ export class UltracodeState extends TypertRemoteService {
     runInitializers(this, statusInitializers);
   }
   requiresWorkflow(agent) {
-    return active(this.ctx, agent.session) && this.ctx.tools.get('workflow', agent) !== undefined &&
+    return active(this.ctx, agent.session) && !unavailableReason(this.ctx, agent) &&
       agent.session.header?.origin !== 'subagent' &&
       this.ctx.get('nestedSessions')?.delegationMode(agent.id ?? agent.session.id) !== 'worker';
   }
@@ -135,6 +145,10 @@ export class UltracodeState extends TypertRemoteService {
     return this.requiresWorkflow(parent) ||
       ((parent.session.header?.origin === 'subagent' || this.ctx.get('nestedSessions')?.delegationMode(parent.id) === 'worker') && this.restrictWorker(parent,seen));
   }
+  workerAccess = new Map();
+  registerWorker(id, access) { this.workerAccess.set(id, {...access, active:true}); }
+  releaseWorker(id) { this.workerAccess.delete(id); }
+  workerPolicy(agent) { return this.workerAccess.get(agent.id); }
   async read(request, signal) {
     const parsed = sessionId.safeParse(request?.sessionId);
     if (!parsed.success) throw new RemoteError('gateway/bad-request', 'Invalid session ID', {});
@@ -166,7 +180,6 @@ Remote({resources:{session: request => request?.sessionId}})(UltracodeState.prot
 export function apply(ctx) {
   ctx.sessionProjections.register(ultracodeProjection);
   const service = new UltracodeState(ctx);
-  const preparation = new WeakMap();
   ctx.effect(() => ctx.tools.guard(exec => {
     const agent = exec.agent;
     if (!agent) return;
@@ -174,14 +187,43 @@ export function apply(ctx) {
       if (!service.restrictWorker(agent)) return;
       if (READ_ONLY_ROLES.has(agent.session.header?.agentPreset) && exec.name === 'write')
         return 'Ultracode read-only helpers cannot write project files or shared role memory.';
+      const access = service.workerPolicy(agent) ?? {active:false,readOnly:true,browser:false};
+      if (access?.active) {
+        const policy = ctx.get('sandboxPolicy')?.resolve({session:agent.session});
+        if (!policy || policy.mode !== (access.readOnly ? 'read-only' : 'workspace-write')) return 'Worker sandbox changed after admission; stop and reconcile before continuing.';
+      }
+      if (exec.arguments?.sandbox_permissions !== undefined)
+        return 'Workflow workers cannot widen their inherited sandbox.';
+      if (!access.active && exec.name === 'run_code') {
+        if (ctx.get('sandboxPolicy')?.resolve({session:agent.session}).mode === 'read-only') return;
+        const call = coordinatorCall(exec.arguments?.code);
+        if (call && WORKER_READ_TOOLS.has(call.name)) return;
+        return 'Inactive workflow workers are read-only. ' + coordinatorFailure(exec.arguments?.code);
+      }
+      const browserCall = /playwright|browser/i.test(exec.name);
+      if (browserCall && (/_unsafe$/.test(exec.name) || exec.arguments?.filename !== undefined))
+        return 'Workflow browser calls cannot run server-side code or choose export paths; use normal browser tools and their default output directory.';
+      const readOnlyExecution = access.active && access.readOnly &&
+        ['run_code','bash','structured_output'].includes(exec.name);
+      const communication = ['send_message','send_session_message'].includes(exec.name);
+      if ((access.readOnly || !access.active) &&
+          !(access.active && access.browser && browserCall) &&
+          !WORKER_READ_TOOLS.has(exec.name) && !readOnlyExecution && !communication)
+        return 'This workflow worker is read-only; assign mutations to an isolated writer.';
+      if (access && browserCall && !access.browser)
+        return 'Shared browser access requires the workflow browser owner.';
       if (exec.name === 'subagent' && !READ_ONLY_ROLES.has(exec.arguments?.agent_preset))
         return 'Ultracode workers may delegate only read-only explore/planner/reviewer subagents; keep one writer.';
-      if (['workflow','subagent_fork','start_session','team_create','team_spawn','spawn_teammate','send_session_message','send_message'].includes(exec.name))
+      if (['workflow','subagent_fork','start_session','team_create','team_spawn','spawn_teammate'].includes(exec.name))
         return 'Ultracode worker: execute the assigned stage; no nested workflow, linked family or additional writers.';
       return;
     }
     if (!service.requiresWorkflow(agent)) return;
+    if (exec.name === 'create_worktree' && exec.arguments?.enter !== false)
+      return 'Prepare worker worktrees with enter:false; create their sessions with the returned cwd.';
     if (exec.name === 'run_code') {
+      if (exec.arguments?.sandbox_permissions !== undefined) return 'Ultracode cannot widen the coordinator sandbox.';
+      if (ctx.get('sandboxPolicy')?.resolve({session:agent.session}).mode === 'read-only') return;
       const call = coordinatorCall(exec.arguments?.code);
       if (!call) return coordinatorFailure(exec.arguments?.code);
       if (!COORDINATOR_TOOLS.has(call.name))
@@ -190,13 +232,7 @@ export function apply(ctx) {
     }
     if (!COORDINATOR_TOOLS.has(exec.name))
       return 'Ultracode requires workflow for implementation, browser actions and delegation. Call workflow; do not retry this operation directly or change tools to bypass it.';
-    if (PREPARATION_TOOLS.has(exec.name)) {
-      const turn = agent.session.snapshotEvents().findLast(event => event.type === 'turn/start')?.seq ?? -1;
-      let state = preparation.get(agent);
-      if (!state || state.turn !== turn) { state = {turn,count:0}; preparation.set(agent,state); }
-      if (state.count >= 6) return 'Ultracode preparation limit reached. Continue research and acceptance inside workflow workers.';
-      state.count++;
-    }
+
   }));
   ctx.systemPrompt.section({
     name: "ultracode:policy",
@@ -206,6 +242,12 @@ export function apply(ctx) {
       if (agent === undefined) return "";
       if (agent.session.header?.origin === 'subagent' && READ_ONLY_ROLES.has(agent.session.header?.agentPreset) && service.restrictWorker(agent))
         return 'This workflow helper is strictly read-only, including role MEMORY.md. Return findings as text; do not update memory or start other workers.';
+      const access = service.workerPolicy(agent);
+      if (access?.active && service.restrictWorker(agent)) {
+        if (access.readOnly)
+          return 'Execute the assigned investigation only. Return the facts and decisions needed by the next worker concisely; do not expand into unrelated inventories, proof obligations or speculative enhancements. Use the mounted tools directly unless a concrete failure requires investigation.';
+        return 'You are an admitted Workflow executor. Keep implementation proportional to the requested outcome. For a new artifact, use the normal tools to save a minimal runnable baseline early, then extend it in coherent verified edits. For an existing artifact, preserve user drafts and make the smallest coherent change first. Do not draft the entire deliverable repeatedly in prose or alternate encodings before saving it. Do not add speculative controls, APIs or design systems. Finish the assigned implementation and code-level self-checks, then hand off browser acceptance to its declared owner; do not invent a separate browser harness or test server. A failed or truncated result must be reported for reconciliation, never silently retried. Return concise results through Workflow; no duplicate completion or new dispatch path.';
+      }
       return ['workflow','linked'].includes(effectiveMode(ctx, agent)) ? POLICY : '';
     },
   });
@@ -224,8 +266,9 @@ export function apply(ctx) {
         return { kind: "error", text: "用法：/ultracode on | off | status" };
       }
       const wanted = verb === "on";
-      if (wanted && ctx.tools.get('workflow', invocation.agent) === undefined)
-        return {kind:'error', text:'当前模式不支持 Workflow，无法开启 Ultracode。已有偏好会保留，切换到支持的模式后再应用。'};
+      const unavailable = wanted && unavailableReason(ctx, invocation.agent);
+      if (unavailable)
+        return {kind:'error', text:`${unavailable}，无法开启 Ultracode。已有偏好会保留，切换到支持的模式后再应用。`};
       if (wanted === current) {
         return { kind: "success", text: `ultracode 已经是${wanted ? "开启" : "关闭"}状态。${statusText(ctx, invocation.agent)}` };
       }

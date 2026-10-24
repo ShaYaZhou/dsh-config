@@ -9,7 +9,7 @@ const z = {
 };
 const sandbox = {
   Script: vm.Script,
-  TypertRemoteService: class { constructor(ctx) {this.ctx=ctx;} },
+  TypertRemoteService: class { constructor(ctx) {this.ctx=ctx;ctx.createdService=this;} },
   Remote: () => () => {},
   runInitializers: () => {},
   RemoteError: Error,
@@ -112,10 +112,29 @@ test('linked workers do not receive automatic orchestration and auto restores it
  assert.match(restored.section.text({agent:{session:restored.session}}), /Await completed results/);
 });
 
+test('admitted workers receive proportional execution guidance without another orchestration policy',()=>{
+ const f=fixture({state:{active:true}});
+ const agent={id:'worker',session:{id:'worker',header:{origin:'subagent',parentSession:'root'}}};
+ f.ctx.createdService.registerWorker(agent.id,{readOnly:false});
+ const writer=f.section.text({agent});
+ assert.match(writer,/minimal runnable baseline early/);assert.doesNotMatch(writer,/MUST enter workflow/);
+ f.ctx.createdService.registerWorker(agent.id,{readOnly:true});
+ assert.match(f.section.text({agent}),/assigned investigation only/);
+ f.ctx.createdService.releaseWorker(agent.id);assert.equal(f.section.text({agent}),'');
+});
+
  test('unsupported on refuses before persisting a misleading enabled preference', () => {
   const f=fixture({hasWorkflow:false});
   const result=f.command.handler({agent:{session:f.session},rawInput:'on'});
   assert.equal(result.kind,'error'); assert.equal(f.records.length,0);
+ });
+ test('unsupported sandbox is visibly unavailable rather than advertising an unusable workflow',()=>{
+  const f=fixture({state:{active:true}}),get=f.ctx.get,agent={session:f.session};
+  f.ctx.get=name=>name==='sandboxPolicy'?{resolve:()=>({mode:'danger-full-access'})}:get(name);
+  assert.equal(f.section.text({agent}),'');
+  assert.equal(f.ctx.createdService.requiresWorkflow(agent),false);
+  assert.match(f.command.handler({agent,rawInput:'status'}).text,/沙箱.*未生效/);
+  assert.equal(f.command.handler({agent,rawInput:'on'}).kind,'error');assert.equal(f.records.length,0);
  });
  test('status read checks ownership and cancellation again after agent resolution', async () => {
   let allowed=false, calls=0, resolve;
@@ -129,14 +148,16 @@ test('linked workers do not receive automatic orchestration and auto restores it
  });
 
 
-test('Ultracode guard blocks direct execution and permits only bounded preparation', () => {
+test('Ultracode guard blocks direct execution and permits read-only preparation without an arbitrary call cap', () => {
  const f=fixture({state:{active:true}}),agent={id:'root',session:f.session};
  for(const name of ['write','edit','bash','subagent','start_session','mcp__playwright__browser_evaluate'])
   assert.match(f.guard({agent,name,arguments:{}}),/requires workflow/);
  assert.equal(f.guard({agent,name:'workflow',arguments:{}}),undefined);
+ assert.equal(f.guard({agent,name:'send_message',arguments:{}}),undefined);
+ assert.equal(f.guard({agent,name:'send_session_message',arguments:{}}),undefined);
  assert.equal(f.guard({agent,name:'render_widget',arguments:{html:'<div>answer</div>'}}),undefined);
- for(let i=0;i<6;i++)assert.equal(f.guard({agent,name:'read',arguments:{}}),undefined);
- assert.match(f.guard({agent,name:'read',arguments:{}}),/limit reached/);
+ for(let i=0;i<20;i++)assert.equal(f.guard({agent,name:'read',arguments:{}}),undefined);
+ assert.equal(f.guard({agent,name:'read',arguments:{}}),undefined);
  const off=fixture({state:{active:false}});
  assert.equal(off.guard({agent:{session:off.session},name:'write'}),undefined);
 });
@@ -155,9 +176,9 @@ test('workers cannot spawn competing writers or nested workflows', () => {
  const f=fixture({state:{active:true}}),agent={session:{...f.session,header:{origin:'subagent'}}};
  assert.equal(f.section.text({agent}),'');
  assert.match(f.guard({agent,name:'subagent',arguments:{agent_preset:'standard'}}),/read-only/);
- assert.equal(f.guard({agent,name:'subagent',arguments:{agent_preset:'reviewer'}}),undefined);
- assert.match(f.guard({agent,name:'workflow',arguments:{}}),/no nested/);
- assert.equal(f.guard({agent,name:'write',arguments:{}}),undefined);
+ assert.match(f.guard({agent,name:'subagent',arguments:{agent_preset:'reviewer'}}),/read-only/,'Unknown or cold workers have no live dispatch grant');
+ assert.match(f.guard({agent,name:'workflow',arguments:{}}),/read-only|no nested/);
+ assert.match(f.guard({agent,name:'write',arguments:{}}),/read-only/);
 });
 
 
@@ -169,7 +190,7 @@ test('worker restrictions follow the parent mode, not the child default', () => 
  assert.equal(f.guard({agent:child,name:'subagent',arguments:{agent_preset:'standard'}}),undefined);
  f.ctx.sessionProjections.stateOf=session=>({active:session===parent.session?true:false});
  assert.match(f.guard({agent:child,name:'subagent',arguments:{agent_preset:'standard'}}),/read-only/);
- assert.match(f.guard({agent:child,name:'send_session_message',arguments:{}}),/no nested/);
+ assert.equal(f.guard({agent:child,name:'send_session_message',arguments:{}}),undefined,'communication remains subject to the native family and permission checks');
 });
 
 test('read-only workflow helpers cannot race on their shared role memory file',()=>{
@@ -192,4 +213,23 @@ test('coordinator diagnostics compile but never execute rejected code',()=>{
   assert.match(f.guard({agent,name:'run_code',arguments:{code:'globalThis.__ultracodeDiagnosticExecuted = true;'}}),/single literal JSON/);
   assert.equal(globalThis.__ultracodeDiagnosticExecuted,undefined);
  } finally {delete globalThis.__ultracodeDiagnosticExecuted;}
+});
+
+test('browser ownership permits bounded review but rejects server code and custom export paths',()=>{
+ const f=fixture({state:{active:true}}),agent={id:'worker',session:{...f.session,header:{origin:'subagent'}}};
+ const get=f.ctx.get;f.ctx.get=name=>name==='sandboxPolicy'?{resolve:()=>({mode:'read-only'})}:get(name);
+ f.ctx.createdService.registerWorker(agent.id,{readOnly:true,browser:true});
+ assert.equal(f.guard({agent,name:'mcp__playwright__browser_snapshot',arguments:{}}),undefined);
+ assert.equal(f.guard({agent,name:'structured_output',arguments:{pass:true}}),undefined,'Native result submission is not a file mutation');
+ assert.match(f.guard({agent,name:'mcp__playwright__browser_run_code_unsafe',arguments:{code:'x'}}),/server-side/);
+ assert.match(f.guard({agent,name:'mcp__playwright__browser_take_screenshot',arguments:{filename:'elsewhere'}}),/export paths/);
+ assert.equal(f.guard({agent,name:'mcp__playwright__browser_take_screenshot',arguments:{}}),undefined);
+ f.ctx.createdService.releaseWorker(agent.id);
+ assert.match(f.guard({agent,name:'structured_output',arguments:{pass:true}}),/read-only/);
+ assert.equal(f.guard({agent,name:'run_code',arguments:{code:'return 1'}}),undefined,'Native read-only confinement allows follow-up computation');
+ f.ctx.get=name=>name==='sandboxPolicy'?{resolve:()=>({mode:'workspace-write'})}:get(name);
+ assert.match(f.guard({agent,name:'run_code',arguments:{code:'return 1'}}),/read-only/);
+ assert.equal(f.guard({agent,name:'run_code',arguments:{code:'console.log(await tools.read({"file_path":"a"}));'}}),undefined);
+ assert.match(f.guard({agent,name:'run_code',arguments:{code:'console.log(await tools.write({"file_path":"a","content":"bad"}));'}}),/read-only/);
+ assert.match(f.guard({agent,name:'mcp__playwright__browser_snapshot',arguments:{}}),/read-only/);
 });

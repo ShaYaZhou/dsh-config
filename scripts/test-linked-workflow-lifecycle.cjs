@@ -39,7 +39,7 @@ async function main() {
         }
         return next();
       });
-      const args={worker_mode:'linked',run_in_background:true,meta:{name:'linked-stop',description:'One retained worker'},
+      const args={worker_mode:'linked',...(preset==='ptc'?{}:{run_in_background:true}),meta:{name:'linked-stop',description:'One retained worker'},
         script:'return await agent('+JSON.stringify('Read '+file+' and increment it once using the write tool. No shell, memory, delegation or other files. Return the resulting value.')+');',args:{}};
       const text='生命周期验收：仅调用一次 workflow，参数如下，错误或取消后报告并停止，不重试也不改用其他工具。PTC 使用 console.log(await tools.workflow(JSON对象));。\n'+JSON.stringify(args);
       await ctx.sessionController.prompt({sessionId:agent.id,requestId:randomUUID(),mode:'queue',content:[{type:'text',text}]},AbortSignal.timeout(180000));
