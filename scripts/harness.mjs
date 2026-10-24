@@ -67,6 +67,21 @@ export function renderPlan(home,settings,artifacts={}, {clean=false}={}){
   files.set('profiles/'+profile+'/package.json',json(manifest));
   files.set('profiles/'+profile+'/pnpm-workspace.yaml',json(config('pnpm-workspace.json')));
   const patch=substitute(config(profile+'.patch.json'),tokens);
+  if(!clean&&profile==='desktop'){
+   // PTC reuses the standard capability composition; only model-facing transport differs.
+   const standard=patch.find(row=>row.id==='preset-standard')?.config;
+   if(standard){
+    const ptc=structuredClone(standard);
+    ptc.id='ptc';
+    ptc.order=2;
+    ptc.plugins.push({
+     id:'tool-presentation',
+     name:'@deepseek-ai/dsh-agent-tool-presentation',
+     config:{mode:'ptc'}
+    });
+    patch.push({id:'preset-ptc',config:ptc});
+   }
+  }
   files.set('profiles/'+profile+'/cordis.patch.yml',emitYaml(patch));
   const lock=path.join(directory,profile+'.lock.yaml');
   if(fs.existsSync(lock)){
@@ -297,6 +312,9 @@ function runtimeCheck(home,script,marker,logFile='automatic-session-runtime.log'
 }
 export function smoke(home){runtimeCheck(home,'smoke.cjs','PORTABLE_SMOKE_PASS','smoke-runtime.log');}
 const RUNTIME_TESTS={
+ 'ultracode-routing-test':['test-ultracode-routing.cjs','ULTRACODE_ROUTING_PASS','ultracode-routing-runtime.log'],
+ 'workflow-recovery-test':['test-workflow-recovery.cjs','WORKFLOW_RECOVERY_PASS','workflow-recovery-runtime.log'],
+ 'orchestration-test':['test-orchestration-policy.cjs','ORCHESTRATION_ACCEPTANCE_PASS','orchestration-runtime.log'],
  'automatic-test':['test-automatic-sessions.cjs','AUTOMATIC_SESSIONS_PASS'],
  'spec-test':['test-spec-delivery.cjs','SPEC_DELIVERY_PASS','spec-delivery-runtime.log'],
  'idle-test':['test-idle-compaction.cjs','IDLE_COMPACTION_PASS','idle-compaction-runtime.log'],

@@ -7,7 +7,7 @@ window.__ModuleLoader__.load({
   factory: (require) => {
     const React = require('react'),
       h = React.createElement;
-    const inject = ['slots', 'sessions', 'configForms'];
+    const inject = ['slots', 'sessions', 'configForms', 'connection'];
     const SETTINGS = 'enhancement-settings';
     // 与宿主模块 modules/ultracode.mjs 的判定保持一致：显式记录优先。
     function effectiveState(value, fallback) {
@@ -33,19 +33,58 @@ window.__ModuleLoader__.load({
 @keyframes uc-pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.6);opacity:.45}}
 @media (prefers-reduced-motion:reduce){.uc-chip.on,.uc-chip.on .uc-dot{animation:none}}
 `;
-    function UltracodeChip({ useProjection, useUltracodeSetting, toggle }) {
+    function chipState(status, preference) {
+      if (!status) return {label:'Ultracode · 检查中', active:false, disabled:true, title:'正在核对当前模式的工作流能力'};
+      if (status.error) return {label:'Ultracode · 状态未知', active:false, disabled:true, title:status.error};
+      if (!status.supported) return {label:'Ultracode · 不可用', active:false, disabled:true, title:'当前模式未提供 Workflow；不会因保存的开启偏好而启动编排'};
+      const active = preference && status.mode === 'workflow';
+      const suffix = preference && status.mode === 'linked' ? ' · 协作优先'
+        : preference && status.mode === 'worker' ? ' · 按分工执行' : '';
+      return {label:'Ultracode' + suffix, active, disabled:false, title:status.text};
+    }
+    function UltracodeChip({ useProjection, useUltracodeSetting, toggle, readStatus }) {
       const projection = useProjection('ultracode');
-      const active = effectiveState(projection, useUltracodeSetting(defaultOn));
+      const preference = effectiveState(projection, useUltracodeSetting(defaultOn));
+      const preset = useProjection('agentPreset');
+      const [status, setStatus] = React.useState(null);
+      const [revision, setRevision] = React.useState(0);
+      React.useEffect(() => {
+        let disposed = false, pending = false;
+        const controller = new AbortController();
+        setStatus(null);
+        const refresh = async () => {
+          if (pending || disposed) return;
+          pending = true;
+          try {
+            const value = await readStatus(controller.signal);
+            if (!disposed) setStatus(value);
+          } catch (failure) {
+            if (!disposed) setStatus({error:failure?.message || '状态读取失败'});
+          } finally { pending = false; }
+        };
+        void refresh();
+        const timer = setInterval(refresh, 5000);
+        return () => {disposed = true; controller.abort(); clearInterval(timer);};
+      }, [preset, preference, readStatus, revision]);
+      const view = chipState(status, preference);
       const [busy, setBusy] = React.useState(false);
       const [error, setError] = React.useState('');
+      const lifecycle = React.useRef(0);
+      React.useEffect(() => {
+        lifecycle.current += 1;
+        setBusy(false);
+        setError('');
+        return () => {lifecycle.current += 1;};
+      }, [toggle]);
       const act = () => {
-        if (busy || typeof toggle !== 'function') return;
+        if (busy || view.disabled || typeof toggle !== 'function') return;
         setBusy(true);
         setError('');
-        Promise.resolve(toggle(!active)).then(
-          () => undefined,
-          (failure) => setError(failure?.message || '切换失败'),
-        ).finally(() => setBusy(false));
+        const owner = lifecycle.current;
+        Promise.resolve(toggle(!preference)).then(
+          () => {if (owner === lifecycle.current) setRevision(value => value + 1);},
+          (failure) => {if (owner === lifecycle.current) setError(failure?.message || '切换失败');},
+        ).finally(() => {if (owner === lifecycle.current) setBusy(false);});
       };
       return h(
         React.Fragment,
@@ -55,18 +94,16 @@ window.__ModuleLoader__.load({
           'button',
           {
             type: 'button',
-            className: active ? 'uc-chip on' : 'uc-chip',
+            className: view.active ? 'uc-chip on' : 'uc-chip',
             role: 'switch',
-            'aria-checked': active,
+            'aria-checked': view.active,
             'aria-label': 'Ultracode 模式',
-            title: active
-              ? 'Ultracode 已开启：实质性任务默认用 workflow 编排。点击关闭'
-              : 'Ultracode 已关闭。点击开启',
-            disabled: busy,
+            title: view.title,
+            disabled: busy || view.disabled,
             onClick: act,
           },
           h('span', { className: 'uc-dot', 'aria-hidden': true }),
-          h('span', null, 'Ultracode'),
+          h('span', null, view.label),
         ),
         error ? h('span', { className: 'uc-err', role: 'alert' }, error) : null,
       );
@@ -81,6 +118,12 @@ window.__ModuleLoader__.load({
             order: 10,
             inject: (sessionId) => ({
               hooks: { ultracodeSetting: form },
+              readStatus: async (signal) => {
+                const result = await ctx.connection.rpc.call('/api', 'ultracodeState/read', {args:{request:{sessionId}}}, signal);
+                if (!result.ok) throw new Error(result.error?.message || '状态读取失败');
+                if (result.value?.sessionId !== sessionId) throw new Error('会话已变化');
+                return result.value;
+              },
               toggle: (next) => {
                 const live = ctx.sessions.binding(sessionId)?.session;
                 if (live === undefined)

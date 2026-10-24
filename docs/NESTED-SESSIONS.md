@@ -23,7 +23,7 @@
 | 操作 | 行为 |
 |---|---|
 | /collaborate on | 只开启当前任务家族协作，尚未提交任务；随后回主会话描述任务 |
-| /collaborate off | 暂停新分工；保留已有会话和历史 |
+| /collaborate off | 暂停新建关联会话；不关闭普通 subagent 或 workflow，保留已有会话和历史 |
 | /collaborate auto | 恢复按需模式，较小任务可直接处理 |
 | 查看结果 | 打开原生子会话阅读结果，可直接返回主会话 |
 | 停止此任务 | 取消该子任务并清空待执行消息 |
@@ -122,3 +122,5 @@ REA 的后台 Evidence：`ev_97f38f33a2f2b33f6018128f97ac49d8a4435a72c0ea05dd829
 `clean`/Git revert 后安装会卸载这项增强，但保留原生会话及插件 domain 数据；重新安装增强可恢复树。新电脑只获得程序与配置，不会拉取原电脑的会话、家族关系或记忆。
 
 明确要求“先写 spec，再自动实现和验收”时使用 [自然语言交付流程](OPENSPEC.md)：主会话写规格并调度，standard 子会话实现，fresh reviewer 独立审查，主会话运行实际验收并维护任务状态。`start_session` 可指定 `agent_preset`，fresh 模式支持 standard/explore/planner/reviewer/cc；fork 继续保持源角色，不允许同时覆盖角色。
+
+显式 `/collaborate on` 优先于 Ultracode 自动工作流偏好；`auto` 恢复按任务选择委派方式。用户本次明确输入 `/workflow 任务` 时以本次选择为准，不改常驻开关。

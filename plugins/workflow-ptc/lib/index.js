@@ -238,6 +238,8 @@ var PtcWorkflowRun = class {
   retries = 0;
   terminal = false;
   cancelReason;
+  failedCalls = 0;
+  cleanupFailed = false;
   disposed;
   externalAbort;
   cwd;
@@ -248,7 +250,9 @@ var PtcWorkflowRun = class {
   cancel(reason = "workflow cancelled") {
     if (this.terminal || this.cancelReason !== void 0) return;
     this.cancelReason = reason;
-    this.controller.abort(reason);
+    try { this.deps.stopOwner?.(); }
+    catch (error) { this.cleanupFailed = true; this.ctx.logger.warn(`Cannot persist workflow stop: ${String(error)}`); }
+    finally { this.controller.abort(reason); }
     for (const record of this.children.values()) void this.disposeChild(record);
   }
   /**
@@ -328,6 +332,7 @@ var PtcWorkflowRun = class {
       this.children.set(callId, { callId, seq: request.seq, replay });
       return { callId, childId: replay.childId };
     }
+    this.deps.journal?.recordIntent(request, this.provider);
     const run = await this.activate(request, callId);
     const record = { callId, seq: request.seq, request, run };
     this.children.set(callId, record);
@@ -351,7 +356,7 @@ var PtcWorkflowRun = class {
     try {
       if (record.request === void 0) throw new Error("workflow child record has no request");
       const request = record.request;
-      const maxRetries = request.schema === void 0 ? 0 : this.deps.schemaRetries ?? 0;
+      const maxRetries = request.schema === void 0 || this.policy.mode !== "read-only" ? 0 : this.deps.schemaRetries ?? 0;
       let run = record.run;
       if (run === void 0) throw new Error("workflow child record has no activation");
       let tokens = 0;
@@ -388,6 +393,8 @@ var PtcWorkflowRun = class {
         this.children.set(record.callId, record);
         this.deps.onChildActive?.(run.childId, true);
       }
+      if (request.schema !== void 0 && payload.structured === void 0) payload.stopReason = "error";
+      if (payload.stopReason !== "completed") this.failedCalls += 1;
       this.deps.journal?.recordResult(record.seq, payload);
       return json(payload);
     } finally {
@@ -417,10 +424,12 @@ var PtcWorkflowRun = class {
       return Promise.resolve();
     }
     record.disposal ??= Promise.resolve().then(() => run.dispose()).catch((error) => {
+      this.cleanupFailed = true;
+      record.cleanupFailed = true;
       this.ctx.logger.warn(`workflow-ptc: child dispose failed: ${renderThrown(error)}`);
     }).finally(() => {
       this.children.delete(record.callId);
-      this.deps.onChildActive?.(run.childId, false);
+      if (!record.cleanupFailed) this.deps.onChildActive?.(run.childId, false);
     });
     return record.disposal;
   }
@@ -456,6 +465,7 @@ var PtcWorkflowRun = class {
     let result;
     try {
       const cwd = await this.cwd;
+      if (realpathSync(cwd) !== this.deps.cwd) throw new Error("Workflow directory changed during admission");
       this.requireActive();
       if (this.runtime.sandboxMode === void 0 && this.policy.mode !== "danger-full-access") {
         throw new Error(`workflow runtime cannot enforce the ${this.policy.mode} file policy`);
@@ -485,185 +495,27 @@ ${PROGRAM}
       while (this.pending.size > 0) await Promise.allSettled([...this.pending]);
       await Promise.all([...this.children.values()].map((record) => this.disposeChild(record)));
       this.children.clear();
-      for (const info of this.liveAgents.values()) this.endAgent({ ...info, outcome: "cancelled" });
+      if (!this.cleanupFailed) for (const info of this.liveAgents.values()) this.endAgent({ ...info, outcome: "cancelled" });
     }
+    if (this.cleanupFailed) {
+      try { this.deps.stopOwner?.(); } catch (error) { this.ctx.logger.warn(String(error)); }
+      return {value:result?.value ?? null,stopReason:"error",error:"Child cleanup was not confirmed; recovery remains blocked",agentsStarted:this.started};
+    }
+    if (this.deps.journal?.hasUnsettled && result.stopReason === "completed")
+      result = {...result,stopReason:"error",error:"Workflow left unfinished child calls; inspect file effects before retrying"};
+    if (this.failedCalls && result.stopReason === "completed")
+      result = {...result,stopReason:"error",error:`${this.failedCalls} child call(s) failed; partial results remain in the journal`};
+    try {
+      if (result.stopReason !== "completed") this.deps.stopOwner?.();
+      this.deps.journal?.finish(result);
+    }
+    catch (error) { return {value:result.value,stopReason:"error",error:`Journal finalization failed: ${String(error)}`,agentsStarted:this.started}; }
     return result;
   }
 };
 
-// packages/workflow/workflow-ptc/src/journal.ts
-import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { deepEqualJson } from "@deepseek-ai/dsh-util-values";
-import { WorkflowError } from "@deepseek-ai/dsh-workflow";
-var RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-function isWorkflowRunId(value) {
-  return RUN_ID.test(value);
-}
-function callOf(request, provider, childId) {
-  return {
-    t: "call",
-    seq: request.seq,
-    prompt: request.prompt,
-    provider,
-    model: request.model ?? null,
-    schema: request.schema ?? null,
-    childId
-  };
-}
-function sameCall(recorded, request, provider) {
-  return recorded.seq === request.seq && recorded.prompt === request.prompt && recorded.provider === provider && recorded.model === (request.model ?? null) && deepEqualJson(recorded.schema, request.schema ?? null);
-}
-var WorkflowJournal = class {
-  writes;
-  file;
-  log;
-  replay;
-  replayOff = false;
-  replayed = 0;
-  /**
-   * Open the journal for one run and load the resume source, if any.
-   * @param root - journal directory; `undefined` disables journaling entirely.
-   * @param runId - this run's id (the new file name).
-   * @param header - identity written as the file's first line.
-   * @param log - warning sink; journal failures never fail the run.
-   * @param resumeFrom - prior run id whose journal should be replayed.
-   * @throws WorkflowError when `resumeFrom` cannot be honored; the caller maps it to a tool error.
-   */
-  constructor(root, runId, header, log, resumeFrom) {
-    this.log = log;
-    this.writes = root !== void 0;
-    this.file = join(root ?? "", `${runId}.jsonl`);
-    if (root !== void 0) {
-      try {
-        mkdirSync(root, { recursive: true });
-        appendFileSync(this.file, `${JSON.stringify({ t: "run", v: 1, runId, ...header })}
-`);
-      } catch (error) {
-        this.disable(`cannot write the workflow journal under the configured journalRoot: ${String(error)}`);
-      }
-    }
-    this.replay = resumeFrom === void 0 ? void 0 : this.load(root, resumeFrom);
-  }
-  /**
-   * Read one prior run's journal into a replay map.
-   * @param root - journal directory (absent means resume was requested without journaling).
-   * @param resumeFrom - validated prior run id.
-   * @returns call/result entries keyed by `seq`.
-   * @throws WorkflowError when the file is missing, unreadable, or not a v1 journal for that run.
-   */
-  load(root, resumeFrom) {
-    if (root === void 0) {
-      throw new WorkflowError(
-        "resume_from_run_id requires a workflow journal directory; this engine has journaling disabled",
-        "INVALID_ARGUMENT"
-      );
-    }
-    let text2;
-    try {
-      text2 = readFileSync(join(root, `${resumeFrom}.jsonl`), "utf8");
-    } catch (error) {
-      throw new WorkflowError(`cannot resume workflow run ${resumeFrom}: its journal is not readable: ${String(error)}`, "INVALID_ARGUMENT");
-    }
-    const lines = text2.split("\n");
-    const header = parseLine(lines[0]);
-    if (header === void 0 || header.t !== "run" || header.v !== 1 || header.runId !== resumeFrom) {
-      throw new WorkflowError(`cannot resume workflow run ${resumeFrom}: the journal header is missing, corrupted, or from another run`, "INVALID_ARGUMENT");
-    }
-    const entries = /* @__PURE__ */ new Map();
-    for (let index = 1; index < lines.length; index += 1) {
-      const line = lines[index];
-      if (line.length === 0) continue;
-      const entry = parseLine(line);
-      if (entry === void 0) {
-        if (index === lines.length - 1) break;
-        this.log(`workflow resume: ignoring the remainder of ${resumeFrom} after a corrupted line; later agents run live`);
-        break;
-      }
-      if (entry.t === "call") {
-        if (!entries.has(entry.seq)) entries.set(entry.seq, { call: entry });
-      } else if (entry.t === "result") {
-        const existing = entries.get(entry.seq);
-        if (existing !== void 0 && existing.result === void 0) existing.result = entry;
-      }
-    }
-    return entries;
-  }
-  /**
-   * Try to replay one call from the prior run.
-   * @param request - the current child start request.
-   * @param provider - effective provider for this run.
-   * @returns the recorded child id + result, or `undefined` once replay is off.
-   */
-  takeReplay(request, provider) {
-    if (this.replay === void 0 || this.replayOff) return void 0;
-    const entry = this.replay.get(request.seq);
-    if (entry === void 0 || entry.result === void 0 || !sameCall(entry.call, request, provider)) {
-      this.replayOff = true;
-      this.log(`workflow resume: replayed ${this.replayed} agent call(s); running live from agent #${request.seq}`);
-      return void 0;
-    }
-    this.replayed += 1;
-    return {
-      childId: entry.call.childId,
-      result: {
-        output: entry.result.output,
-        stopReason: entry.result.stopReason,
-        ...entry.result.structured === void 0 ? {} : { structured: entry.result.structured },
-        // A replayed child consumed nothing in this run.
-        tokens: 0
-      }
-    };
-  }
-  /** Append the published-call line (a later resume needs it to replay that child). */
-  recordCall(request, provider, childId) {
-    this.append(callOf(request, provider, childId));
-  }
-  /** Append the settled-result line; a call without one is metadata-only and not replayable. */
-  recordResult(seq, result) {
-    this.append({
-      t: "result",
-      seq,
-      output: result.output,
-      stopReason: result.stopReason,
-      ...result.structured === void 0 ? {} : { structured: result.structured }
-    });
-  }
-  append(line) {
-    if (!this.writes) return;
-    try {
-      appendFileSync(this.file, `${JSON.stringify(line)}
-`);
-    } catch (error) {
-      this.disable(`cannot append to the workflow journal; resume is unavailable for this run: ${String(error)}`);
-    }
-  }
-  disable(message) {
-    this.writes = false;
-    this.log(message);
-  }
-};
-function parseLine(line) {
-  if (line === void 0) return void 0;
-  let value;
-  try {
-    value = JSON.parse(line);
-  } catch {
-    return void 0;
-  }
-  if (typeof value !== "object" || value === null) return void 0;
-  const record = value;
-  if (record.t === "run") {
-    return record.v === 1 && typeof record.runId === "string" && typeof record.name === "string" && typeof record.provider === "string" ? record : void 0;
-  }
-  if (record.t === "call") {
-    return Number.isSafeInteger(record.seq) && typeof record.prompt === "string" && typeof record.childId === "string" ? record : void 0;
-  }
-  if (record.t === "result") {
-    return Number.isSafeInteger(record.seq) && Array.isArray(record.output) && typeof record.stopReason === "string" ? record : void 0;
-  }
-  return void 0;
-}
+import { realpathSync } from "node:fs";
+import { WorkflowJournal, isWorkflowRunId, readRun, ownerStopped, stopOwner, releaseOwner } from "./journal.js";
 
 // packages/workflow/workflow-ptc/src/meta.ts
 import { WorkflowError as WorkflowError2 } from "@deepseek-ai/dsh-workflow";
@@ -806,6 +658,38 @@ var PtcWorkflowEngine = class extends WorkflowEngine {
    * enforce one nesting level: a workflow child may not start a workflow.
    */
   workflowChildren = /* @__PURE__ */ new Set();
+  stoppedOwners = new Set();
+  startGrants = new Map();
+  activeRuns = new Map();
+  /** Called only by the existing human /workflow command, never exposed as a model tool. */
+  authorizeStart(parent, runId, requestId) {
+    const id=parent.session.id;
+    const grant={runId,requestId};
+    this.startGrants.set(id,grant);
+    return () => {if(this.startGrants.get(id)===grant)this.startGrants.delete(id);};
+  }
+  isBlocked(parent) {
+    const root=this.journalRoot();
+    return this.stoppedOwners.has(parent.session.id) || (root!==undefined && ownerStopped(root,parent.session.id));
+  }
+  async stopRun(parent, runId) {
+    const run=this.activeRuns.get(runId);
+    if(!run || run.parent.session.id!==parent.session.id) throw new Error("No active workflow with that ID in this session");
+    run.cancel("human /workflow stop");
+    await run.dispose();
+    if(run.cleanupFailed) throw new Error("Stop requested, but child cleanup is not confirmed");
+    return {stopped:true,runId};
+  }
+  resumeRequest(parent, runId) {
+    const source=readRun(this.journalRoot(),runId).header;
+    if(source.identity.owner!==parent.session.id || source.identity.cwd!==realpathSync(this.ctx.workingDirectory.get(parent.session)))
+      throw new Error("Resume belongs to another session or working directory");
+    const limits=source.identity.limits;
+    if(!limits) throw new Error("Checkpoint has no verified resource limits; start an explicitly reviewed new task");
+    return {meta:source.meta,script:source.script,args:source.args,resume_from_run_id:runId,
+      ...(limits.budgetTokens===null?{}:{budget_tokens:limits.budgetTokens}),
+      ...(limits.budgetMs===null?{}:{budget_ms:limits.budgetMs})};
+  }
   constructor(ctx, config) {
     super(ctx);
     if (ctx.ptcRuntime.language !== "typescript") throw new Error("workflow-ptc requires the Node TypeScript PTC runtime");
@@ -894,15 +778,30 @@ var PtcWorkflowEngine = class extends WorkflowEngine {
       ...request.args !== void 0 ? { args: structuredClone(request.args) } : {},
       limits
     };
-    const journal = this.config.journal || resumeFrom !== void 0 ? new WorkflowJournal(
-      this.journalRoot(),
-      id,
-      { name: meta.name, provider: subagentProvider },
-      (message) => {
-        this.ctx.logger.warn(message);
-      },
-      resumeFrom
-    ) : void 0;
+    const root=this.journalRoot();
+    if(!root) throw new Error("Workflow lifecycle requires journaling");
+    const owner=request.parent.session.id;
+    let grant=this.startGrants.get(owner);
+    if(grant?.requestId) {
+      const event=request.parent.session.snapshotEvents().findLast(event=>event.type==='user/message' && (event.data?.message??event.data)?.source?.kind==='user');
+      if((event?.data?.message??event?.data)?.source?.rpcId!==grant.requestId) grant=undefined;
+    }
+    if(this.stoppedOwners.has(owner) || ownerStopped(root,owner)) {
+      if(!grant || (grant.runId!==undefined && grant.runId!==resumeFrom))
+        throw new Error("Workflow was stopped. A human must use /workflow new <reviewed task> or /workflow resume <runId>; automatic restart is blocked.");
+    }
+    const policy=this.ctx.sandboxPolicy.resolve({session:request.parent.session});
+    const cwd=realpathSync(this.ctx.workingDirectory.get(request.parent.session));
+    const identity={owner,cwd,policy,limits,preset:request.parent.session.header.agentPreset??null,
+      provider:subagentProvider,model:request.parent.options?.model??null,llmProvider:request.parent.options?.provider??null,
+      reasoningEffort:request.parent.options?.reasoningEffort??null};
+    const journal=new WorkflowJournal(root,id,{name:meta.name,provider:subagentProvider,identity,meta,script:request.script,args:request.args??{}},
+      message=>this.ctx.logger.warn(message),resumeFrom);
+    if(grant) {
+      this.startGrants.delete(owner);
+      releaseOwner(root,owner);
+      this.stoppedOwners.delete(owner);
+    }
     const runCtx = this.ctx;
     const subagents = runCtx.subagents;
     const run = new PtcWorkflowRun(
@@ -914,7 +813,7 @@ var PtcWorkflowEngine = class extends WorkflowEngine {
       request.parent,
       init,
       subagentProvider,
-      runCtx.sandboxPolicy.resolve({ session: request.parent.session }),
+      policy,
       {
         phase: (title) => {
           this.emitWorkflowEvent("workflow/phase", info, title);
@@ -930,7 +829,9 @@ var PtcWorkflowEngine = class extends WorkflowEngine {
         }
       },
       {
-        ...journal === void 0 ? {} : { journal },
+        journal,
+        cwd,
+        stopOwner: () => {this.stoppedOwners.add(owner);stopOwner(root,owner,id);},
         ...budgetTokens === null || readTokens === void 0 ? {} : { readTokens },
         schemaRetries: this.config.schemaRetries,
         maxTotalAgents,
@@ -941,8 +842,10 @@ var PtcWorkflowEngine = class extends WorkflowEngine {
         ...request.signal === void 0 ? {} : { signal: request.signal }
       }
     );
+    this.activeRuns.set(id,run);
     this.emitWorkflowEvent("workflow/start", info);
     void run.result.then((settled) => {
+      this.activeRuns.delete(id);
       this.emitWorkflowEvent("workflow/end", info, {
         stopReason: settled.stopReason,
         ...settled.error !== void 0 ? { error: settled.error } : {},

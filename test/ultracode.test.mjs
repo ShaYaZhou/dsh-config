@@ -8,6 +8,11 @@ const z = {
   boolean: () => ({nullable() { return this; }}),
 };
 const sandbox = {
+  TypertRemoteService: class { constructor(ctx) {this.ctx=ctx;} },
+  Remote: () => () => {},
+  runInitializers: () => {},
+  RemoteError: Error,
+  sessionId: {safeParse: value => ({success: typeof value === "string" && value.length > 0, data: value})},
   z,
   appendPluginRecord: (session, type, data) => session.records.push({type, data}),
 };
@@ -15,16 +20,16 @@ const code = fs.readFileSync(new URL('../modules/ultracode.mjs', import.meta.url
   .replace(/^import .*;\r?\n/gm, '')
   .replace(/^export /gm, '');
 vm.createContext(sandbox);
-vm.runInContext(code + '\nthis.apply = apply; this.ultracodeProjection = ultracodeProjection;', sandbox);
+vm.runInContext(code + '\nthis.apply = apply; this.ultracodeProjection = ultracodeProjection; this.UltracodeState = UltracodeState;', sandbox);
 
-function fixture({state = null, defaultActive = false, hasWorkflow = true} = {}) {
+function fixture({state = null, defaultActive = false, hasWorkflow = true, delegationMode = "auto"} = {}) {
   const records = [];
-  const session = {records, header: {origin: 'user'}};
+  const session = {id: 'session-test', records, header: {origin: 'user'}};
   let section, command;
   const ctx = {
     get: (name) => name === 'enhancementSettings'
       ? {ultracodeDefault: () => defaultActive}
-      : undefined,
+      : name === 'nestedSessions' ? {delegationMode: () => delegationMode} : undefined,
     tools: {get: (name) => (hasWorkflow && name === 'workflow' ? {} : undefined)},
     sessionProjections: {
       register: () => {},
@@ -85,3 +90,38 @@ test('/ultracode toggles a restorable session record', () => {
 
   assert.equal(run('bogus').kind, 'error');
 });
+
+ test('explicit linked collaboration takes priority and off does not disable workflows', () => {
+  const linked = fixture({state: {active: true}, delegationMode: 'linked'});
+  assert.doesNotMatch(linked.section.text({agent: {id: 'session-test', session: linked.session}}), /default to dynamic orchestration/);
+  assert.match(linked.command.handler({agent: {id: 'session-test', session: linked.session}, rawInput: 'status'}).text, /关联会话优先/);
+  const off = fixture({state: {active: true}, delegationMode: 'off'});
+  assert.match(off.section.text({agent: {id: 'session-test', session: off.session}}), /ultracode is on/);
+ });
+ test('status distinguishes requested on from unavailable workflow', () => {
+  const f = fixture({state: {active: true}, hasWorkflow: false});
+  assert.match(f.command.handler({agent: {session: f.session}, rawInput: 'status'}).text, /未生效/);
+ });
+
+test('linked workers do not receive automatic orchestration and auto restores it', () => {
+ const child = fixture({state:{active:true}, delegationMode:'worker'});
+ assert.equal(child.section.text({agent:{session:child.session}}), '');
+ const restored = fixture({state:{active:true}, delegationMode:'auto'});
+ assert.match(restored.section.text({agent:{session:restored.session}}), /Collect actual terminal results/);
+});
+
+ test('unsupported on refuses before persisting a misleading enabled preference', () => {
+  const f=fixture({hasWorkflow:false});
+  const result=f.command.handler({agent:{session:f.session},rawInput:'on'});
+  assert.equal(result.kind,'error'); assert.equal(f.records.length,0);
+ });
+ test('status read checks ownership and cancellation again after agent resolution', async () => {
+  let allowed=false, calls=0, resolve;
+  const session={id:'owner',records:[]};
+  const ctx={remoteAccess:{allows:()=>allowed},sessionController:{resolveAgent:()=>{calls++;return new Promise(r=>resolve=r);}},tools:{get:()=>({})},get:()=>undefined,sessionProjections:{stateOf:()=>({active:true})}};
+  const service=new sandbox.UltracodeState(ctx);
+  await assert.rejects(service.read({sessionId:'owner'}));assert.equal(calls,0);
+  allowed=true; const pending=service.read({sessionId:'owner'});allowed=false;resolve({agent:{id:'owner',session}});await assert.rejects(pending);
+  allowed=true; const controller=new AbortController();const cancelled=service.read({sessionId:'owner'},controller.signal);controller.abort();resolve({agent:{id:'owner',session}});await assert.rejects(cancelled);
+  const success=service.read({sessionId:'owner'});resolve({agent:{id:'owner',session}});assert.equal((await success).mode,'workflow');
+ });

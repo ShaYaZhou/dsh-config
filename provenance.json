@@ -173,7 +173,8 @@
           "Cross-cwd sidebar lineage uses disposable navigation aliases and native status/navigation; native workspace ownership and history remain unchanged, with archive/view-switch restoration.",
           "Alias row menus reuse live native registered components, business injections, locale and shortcuts through an owned slot and native Menu portal; original entry lifecycle is respected without duplicating CRUD.",
           "Fresh and forked workers inherit the parent's memory-write boundary through the memory plugin's public service before dispatch.",
-          "Inline subagent entry in the main transcript: the native subagent/subagent_fork tool call renders its description, live child status and buttons that open the child beside the conversation or in the main view, resolving the child id from the tool result and reusing native subagent chat resources."
+          "Inline subagent entry in the main transcript: the native subagent/subagent_fork tool call renders its description, live child status and buttons that open the child beside the conversation or in the main view, resolving the child id from the tool result and reusing native subagent chat resources.",
+          "Expose linked delegation intent through a public read-only method and clarify orchestration preference precedence."
         ]
       }
     },
@@ -204,7 +205,8 @@
           "Size-guideline warning when a run starts more agents than the deployment's threshold.",
           "One-level nesting guard: a workflow child session may not start another workflow.",
           "Per-run JSONL journal and prefix replay behind resume_from_run_id, stopping at the first changed agent() call.",
-          "schemaRetries (default 5): a child that finished completed without the structured value its schema asked for is replaced by a fresh child with the same request; failed or cancelled children are not retried, tokens accumulate, and only the final attempt is journaled."
+          "schemaRetries (default 5): a child that finished completed without the structured value its schema asked for is replaced by a fresh child with the same request; failed or cancelled children are not retried, tokens accumulate, and only the final attempt is journaled.",
+          "Fail-closed v2 journals bind execution identity, claim one successor, persist stop/failure locks, retain replayed checkpoints and wait for cleanup. Writable schema failures are not automatically retried."
         ]
       }
     },
@@ -220,7 +222,9 @@
         "baseCommit": "687f282e8625c6b8d11ff58211a90524be2e4317",
         "changes": [
           "sizeGuideline config states the expected agent scale in the tool description and forwards the matching warning threshold to the engine.",
-          "resume_from_run_id, budget_tokens, and budget_ms parameters forwarded to the engine on both foreground and background starts."
+          "resume_from_run_id, budget_tokens, and budget_ms parameters forwarded to the engine on both foreground and background starts.",
+          "Persist native workflow records for PTC transport sub-dispatches as well as direct model calls; preserve existing sandbox and cancellation handling.",
+          "Expose recovery run IDs on failures and cancellations, reusing native jobs and workflow records."
         ]
       }
     },
@@ -246,7 +250,9 @@
         "unpublishedLocalBuild": true,
         "changes": [
           "Composer pill left of the model selector toggles the current session's ultracode mode, reading the native ultracode projection and falling back to the Harness enhancement default.",
-          "Writes only through the existing /ultracode on|off command; no new record type, remote method or settings store."
+          "Writes only through the existing /ultracode on|off command; no new record type, remote method or settings store.",
+          "Clarify that the switch records preference; /ultracode status reports effective orchestration state.",
+          "Query owner-scoped host capability and effective mode; unavailable modes cannot display an enabled switch; ignore cancelled or stale session responses."
         ]
       }
     },

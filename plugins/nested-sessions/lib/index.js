@@ -232,6 +232,14 @@ export class NestedSessions extends TypertRemoteService {
     const state = this.domain.global.get();
     return state.requested?.[familyRoot(state, sessionId)] === true;
   }
+  // Public, synchronous, read-only routing intent for other orchestration policies.
+  // All mutation remains in policy(); callers must not read the store themselves.
+  delegationMode(sessionId) {
+    const state = this.domain.global.get();
+    if (state.links[sessionId]) return "worker";
+    if (!this.automatic(sessionId)) return "off";
+    return this.explicitlyRequested(sessionId) ? "linked" : "auto";
+  }
   routeAgent(agent, selection) {
     if (this.modelDisposers.has(agent)) return;
     this.modelDisposers.set(agent, installSessionModel(agent, selection));
@@ -1139,12 +1147,12 @@ function installTools(agent, service) {
       order: 980,
       text: () => {
         if (!service.automatic(agent.id))
-          return "Automatic linked-session delegation is OFF for this task family. Do not call start_session. Work directly; existing task history remains available. Only a user action or /collaborate on may re-enable it.";
+          return "Automatic linked-session delegation is OFF for this task family. Do not call start_session. This setting only disables new linked sessions; it does not disable workflow or ordinary subagents. Follow the active orchestration policy for those tools. Existing task history remains available. Only a user action or /collaborate on may re-enable it.";
         const state = service.domain.global.get(),
           link = state.links[agent.id];
         if (link)
           return `You are a worker for "${link.title}". Focus on this brief. The single coordinator is root session ${familyRoot(state, agent.id)}. Do not call start_session or create grandchildren, even if the task family has collaboration enabled. If more independent work is needed, send_session_message to that root with the proposed work and wait for its decision. Report your result to the assigning parent ${link.parentId}; completion is relayed automatically. You may read or message existing family sessions for coordination. A user /collaborate task from any worker is routed to the root.`;
-        return `${service.explicitlyRequested(agent.id) ? "The user has explicitly enabled collaborative execution for this task. Analyze the work, then use start_session for separable work streams instead of doing every independent report in the parent. Choose worker count and models yourself; do not ask the user to configure them." : "Linked-session delegation is available on demand. First assess the request; keep simple or tightly coupled work local. When a request calls for separate independent investigations or work products, use visible linked sessions rather than requiring manual setup."} Choose the smallest sufficient number yourself. Query list_session_models before choosing provider/model, and give a short task/model rationale. Unknown prices or capabilities are not facts; using the current model is valid when alternatives have no demonstrated advantage. Use a complete fresh brief by default; fork only when completed history is needed. Give each child a concise deliverable with file evidence. Keep detailed subreports in their own conversations; the parent should produce a compact prioritized synthesis rather than copying every report again. Give parallel code writers separate existing worktrees and explicit cwd; never let them edit the same files concurrently. create_worktree changes the calling session's directory: record the delivery checkout and base commit first, return there before creating EACH worktree from that same base, then return before dispatching workers. Include only explicitly selected ignored configuration; do not implicitly copy credentials or uncommitted source changes. Review and integrate worker changes into the delivery checkout before final acceptance; branch-only work is not delivered work. Read or wait_for_sessions to collect all required results before final synthesis; if a child failed, report it and recover deliberately. Do not ask the user to open a manager or manually create sessions. You are the sole coordinator of this task family. Create all new workers as direct children and collect their actual results. Workers request more help from you rather than creating grandchildren. Child completion notifications resume you automatically.`;
+        return `${service.explicitlyRequested(agent.id) ? "The user has explicitly selected linked-session collaboration. Unless the user explicitly chooses a different method for the current task (such as /workflow), this selection takes priority over automatic workflow defaults. Analyze the work, then use start_session for separable work streams instead of doing every independent report in the parent. Choose worker count and models yourself; do not ask the user to configure them." : "Linked-session delegation is available on demand. First assess the request; keep simple or tightly coupled work local. Use ordinary subagents for small self-contained delegation, workflow for batch work and staged aggregation, and start_session only when independent persistent conversations or ongoing human follow-up are useful. Follow the active ultracode policy when present; linked sessions are not a prerequisite for workflow."} Choose the smallest sufficient number yourself. Query list_session_models before choosing provider/model, and give a short task/model rationale. Unknown prices or capabilities are not facts; using the current model is valid when alternatives have no demonstrated advantage. Use a complete fresh brief by default; fork only when completed history is needed. Give each child a concise deliverable with file evidence. Keep detailed subreports in their own conversations; the parent should produce a compact prioritized synthesis rather than copying every report again. Give parallel code writers separate existing worktrees and explicit cwd; never let them edit the same files concurrently. create_worktree changes the calling session's directory: record the delivery checkout and base commit first, return there before creating EACH worktree from that same base, then return before dispatching workers. Include only explicitly selected ignored configuration; do not implicitly copy credentials or uncommitted source changes. Review and integrate worker changes into the delivery checkout before final acceptance; branch-only work is not delivered work. Read or wait_for_sessions to collect all required results before final synthesis; if a child failed, report it and recover deliberately. Do not ask the user to open a manager or manually create sessions. You are the sole coordinator of this task family. Create all new workers as direct children and collect their actual results. Workers request more help from you rather than creating grandchildren. Child completion notifications resume you automatically.`;
       },
     }),
   );
@@ -1241,7 +1249,7 @@ export async function apply(ctx) {
               ? "主会话协作已开启（尚未提交新任务）。请回主会话描述任务，或输入 /collaborate 任务内容。Agent 自己决定分工数量和模型。"
               : value === "auto"
                 ? "已恢复按需模式：简单任务直接处理，可独立推进的工作由 Agent 判断是否分工。"
-                : "自动分工已暂停，不再新建子会话；已有任务可在分工进度中单独停止或全部停止。",
+                : "已暂停新增关联子会话；普通 subagent 和 workflow 不受此开关影响。已有关联任务可在协作进度中单独停止或全部停止。",
         };
       },
     }),

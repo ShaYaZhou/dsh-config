@@ -1284,3 +1284,17 @@ nativeTest(
     );
   },
 );
+
+nativeTest('public delegation intent follows family policy without changing stored state', async () => {
+  const f = fixture();
+  assert.equal(f.service.delegationMode('root'), 'auto');
+  await f.service.policy({sessionId:'root',enabled:true,requested:true});
+  assert.equal(f.service.delegationMode('root'), 'linked');
+  const child = await f.service.start({sessionId:'root',title:'Worker',context:'fresh'});
+  assert.equal(f.service.delegationMode(child.sessionId), 'worker');
+  await f.service.policy({sessionId:'root',enabled:false});
+  assert.equal(f.service.delegationMode('root'), 'off');
+  assert.equal(f.service.delegationMode(child.sessionId), 'worker');
+  await f.service.policy({sessionId:'root',enabled:true,requested:false});
+  assert.equal(f.service.delegationMode('root'), 'auto');
+});

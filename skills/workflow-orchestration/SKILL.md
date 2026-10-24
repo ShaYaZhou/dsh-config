@@ -5,7 +5,9 @@ description: Orchestrate many DSH subagents with the native workflow tool for au
 
 # 工作流编排
 
-工作流只适合“多路独立工作 + 汇总”的任务。一两项委派用普通 `subagent`；需要真实工作的并行审计、迁移、跨文件排查再用 `workflow`。
+可以用 `/workflow 任务内容` 显式发起一次工作流，不改变 Ultracode 开关。`/ultracode on` 则让模型在后续实质性任务中主动考虑编排。用户本次显式工具选择优先；`/collaborate on` 指定持久关联会话时优先满足该选择，`auto` 时按任务需要选工具，`off` 只禁用关联会话。不要重复派发同一任务或通过另一工具绕过停止、权限和深度限制。
+
+工作流主要适合“多路独立工作 + 汇总”的任务。一两项委派用普通 `subagent`；需要真实工作的并行审计、迁移、跨文件排查再用 `workflow`。
 
 ## 调用契约
 
@@ -21,9 +23,13 @@ description: Orchestrate many DSH subagents with the native workflow tool for au
 - 原生 subagent 的活跃槽位在本部署调到 20；工作流占 16，给手工 subagent 留 4。出现 `ACTIVATION_LIMIT_REACHED` 时降低并发或分批，不要重试同一波。
 - 整体预算默认不限，可用 `budget_tokens` / `budget_ms` 按单次调用收紧（只能低于部署配置）。越过预算后的下一次 `agent()` 被拒绝，已收集的结果照常返回；脚本里可读 `budget` 提前停手。`syncTimeoutMs` 只限制脚本最初同步片段（5 秒）；不要把长循环写成同步代码。费用仍以 `usage_report` 为准。
 - 规模阈值按部署配置（本机 medium：约 10 个代理），越过时引擎发出告警；任务确实更大就明确说明，不要悄悄截断覆盖范围。
-- 每次运行写 journal 到 `$DSH_HOME/workflows/runs/<runId>.jsonl`。脚本、provider/model 与前面调用未变时，传 `resume_from_run_id` 可回放已完成前缀，第一个变化的 `agent()` 起转 live；回放不启动子代理，也不计 token。改动较前的 prompt 会让后续全部重跑。
+- 每次运行写 v2 journal 到 `$DSH_HOME/workflows/runs/<runId>.jsonl`。续跑绑定原会话、工作目录、权限、模型、资源预算、脚本和输入；任一不符或日志损坏都拒绝。只回放已确认完成的子调用；未确认或失败的子调用可能已产生副作用，必须核对文件后由用户重新定义任务，不自动重跑。
+- 一个会话同时只允许一个未收尾工作流，需要并行时在该工作流内用 parallel / pipeline。一个旧运行只能产生一个后继，后继 journal 会继承已完成结果。继续恢复应使用最新运行 ID，不重复从祖先分叉。旧 v1 journal 缺少安全身份，保留原文件但不自动续跑。
+- 停止或失败后，该会话的工作流启动被锁定；只有用户 `/workflow resume <运行ID>` 或 `/workflow new 新任务` 可解除。模型不得改用其他工具或新运行绕过。后台任务停止仍可用 job_kill；`/workflow stop <运行ID>` 会等待实际子代理清理。
+- 有写权限的子代理缺少结构化输出时不自动重试，避免重复修改文件。未完成子调用或失败结果不能被脚本包装成整体成功。
+
 - 工作流只允许一层嵌套：工作流子代理不能再启动工作流。每个 `agent()` 的输出要自包含；跨阶段需要的中间结果写进返回值或文件。
-- 工作流子级不继承父会话的 `cwd`、agent preset 或 reasoning effort。需要独立的目录或角色时，在提示词里写清，或改用普通 linked session 的 `subagent`/`start_session`。
+- 工作流子级通过原生调用传入父会话的工作目录；不要假定它继承 agent preset 或 reasoning effort。需要独立的目录或角色时，在提示词里写清，或改用普通 `subagent` 或持久关联会话 `start_session`。
 - 工作流在调用方的文件沙箱策略下运行。`read-only` 或 `workspace-write` 需要 PTC 运行时支持相应约束；不安全的组合会在执行前失败。不要靠工作流绕过权限。
 
 ## 编排模式

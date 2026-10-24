@@ -373,3 +373,50 @@ DSH 侧栏静态核对只针对已安装 0.2.1-rc.2 的工作区组件选定文�
 - 回归测试：`test/ultracode.test.mjs` 的 fixture 增加 `tools.get` 桩与 `hasWorkflow` 参数；新增用例「the policy is withheld when the session has no workflow tool」，覆盖「默认开启且无工具」与「显式开启且无工具」两种情况。`npm test` 192 项、`test/portable.test.mjs` 13 项通过，无跳过。
 - `build` → `plan`（96 files）→ `deploy`（备份 `backups/portable-harness-2026-10-23T12-20-28-496Z`）→ `status` 报告无漂移。
 - 未做：没有在真实宿主里打开 ptc 或角色预设会话并抓取装配后的系统提示核对空段，结论来自单元测试与代码路径。工具名与 `tool-workflow` 的 `toolName` 配置耦合，模板目前不改该字段；若日后改名，判定会静默退化为永不注入。药丸与 `/ultracode status` 仍只显示开关状态，不区分策略是否真的注入。
+
+
+## 2026-10-23 macOS Ultracode 与关联协作优先级
+
+- 修复前增加回归用例，确认「显式关联协作仍收到默认工作流提示」及「无 workflow 工具仍仅显示已开启」两项失败。
+- `nestedSessions.delegationMode` 提供只读意图；Ultracode 使用该公共接口，不读另一插件存储。自动关联提示按任务特征选工具，off 文案仅承诺禁止关联会话。`/workflow 任务` 是一次性显式选择，现有模式和权限不变。
+- 全量 `npm run check`：198 测试通过、0 失败、0 跳过；使用固定版本原生依赖。安全扫描 0 high；medium 为既有测试样例。可迁移测试包含在全量回归中。
+- 在独立 DSH_HOME 安装后，以安装版 Electron、真实 proxy 模型和 `workspace-write` 执行 `test-orchestration-policy.cjs`：简单算术不委派；Ultracode auto 双路审查实际启动 workflow；同时开启 collaborate 时仅创建关联子会话；显式 `/workflow` 覆盖常驻关联偏好且没有重复创建关联会话。每个审查结果都含两个实际文件的证据 ID，验收文件未改动，父会话权限未变。
+- 冷启动核验 `tool-workflow/run-start`、`agent-start` 与 `run-end`，所有已启动工作流均有 completed 终态；没有把工具注册或仅发起调用计为成功。
+- 保留既有并发/深度限制、单层 workflow 限制和沙箱。未对齐 Claude 的全部调度、恢复及 UI 功能；本轮验收只覆盖上述路由与结果回收场景，故障/取消边界沿用现有回归和新增命令取消用例。
+
+
+## 2026-10-23 macOS PTC Ultracode 与模式可用性
+
+- 先在隔离配置验证 PTC 能通过 run_code 调用 workflow。最终安装器从 standard 的同一能力配置派生 PTC，仅改变工具呈现；不增加权限、不替换 PTC 运行时、不调整并发或深度。
+- 复现 PTC 内嵌 workflow 缺少持久运行记录：原记录器只记录直接工具调用。改为使用公开 tools.modeFor 判定 PTC 呈现，为同一原生工作流写已存在的运行/子代理事件；不检查不透明的父调用 token，也不新增必需事件类型。
+- 隔离真实模型验收通过：run_code 工作区内 SDK 写入成功；切为 read-only 后同一写入被拒；workspace-write 下 Node 原生文件 API 对工作区外合成哨兵的写入被拒；取消请求未写入。哨兵验证后清理，其他验收文件保持原文。早期直接工具探针缺少原生会话轮次，其隔离目录已保留诊断，最终证据改用完整模型调度。
+- PTC 四种真实模型场景通过：简单问题不委派、自动工作流、显式关联协作优先、一次性 /workflow 覆盖常驻关联偏好。检查实际模式为 ptc、Ultracode 系统提示装配、工具调用、两个文件证据 ID、工作流 completed 终态与子代理启动记录，父会话保持 workspace-write。
+- 原生能力状态通过带 session 资源检查的 ultracodeState/read 提供，不写历史；查阅前后均检查权限与取消。unsupported 模式执行 /ultracode on 会拒绝，不新增开启记录。
+- 隔离真实 Web UI 验证（默认开启偏好）：standard 和 PTC 为可用且 checked；切到 minimal 显示“Ultracode · 不可用”、disabled=true、checked=false；切回 PTC 恢复可用且 checked。失效的状态请求被取消，晚到响应不更新其他会话。
+- 全量 npm run check：204 通过、0 失败、0 跳过，安全扫描 0 high。未以宽松沙箱代替受限模式，也未宣称所有模型和所有工作负载都会选择同一委派路径。
+
+- 最终冷启动取得 ORCHESTRATION_COLD_PASS：PTC 的运行与子代理事件可读，工作流均为 completed；显式关联偏好在一次性 /workflow 后仍保持 linked。日常部署在这些实测通过后进行。
+
+
+## 2026-10-24 工作流失败、停止、续跑闭环
+
+- 复现旧 journal 的恢复风险：不绑定 owner/cwd/预算、损坏后转 live、后继不保留回放结果，以及有写权限的 schema 失败可能重复子代理。改为既有工作流引擎内的 v2 日志、原子活动占用与单后继声明，没有新增调度服务。
+- 恢复绑定原会话、实际工作目录、权限、模型、资源预算、脚本与输入。停止/失败锁跨重启保存，用户通过既有 `/workflow resume <runId>` 恢复，或核对文件后 `/workflow new <任务>` 明确另起任务。普通“继续”不会清锁。控制命令绑定同一 delegation 作用域。
+- Standard 和 PTC 均使用真实模型、workspace-write 实测：第一个计数文件写入后注入第二步开始前的受控故障；自动重新启动被拒；显式续跑只修改第二个文件。后续冷启动再回放，两文件始终为 1、1。
+- 在真实子代理完成写入后丢弃 structured 结果，写入次数仍为 1，无自动 schema 重试，续跑被拒绝并要求核对文件。
+- 后台子代理在写入前被挂起，通过 `/workflow stop` 请求取消并等待收尾；停止目标文件保持 0。原宿主和重启后均不能自行重启该运行，未知副作用的恢复被拒绝。
+- 最终安装版本另行通过真实模型冷读回放验收；最终检查发现的 new 参数空值错误已复现并修复，最终全量 `npm run check` 为 215 通过、0 失败、0 跳过，安全扫描 0 high。
+- 单元测试覆盖身份/目录/权限/模型/预算变化、并发与重复后继、损坏/旧日志、回放链、未完成子调用、清理失败保留运行占用和深度限制、控制命令授权撤销。未确认清理不报告停止完成。
+- 保留旧 journal；旧 v1 缺少恢复身份，拒绝自动续跑。宿主崩溃遗留的未确认活动占用不自动清除；须核对文件及旧进程后明确重新安排任务。本轮保证的是已确认步骤不重复执行、不确定步骤拒绝自动重跑，不对任意脚本宣称跨外部系统的恰好一次副作用。
+
+- 最终正向控制验收：Standard 与 PTC 均取得 WORKFLOW_NEW_TASK_PASS。显式 `/workflow new` 后才允许新的只读工作流，原停止任务未恢复，四个计数文件保持 1、1、1、0。
+
+## 2026-10-24 Ultracode 自动三路选择与同文件写入验收
+
+- 新增 `scripts/test-ultracode-routing.cjs`，通过安装器的 `ultracode-routing-test` 入口运行。隔离安装、真实桌面宿主 0.2.1-rc.2、真实 `deepseek-v4.1-flash` 模型；仅打开 Ultracode 和 collaborate auto，任务不指定委派工具，不修改运行策略或沙箱配置。
+- Standard 与 PTC 各四项，共八项真实模型验收通过：小型日志旁支各派一个普通子代理；要求保留可追问调查分支时各创建两个关联会话；分阶段批量处理均选择 Workflow；同文件两项更新均由主会话串行写入，再独立复核。Standard 的同文件场景用普通子代理复核，PTC 用 Workflow 调查/复核，允许这种合理差异。
+- 批量场景的两个文件各有一个写入者、一次写入；共享文件均为 `(0,0) → (1,0) → (1,1)`，所有其他字段与旁路文件保持不变。三个路由样本没有混用委派路径，未发现重复派发；检查了写入者生命周期，拒绝同文件并行写者及父子同时写入。每个写入文件均有未参与写入的子代理在最后一次写入后实际读取。
+- 逐次记录实际 sandbox mode 与 workspaceRoot，均保持测试工作区内的 workspace-write 或更严边界。原生角色的权限预设名称可能是 custom，不能把该显示名称直接判成权限放宽。等待条件同时包含普通子代理、关联会话和主会话终态，避免把主会话暂时空闲当作任务完成。
+- 隔离宿主完整退出后，用 `DSH_ROUTING_RECHECK` 冷读原生会话、关联关系与调用记录，八项再次通过；文件未重置、任务未重新派发。原始证据与复核结果分开保存在隔离 home，不进入 Git。
+- 同一候选版本再跑 PTC 真实沙箱边界：工作区允许写、read-only 拒绝写、原始文件系统越界写被拒、已取消请求不执行，取得 PTC_SANDBOX_PASS / PTC_BOUNDARIES_PASS。最终 `npm run check` 215 通过、0 失败、0 跳过，安全扫描 0 high；portable 单独 14 项通过。
+- 结论限于上述合成任务和本机模型/宿主组合，不宣称任意任务都不会发生语义重复或外部副作用。此轮只增加可重复的验收入口与记录，没有新增调度系统。

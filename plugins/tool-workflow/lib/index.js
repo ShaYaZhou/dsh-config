@@ -116,7 +116,7 @@ Script-body hooks:
 
 Misused hooks (bad arguments, unknown options, unsupported schemas, tripped caps) end the whole script instead of producing \`null\`. The script has no filesystem, network, timer, or Node.js APIs; the agents do the work. A workflow cannot nest another workflow: a child of a workflow run may not call this tool (one level only).
 
-Resuming: pass \`resume_from_run_id\` with a run id a prior call returned. The longest unchanged prefix of \`agent()\` calls is replayed from that run's journal \u2014 no subagent starts and the recorded results are returned \u2014 and the script runs live from the first changed call onward. The script must still return the same value; the journal keys on each call's index, prompt, provider, model, and schema (not on labels, phases, or wall-clock state).`;
+Recovery: use resume_from_run_id only for the identical original script, inputs, owning session, directory, sandbox and model. Confirmed completed calls replay without new child activations. Changed, corrupt, legacy, unfinished or failed-child checkpoints are refused rather than re-executed. A source run has exactly one successor; use the newest run ID for further recovery. Stopped or failed owners require a human /workflow resume <runId> or /workflow <new task> before further workflow execution. Do not switch tools to evade this refusal. Writable child calls missing structured output are not automatically retried.`;
 function sizeGuidelineText(guideline) {
   switch (guideline) {
     case "small":
@@ -189,7 +189,7 @@ function renderResult(name2, agentsStarted, value, maxChars) {
   const rendered = JSON.stringify(value, null, 2);
   const clipped = rendered.length > maxChars ? `${rendered.slice(0, maxChars)}
 \u2026 [truncated: ${rendered.length - maxChars} more characters]` : rendered;
-  return `workflow "${name2}" completed (${agentsStarted} agent${agentsStarted === 1 ? "" : "s"}).
+  return `workflow "${name2}" completed (${agentsStarted} agent call${agentsStarted === 1 ? "" : "s"}, including any checkpoint replays).
 Return value:
 ${clipped}`;
 }
@@ -225,7 +225,9 @@ function startBackgroundRun(ctx, args, parent, toolCall, recordsRun, deps) {
           deps.recorder.finish(run.id, result.stopReason);
           deps.recorder.abandon(run.id);
         }
-        return jobOutcomeOf(result, args.meta.name, deps.maxResultChars);
+        const outcome=jobOutcomeOf(result, args.meta.name, deps.maxResultChars);
+        if(outcome.status!=="completed")outcome.detail=`Run ${run.id}: ${outcome.detail ?? outcome.status}. Automatic restart is blocked; inspect the checkpoint before /workflow resume ${run.id}.`;
+        return outcome;
       });
       return {
         cancel: (reason) => {
@@ -295,7 +297,7 @@ ${sizeGuidelineText(sizeGuideline)}`,
       } : {},
       resume_from_run_id: {
         type: "string",
-        description: "Resume a prior run by its id: replay the longest unchanged prefix of agent() calls from that run's journal (no subagent starts, recorded results return), then run live from the first changed call. The script body must be the same script."
+        description: "Resume an identical verified v2 checkpoint owned by this session. Completed calls replay; new calls start only after all checkpoints are consumed. Changed inputs, ambiguous writes, corrupt logs and duplicate successors are refused. Stopped or failed sessions need explicit human /workflow resume authorization."
       },
       budget_tokens: {
         type: "integer",
@@ -344,7 +346,7 @@ ${sizeGuidelineText(sizeGuideline)}`,
         if (!enableRunInBackground) {
           throw new Error("run_in_background is disabled for this tool");
         }
-        return startBackgroundRun(ctx, args, parent, { callId: exec.callId, rootCallId: exec.rootCallId }, exec.parent === void 0, {
+        return startBackgroundRun(ctx, args, parent, { callId: exec.callId, rootCallId: exec.rootCallId }, (exec.parent === void 0 || ctx.tools.modeFor(parent) === "ptc"), {
           recorder,
           mirror,
           maxResultChars,
@@ -359,7 +361,7 @@ ${sizeGuidelineText(sizeGuideline)}`,
         signal: exec.signal,
         ...startExtras(args, sizeGuideline)
       });
-      const recordsRun = exec.parent === void 0;
+      const recordsRun = (exec.parent === void 0 || ctx.tools.modeFor(parent) === "ptc");
       if (recordsRun) recorder.start(parent.session, run);
       const onAbort = () => {
         run.cancel("parent step aborted");
@@ -370,7 +372,7 @@ ${sizeGuidelineText(sizeGuideline)}`,
         result = await run.result;
         const error = stopReasonError(result);
         if (error !== void 0) {
-          throw new Error(error);
+          throw new Error(`workflow run ${run.id}: ${error}. Completed checkpoints remain in the journal; use /workflow resume ${run.id} only after reviewing the failure.`);
         }
         return {
           kind: "foreground",

@@ -19,12 +19,12 @@
 - **规模指引**：`tool-workflow` 的 `sizeGuideline`（默认 `medium`）按 small / medium / large 在工具描述里写明预期规模，并把对应的 5 / 10 / 25 个代理作为运行告警阈值；越过阈值时引擎告警，单次调用可通过 `warnAboveAgents` 覆盖。
 - **整体预算**：单次调用用 `budget_tokens` / `budget_ms` 收紧（只能低于引擎配置），脚本侧另有只读 `budget` 全局，提供 `total`、`spent()`、`remaining()`、`elapsedMs()`、`timeRemainingMs()`。越过预算后的下一次 `agent()` 被拒绝，已收集的结果仍可返回。
 - **嵌套限制**：工作流子代理不能再启动工作流（工具描述写作 `one level only`），与 Claude 的一层嵌套一致；子代理里仍可调用普通 `subagent`。
-- **检查点 / 续跑**：每次运行写 `$DSH_HOME/workflows/runs/<runId>.jsonl`（header，加上每个 `agent()` 的 call / result 行）。`resume_from_run_id` 按 seq、prompt、provider、model、schema 回放未变前缀；第一个不匹配之后永久转 live，回放的子代理 tokens 记为 0。
-- **schema 失败重试**：`agent()` 带 `schema` 时，子代理以 `completed` 结束却没有产出 structured 值，引擎用同一请求重开一个子代理，最多 `schemaRetries` 次（引擎配置，默认 5，设 0 关闭）。失败或取消的子代理不重试；重试前释放旧子代理，token 跨尝试累加，journal 只记最终尝试，`resume_from_run_id` 不会重放失败结果。每次重试都会通过宿主的运行进度记录一条日志。
+- **检查点 / 续跑**：v2 journal 记录运行身份、调用意图、启动与结果及终态。原会话、实际目录、沙箱、模型、预算、脚本和输入必须一致；只回放已确认完成的结果。一个来源只能产生一个续跑后继，后继继续保留回放结果。遇到损坏、失败或不确定的子调用时拒绝重跑。
+- **schema 失败重试**：仅 read-only 沙箱下允许对缺少 structured 值的已完成子调用使用配置的 schemaRetries。具有写权限时不自动重试，防止重复副作用；失败、取消或缺少有效结果的子调用不能包装成整体成功。
 
 `workflow-orchestration` 技能负责“什么时候用”：一两项委派走普通 `subagent`；多路独立审计、迁移、跨文件排查才用 `workflow`。技能同时写明实际契约：`meta` 与 `script` 分开传、`args` 必须是对象、`agent()` 失败返回 `null`、优先 `pipeline()` 而不是阶段屏障、重要发现做对抗验证。
 
-边界：工作流子级不继承父会话的 cwd、preset 或 reasoning effort；一层嵌套的代价是“子代理里想再拆，只能把结果交回父级再编排”。token 预算要求宿主已挂载 `session-query`，只统计已结算子会话的 `tokenUsage` 投影，回放调用不计；没有该服务时只能设时长预算。每次 schema 重试都是一次完整的子代理运行，成本按尝试累加，真实模型下重试能否修正 structured 输出尚未验收。journal 含 prompt 文本，只落在 `DSH_HOME` 下，不纳入 Git。原生 subagent 活跃槽位已从默认 8 调到 20，工作流占 16，手工 `subagent` 保留 4；这些是协作式配额，不是硬性调度保证。工作流在被调用方的文件沙箱策略下运行，不能用来绕过权限。
+边界：工作流子级显式使用父会话当前 cwd；不保证继承 preset 或 reasoning effort；一层嵌套的代价是“子代理里想再拆，只能把结果交回父级再编排”。token 预算要求宿主已挂载 `session-query`，只统计已结算子会话的 `tokenUsage` 投影，回放调用不计；没有该服务时只能设时长预算。每次 schema 重试都是一次完整的子代理运行，成本按尝试累加，真实模型下重试能否修正 structured 输出尚未验收。journal 含 prompt 文本，只落在 `DSH_HOME` 下，不纳入 Git。原生 subagent 活跃槽位已从默认 8 调到 20，工作流占 16，手工 `subagent` 保留 4；这些是协作式配额，不是硬性调度保证。工作流在被调用方的文件沙箱策略下运行，不能用来绕过权限。
 
 ## 委派入口对照
 
@@ -164,7 +164,7 @@ DSH 原生已经给消息里的文件提及着色（`--dsw-alias-link`），悬�
 
 `plugins/ultracode-control` 在 composer 工具行、模型选择器左侧放一个 `role="switch"` 药丸。状态读原生 `ultracode` projection；会话还没写过记录（`active: null`）时显示「Harness增强」里的新会话默认值。点击只发送现有 `/ultracode on|off`，切换会像 `/permission` 一样在会话里留下原生命令节点；不新增记录、不复制设置。开启时药丸带缓慢流光与呼吸点，`prefers-reduced-motion: reduce` 下全部静止。
 
-策略段本身只在该 agent 作用域内 `workflow` 工具可见时注入。原生 ptc 预设把 `tool-workflow` 设为 disabled，explore/planner/reviewer 三个只读角色预设根本没有 delegation 组——这些会话即使开着 ultracode，也不会收到一段指向不存在工具的指令。判据取 `ctx.tools.get("workflow", agent)` 的可见性而不是预设名，新增预设无需维护白名单。工具名与 `tool-workflow` 的 `toolName` 配置耦合，模板目前不改它；药丸与 `/ultracode status` 仍如实显示开关状态，只表示策略是否希望生效。
+策略段本身只在该 agent 作用域内 `workflow` 工具可见时注入。本部署的 PTC 由安装器复用 standard 的能力配置，仅将工具呈现改成 PTC；因此可在 run_code 内调用 workflow。explore/planner/reviewer 三个只读角色预设没有 delegation 组，minimal 也没有 workflow，这些模式不会收到指向不存在工具的指令。判据取 `ctx.tools.get("workflow", agent)` 的可见性而不是预设名，新增预设无需维护白名单。工具名与 `tool-workflow` 的 `toolName` 配置耦合，模板目前不改它；药丸通过带会话访问检查的 ultracodeState/read 查询实际能力；不支持时显示“不可用”并禁用，查询失败显示“状态未知”，显式关联分工显示“协作优先”。
 
 限制：模型弹出菜单（`conversation.input.model`）是 single 槽，宿主只允许一个占用者，无法在其中加行，所以开关放在同一行的左侧而非菜单内；该位置也是会话作用域，每个会话独立。
 
@@ -178,3 +178,38 @@ DSH 原生已经给消息里的文件提及着色（`--dsw-alias-link`），悬�
 - 验收期间原生 `spill-local` 输出过一次临时目录 `EPERM` 警告，宿主仍正常启动并完成验收；与本仓库模块无关。
 - 文件路径链接：`test/file-links-client.test.cjs` 4 项断言通过，完整 `npm test` 149 项通过；`install --refresh-lock` 部署后 `status` 无漂移，已确认客户端 bundle 落在默认 `DSH_HOME` 的 `node_modules/@local/dsh-file-links/lib/`。未在运行中的窗口里实际悬停并点击链接。
 - 真实宿主验收必须固定宿主版本；升级 Harness 后重新验收，不能只改版本号。
+
+
+## Ultracode 与显式工作流入口
+
+- Ultracode 是自动编排偏好：实质性任务优先考虑工作流，小任务可直接完成或使用普通子代理。模型负责选择，原生运行时保留权限、深度、并发与取消约束。
+- `/collaborate on` 明确选择持久关联会话，优先于 Ultracode 默认偏好；`/collaborate auto` 恢复按需选择。关联工作会话只执行分配的任务，不被 Ultracode 再次自动拆成第二套编排。
+- `/collaborate off` 只禁用新的关联会话，不关闭普通子代理或工作流，也不停止已有任务。人工停止不能通过更换委派工具规避。
+- `/workflow 任务内容` 为当前任务显式选择工作流，优先于常驻偏好，不改 Ultracode 或 collaborate 开关。无参数显示用法；无工具、超长输入或取消时不提交任务。进度与结果复用原生工作流卡片；后台执行通过 `job_output` 收取结果、`job_kill` 停止。
+- `/ultracode status` 区分关闭、实际生效、无工具未生效、关联会话优先和关联工作会话。输入框开关展示宿主实际能力与模式；不支持时禁用，偏好被保留但不亮起。
+- `nestedSessions.delegationMode(sessionId)` 是供编排策略读取的同步公共接口，仅返回 `auto`、`linked`、`worker` 或 `off`。Ultracode 不读取关联插件存储，不写其策略。
+- 完成条件是证据与交付验收，不是代理启动数量。后台任务必须取得终态结果；失败、缺失和预算截断须明确报告。
+
+隔离真实模型验收：先将本配置安装到独立 `DSH_HOME`，设置该 home、匹配的 `DSH_NATIVE_ROOT` 和仅进程内的 `OPENAI_API_KEY`，运行 `node scripts/harness.mjs orchestration-test --home <隔离目录>`。底层脚本为 `scripts/test-orchestration-policy.cjs`，设置 `DSH_VERIFY_ORCHESTRATION_ONLY=1` 可直接运行底层脚本只做冷读核验。测试简单任务、自动工作流、显式关联会话和一次性工作流，使用 `workspace-write`，不提供权限覆盖。
+
+
+PTC 的 `run_code` 是工具呈现方式，不是更宽权限。它使用与 standard 相同的受管工具配置，通过原生 SDK 调用 workflow；保留原并发、深度、预算与沙箱。Workflow 记录器也对 PTC 子调用写原生运行记录，支持冷读结果。能力查询不追加历史记录，前端取消失效请求并隔离会话切换后的响应；最多每 5 秒刷新挂载中的状态。
+
+PTC 验收在隔离 home 设置 `DSH_TEST_PRESET=ptc` 后执行 orchestration-test。先通过真实模型调用 run_code 验证工作区内写入成功、只读写入拒绝和工作区外原生文件写入拒绝，再执行四种委派场景。取消请求不得落盘。`DSH_VERIFY_ORCHESTRATION_ONLY=1` 用于后续冷读核验。
+
+
+## 失败、停止与安全续跑
+
+`/workflow resume <运行ID>` 复用原脚本与参数，`/workflow stop <运行ID>` 等待原生子代理收尾；这两个入口挂在与工作流引擎相同的原生 delegation 作用域中。没有新增调度服务。后台运行继续使用原生任务控制。
+
+v2 journal 绑定 owner、实际目录、沙箱、模型、资源预算、脚本与输入。同一会话有活动或未确认运行时拒绝新启动；旧运行只能生成一个后继；后继保存回放结果。缺失、损坏、旧版或不确定的记录一律拒绝自动重跑。停止/失败锁跨重启保留，只能由用户经既有 /workflow 明确解除；解除授权绑定该条用户请求，其他消息不能冒用。
+
+恢复允许的是“已完成步骤回放结果，尚未开始步骤继续”。子代理失败或停止时可能已经写文件，无法据此保证重复执行无副作用，所以先拒绝并要求核对文件。具有写权限的 schema 失败不自动重试；清理未确认时不释放活动运行占用，也不报告停止完成。回滚保留 journal 和业务文件，旧实现不能续跑 v2 日志。
+
+停止或失败后的普通 `/workflow 继续` 不会解除锁；必须提供原运行 ID 续跑，或核对文件后明确 `/workflow new 新任务`。未确认清理或宿主崩溃留下的活动占用不会自动清除，避免旧执行尚未退出时并发写入。
+
+## 自动选择三种委派方式的真实验收
+
+在安装好的隔离 DSH_HOME 中运行 `node scripts/harness.mjs ultracode-routing-test --home <隔离目录>`。沿用既有真实模型凭据注入方式，不把凭据写进测试文件。脚本只打开 `/ultracode on` 和 `/collaborate auto`，任务提示描述需求，不指定委派工具；分别在 Standard、PTC 检查：日志上下文隔离、持久调查分支、分阶段批量写入、同文件两项更新。
+
+验收核对实际工具调用、子任务完成状态、写入前后内容、写入者生命周期及真实 sandbox mode/workspaceRoot。三个路由样本分别检查选中的方式，普通旁支只派一次，持久调查恰好两个分支；共享文件场景允许合理组合不同工具，但同文件只允许单写者或先后交接，拒绝并行写者与重复增量。记录仅保留在隔离 home，不进入 Git。`DSH_ROUTING_RECHECK=<该次证据目录>` 可冷启动读取原生会话和已有记录重新验收，不重新派发任务或重置文件；`DSH_TEST_PRESET`、`DSH_ROUTING_CASE` 可缩小检查范围。

@@ -174,3 +174,15 @@ test('versioned sources contain neither personal host paths nor credential files
   assert(!/sk-[a-zA-Z0-9]{24,}/.test(content),'Possible credential: '+path.relative(repository,file));
  }
 });
+
+ test('PTC reuses standard capabilities and only changes tool presentation', () => {
+  const text=renderPlan(path.join(os.tmpdir(),'ptc portable home'),settings).get('profiles/desktop/cordis.patch.yml');
+  const rows=JSON.parse(text.replace(/!!js ("(?:[^"\\]|\\.)*")/g,'{"$js":$1}'));
+  const standard=rows.find(row=>row.id==='preset-standard').config;
+  const ptc=rows.find(row=>row.id==='preset-ptc').config;
+  assert.deepEqual(ptc.plugins.slice(0,-1),standard.plugins);
+  assert.deepEqual(ptc.plugins.at(-1).config,{mode:'ptc'});
+  const delegation=ptc.plugins.find(row=>row.id==='delegation');
+  assert.equal(delegation.config.find(row=>row.id==='tool-workflow').name,'@local/dsh-tool-workflow');
+  assert.equal(delegation.config.find(row=>row.id==='workflow-ptc').config.maxConcurrentAgents,16);
+ });
