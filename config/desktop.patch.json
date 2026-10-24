@@ -770,5 +770,19 @@
         }
       }
     ]
+  },
+  {
+    "id": "enhancement-settings",
+    "name": "@local/dsh-enhancement-settings",
+    "config": {
+      "ultracodeDefault": true
+    }
+  },
+  {
+    "id": "idle-settings",
+    "name": "@local/dsh-idle-settings",
+    "config": {
+      "thresholdPercent": 70
+    }
   }
 ]
