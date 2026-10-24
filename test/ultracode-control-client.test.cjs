@@ -97,14 +97,14 @@ test("toggling sends the existing /ultracode command and surfaces failures", asy
   await assert.rejects(toggle(true), /当前会话尚未就绪/);
 });
 
- test('unsupported, pending and explicit collaboration do not display enabled', () => {
+ test('unsupported modes stay disabled and linked workflows display enabled', () => {
    const {chipState} = client();
    for (const state of [null, {error:'offline'}, {supported:false,requested:true,mode:'unavailable'}]) {
      const view = chipState(state,true); assert.equal(view.active,false); assert.equal(view.disabled,true);
    }
    assert.match(chipState({supported:false},true).label,/不可用/);
-   assert.match(chipState({supported:true,mode:'linked'},true).label,/协作优先/);
-   assert.equal(chipState({supported:true,mode:'linked'},true).active,false);
+   assert.match(chipState({supported:true,mode:'linked'},true).label,/关联执行/);
+   assert.equal(chipState({supported:true,mode:'linked'},true).active,true);
    assert.equal(chipState({supported:true,mode:'workflow'},true).active,true);
  });
 

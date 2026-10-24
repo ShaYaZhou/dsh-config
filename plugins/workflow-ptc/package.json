@@ -49,7 +49,8 @@
       "Size-guideline warning when a run starts more agents than the deployment's threshold.",
       "One-level nesting guard: a workflow child session may not start another workflow.",
       "Per-run JSONL journal and prefix replay behind resume_from_run_id, stopping at the first changed agent() call.",
-      "schemaRetries (default 5): a child that finished completed without the structured value its schema asked for is replaced by a fresh child with the same request; failed or cancelled children are not retried, tokens accumulate, and only the final attempt is journaled."
+      "schemaRetries (default 5) is limited to read-only runs with missing structured output. Writable, failed and cancelled child executions are not automatically retried; token usage accumulates across allowed read-only attempts.",
+      "Ultracode uses the existing serial limiter and linked-session public activation when requested; journal identity binds worker mode; no new scheduler or sandbox relaxation."
     ]
   }
 }

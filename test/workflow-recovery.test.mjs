@@ -75,3 +75,25 @@ test('unconfirmed cleanup keeps the recovery lock and child depth guard',async()
  const f=runtimeFixture({cleanupFailure:true});const result=await f.run.result;
  assert.equal(result.stopReason,'error');assert.equal(f.ends.length,0);assert.deepEqual(f.guards,[]);assert.equal(f.run.cleanupFailed,true);
 });
+
+test('cleanup uncertainty refuses the next stage before another child is admitted',async()=>{
+ const f=runtimeFixture();f.run.cleanupFailed=true;
+ assert.throws(()=>f.run.requireActive(),/cleanup/);
+ await f.run.result;
+});
+
+test('workflow worker selection cannot bypass collaborate off or on',()=>{
+ const source=fs.readFileSync(new URL('../plugins/workflow-ptc/lib/index.js',import.meta.url),'utf8');
+ const code=source.slice(source.indexOf('var PtcWorkflowEngine = class'),source.indexOf('var index_default = PtcWorkflowEngine'));
+ const schema=new Proxy(()=>{}, {get:()=>schema,apply:()=>schema});
+ const Engine=vm.runInNewContext(code+';PtcWorkflowEngine',{
+  WorkflowEngine:class {constructor(ctx){this.ctx=ctx;}},z:schema,
+  validateMeta:x=>x,assertBodyParses:()=>{},WorkflowError3:Error,
+ });
+ const parent={session:{id:'owner'}};
+ for(const [preference,workerMode,pattern] of [['off','linked',/disabled/],['worker','linked',/disabled/],['linked','subagent',/collaborate on/],['auto','unknown',/Unknown/]]) {
+  const ctx={ptcRuntime:{language:'typescript'},get:name=>name==='ultracodeState'?{requiresWorkflow:()=>true}:name==='nestedSessions'?{delegationMode:()=>preference,startWorkflowChild:()=>{throw Error('must not activate');}}:undefined};
+  const engine=new Engine(ctx,{});
+  assert.throws(()=>engine.start({meta:{},script:'return 1',parent,workerMode}),pattern);
+ }
+});

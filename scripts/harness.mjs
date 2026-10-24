@@ -312,6 +312,8 @@ function runtimeCheck(home,script,marker,logFile='automatic-session-runtime.log'
 }
 export function smoke(home){runtimeCheck(home,'smoke.cjs','PORTABLE_SMOKE_PASS','smoke-runtime.log');}
 const RUNTIME_TESTS={
+ 'linked-workflow-test':['test-linked-workflow-lifecycle.cjs','LINKED_WORKFLOW_LIFECYCLE_PASS','linked-workflow-runtime.log'],
+ 'mandatory-workflow-test':['test-mandatory-workflow.cjs','MANDATORY_WORKFLOW_PASS','mandatory-workflow-runtime.log'],
  'ultracode-routing-test':['test-ultracode-routing.cjs','ULTRACODE_ROUTING_PASS','ultracode-routing-runtime.log'],
  'workflow-recovery-test':['test-workflow-recovery.cjs','WORKFLOW_RECOVERY_PASS','workflow-recovery-runtime.log'],
  'orchestration-test':['test-orchestration-policy.cjs','ORCHESTRATION_ACCEPTANCE_PASS','orchestration-runtime.log'],

@@ -62,6 +62,7 @@ async function main() {
       const created = await ctx.sessionController.create({workspaceId:workspace.id, agentPreset:'ptc'});
       const {agent} = await ctx.sessionController.resolveAgent(created.sessionId);
       assert.equal(agent.ctx.tools.modeFor(agent), 'ptc');
+      await ctx.commands.execute(agent,'/ultracode off',[],AbortSignal.timeout(30000));
       const inside = path.join(root, 'boundary.txt');
       const outsideDir = fs.mkdtempSync(path.join(os.homedir(), '.dsh-ptc-boundary-'));
       const outside = path.join(outsideDir, 'sentinel.txt');
@@ -131,7 +132,7 @@ async function main() {
       await command(mode === 'linked' || mode === 'explicit' ? '/collaborate on' : '/collaborate auto');
       const assembly = await agent.ctx.systemPrompt.assemble({agent,scope:agent});
       const policy = assembly.sections.find(section=>section.name==='ultracode:policy')?.text;
-      assert.equal(Boolean(policy), mode === 'simple' || mode === 'auto');
+      assert.equal(Boolean(policy), true);
       assert.equal(linked.delegationMode(agent.id), mode === 'linked' || mode === 'explicit' ? 'linked' : 'auto');
       if (mode === 'explicit') await command('/workflow ' + task);
       else if (mode === 'linked') await command('/collaborate ' + task);
@@ -155,12 +156,12 @@ async function main() {
         assert(!names.some(n => ['workflow','start_session','subagent','subagent_fork'].includes(n)));
       } else {
         assert(summary.includes('API-741') && summary.includes('UI-852'), 'Missing actual fixture evidence: ' + mode + '\n' + summary);
-        assert(names.includes(mode === 'linked' ? 'start_session' : 'workflow'), 'Wrong delegation route: ' + mode + ' ' + names);
-        assert(!names.includes(mode === 'linked' ? 'workflow' : 'start_session'), 'Duplicate routes: ' + mode);
+        assert(names.includes('workflow'), 'Wrong delegation route: ' + mode + ' ' + names);
+        assert(!names.includes('start_session'), 'Duplicate routes: ' + mode);
       }
       assert.equal(ctx.permissionPresets.current(agent.session), 'workspace-write');
       for (const [name, content] of Object.entries(files)) assert.equal(fs.readFileSync(path.join(root,name),'utf8'), content);
-      if (mode === 'auto' || mode === 'explicit') verifyWorkflow(events);
+      if (mode !== 'simple') verifyWorkflow(events);
       reports.push({mode, sessionId:agent.id, tools:names, summary});
       fs.writeFileSync(path.join(root,'result.json'), JSON.stringify(reports,null,2));
       console.log('ORCHESTRATION_CASE_PASS ' + mode);

@@ -164,7 +164,7 @@ DSH 原生已经给消息里的文件提及着色（`--dsw-alias-link`），悬�
 
 `plugins/ultracode-control` 在 composer 工具行、模型选择器左侧放一个 `role="switch"` 药丸。状态读原生 `ultracode` projection；会话还没写过记录（`active: null`）时显示「Harness增强」里的新会话默认值。点击只发送现有 `/ultracode on|off`，切换会像 `/permission` 一样在会话里留下原生命令节点；不新增记录、不复制设置。开启时药丸带缓慢流光与呼吸点，`prefers-reduced-motion: reduce` 下全部静止。
 
-策略段本身只在该 agent 作用域内 `workflow` 工具可见时注入。本部署的 PTC 由安装器复用 standard 的能力配置，仅将工具呈现改成 PTC；因此可在 run_code 内调用 workflow。explore/planner/reviewer 三个只读角色预设没有 delegation 组，minimal 也没有 workflow，这些模式不会收到指向不存在工具的指令。判据取 `ctx.tools.get("workflow", agent)` 的可见性而不是预设名，新增预设无需维护白名单。工具名与 `tool-workflow` 的 `toolName` 配置耦合，模板目前不改它；药丸通过带会话访问检查的 ultracodeState/read 查询实际能力；不支持时显示“不可用”并禁用，查询失败显示“状态未知”，显式关联分工显示“协作优先”。
+策略段本身只在该 agent 作用域内 `workflow` 工具可见时注入。本部署的 PTC 由安装器复用 standard 的能力配置，仅将工具呈现改成 PTC；因此可在 run_code 内调用 workflow。explore/planner/reviewer 三个只读角色预设没有 delegation 组，minimal 也没有 workflow，这些模式不会收到指向不存在工具的指令。判据取 `ctx.tools.get("workflow", agent)` 的可见性而不是预设名，新增预设无需维护白名单。工具名与 `tool-workflow` 的 `toolName` 配置耦合，模板目前不改它；药丸通过带会话访问检查的 ultracodeState/read 查询实际能力；不支持时显示“不可用”并禁用，查询失败显示“状态未知”，持久关联执行显示“关联执行”，仍保持 Ultracode 生效。
 
 限制：模型弹出菜单（`conversation.input.model`）是 single 槽，宿主只允许一个占用者，无法在其中加行，所以开关放在同一行的左侧而非菜单内；该位置也是会话作用域，每个会话独立。
 
@@ -182,34 +182,29 @@ DSH 原生已经给消息里的文件提及着色（`--dsw-alias-link`），悬�
 
 ## Ultracode 与显式工作流入口
 
-- Ultracode 是自动编排偏好：实质性任务优先考虑工作流，小任务可直接完成或使用普通子代理。模型负责选择，原生运行时保留权限、深度、并发与取消约束。
-- `/collaborate on` 明确选择持久关联会话，优先于 Ultracode 默认偏好；`/collaborate auto` 恢复按需选择。关联工作会话只执行分配的任务，不被 Ultracode 再次自动拆成第二套编排。
-- `/collaborate off` 只禁用新的关联会话，不关闭普通子代理或工作流，也不停止已有任务。人工停止不能通过更换委派工具规避。
-- `/workflow 任务内容` 为当前任务显式选择工作流，优先于常驻偏好，不改 Ultracode 或 collaborate 开关。无参数显示用法；无工具、超长输入或取消时不提交任务。进度与结果复用原生工作流卡片；后台执行通过 `job_output` 收取结果、`job_kill` 停止。
-- `/ultracode status` 区分关闭、实际生效、无工具未生效、关联会话优先和关联工作会话。输入框开关展示宿主实际能力与模式；不支持时禁用，偏好被保留但不亮起。
-- `nestedSessions.delegationMode(sessionId)` 是供编排策略读取的同步公共接口，仅返回 `auto`、`linked`、`worker` 或 `off`。Ultracode 不读取关联插件存储，不写其策略。
-- 完成条件是证据与交付验收，不是代理启动数量。后台任务必须取得终态结果；失败、缺失和预算截断须明确报告。
+- Ultracode 开启后，实质性任务必须经 Workflow，包括单文件网页的研究、实现和独立验收。简单问答直接回答。主会话使用原生 tools.guard，只允许工作流控制、状态查询、render_widget 答案呈现及每轮最多六次只读准备；直接写入、shell、浏览器和另开委派均被拒绝。无 Workflow 能力时如实显示不可用，Ultracode 不生效，预设原有能力保留；不把保存的偏好当成实际开启。
+- PTC 主会话仅允许 `console.log(await tools.<名称>(JSON对象));` 的单次调用，禁止额外代码或动态表达式；内层调用仍受同一 guard 约束。复杂计算与实际操作由 Workflow 执行者完成。此约束收紧编排入口，不替代或放宽文件沙箱。
+- `/collaborate on` 选择 Workflow 的 `worker_mode: linked`，各阶段保留可继续对话的独立会话；`auto` 默认普通子代理，可按持续追问需求选择 linked；`off` 禁止 linked。Ultracode 关闭时保留原独立关联分工行为。`/workflow 任务` 不修改这些开关。
+- 两类执行者复用现有 Workflow 日志、预算、停止和结果回放。linked 通过 nestedSessions 的公共生命周期接口创建、等待、取消并保留会话，关闭自动父会话唤醒，避免同一完成结果触发第二轮分工。linked 返回文本，不能使用 agent() 的 schema 参数。
+- Ultracode 使用现有限流器将工作流阶段串行化，`parallel()` 也排队，避免共享目录的并行写入。执行者可再派 explore/planner/reviewer 只读子代理（包括禁止写共享角色 MEMORY.md），不可再开工作流、关联家族、Team 或通过消息启动旁路写入者。此限制按父级责任判断，关闭 Ultracode 的父任务不受新规则影响。
+- 状态药丸中的“关联执行”仍表示 Ultracode 生效，不再显示“协作优先”并熄灭。完成条件是实际交付与独立验收，不是启动数量；没有具体失败或新改动时停止追加视觉微调。
 
-隔离真实模型验收：先将本配置安装到独立 `DSH_HOME`，设置该 home、匹配的 `DSH_NATIVE_ROOT` 和仅进程内的 `OPENAI_API_KEY`，运行 `node scripts/harness.mjs orchestration-test --home <隔离目录>`。底层脚本为 `scripts/test-orchestration-policy.cjs`，设置 `DSH_VERIFY_ORCHESTRATION_ONLY=1` 可直接运行底层脚本只做冷读核验。测试简单任务、自动工作流、显式关联会话和一次性工作流，使用 `workspace-write`，不提供权限覆盖。
-
-
-PTC 的 `run_code` 是工具呈现方式，不是更宽权限。它使用与 standard 相同的受管工具配置，通过原生 SDK 调用 workflow；保留原并发、深度、预算与沙箱。Workflow 记录器也对 PTC 子调用写原生运行记录，支持冷读结果。能力查询不追加历史记录，前端取消失效请求并隔离会话切换后的响应；最多每 5 秒刷新挂载中的状态。
-
-PTC 验收在隔离 home 设置 `DSH_TEST_PRESET=ptc` 后执行 orchestration-test。先通过真实模型调用 run_code 验证工作区内写入成功、只读写入拒绝和工作区外原生文件写入拒绝，再执行四种委派场景。取消请求不得落盘。`DSH_VERIFY_ORCHESTRATION_ONLY=1` 用于后续冷读核验。
-
+验收入口：先安装隔离 DSH_HOME，再运行 `node scripts/harness.mjs mandatory-workflow-test --home <隔离目录>`，仅在进程环境注入既有模型凭据。Standard 和 PTC 都包含简单问答、四维概念寓言网页、持久关联执行的网页任务。旧 `orchestration-test` 保留作为轻量回归，PTC 原生沙箱探针在独立会话明确关闭 Ultracode，以分别验证沙箱边界与编排 guard。
 
 ## 失败、停止与安全续跑
 
 `/workflow resume <运行ID>` 复用原脚本与参数，`/workflow stop <运行ID>` 等待原生子代理收尾；这两个入口挂在与工作流引擎相同的原生 delegation 作用域中。没有新增调度服务。后台运行继续使用原生任务控制。
 
-v2 journal 绑定 owner、实际目录、沙箱、模型、资源预算、脚本与输入。同一会话有活动或未确认运行时拒绝新启动；旧运行只能生成一个后继；后继保存回放结果。缺失、损坏、旧版或不确定的记录一律拒绝自动重跑。停止/失败锁跨重启保留，只能由用户经既有 /workflow 明确解除；解除授权绑定该条用户请求，其他消息不能冒用。
+v2 journal 绑定 owner、实际目录、沙箱、模型、资源预算、执行者类型、脚本与输入。同一会话有活动或未确认运行时拒绝新启动；旧运行只能生成一个后继；后继保存回放结果。缺失、损坏、旧版或不确定的记录一律拒绝自动重跑。停止/失败锁跨重启保留，只能由用户经既有 /workflow 明确解除；解除授权绑定该条用户请求，其他消息不能冒用。
 
 恢复允许的是“已完成步骤回放结果，尚未开始步骤继续”。子代理失败或停止时可能已经写文件，无法据此保证重复执行无副作用，所以先拒绝并要求核对文件。具有写权限的 schema 失败不自动重试；清理未确认时不释放活动运行占用，也不报告停止完成。回滚保留 journal 和业务文件，旧实现不能续跑 v2 日志。
 
 停止或失败后的普通 `/workflow 继续` 不会解除锁；必须提供原运行 ID 续跑，或核对文件后明确 `/workflow new 新任务`。未确认清理或宿主崩溃留下的活动占用不会自动清除，避免旧执行尚未退出时并发写入。
 
-## 自动选择三种委派方式的真实验收
+## 轻量委派与文件变更回归
 
 在安装好的隔离 DSH_HOME 中运行 `node scripts/harness.mjs ultracode-routing-test --home <隔离目录>`。沿用既有真实模型凭据注入方式，不把凭据写进测试文件。脚本只打开 `/ultracode on` 和 `/collaborate auto`，任务提示描述需求，不指定委派工具；分别在 Standard、PTC 检查：日志上下文隔离、持久调查分支、分阶段批量写入、同文件两项更新。
 
-验收核对实际工具调用、子任务完成状态、写入前后内容、写入者生命周期及真实 sandbox mode/workspaceRoot。三个路由样本分别检查选中的方式，普通旁支只派一次，持久调查恰好两个分支；共享文件场景允许合理组合不同工具，但同文件只允许单写者或先后交接，拒绝并行写者与重复增量。记录仅保留在隔离 home，不进入 Git。`DSH_ROUTING_RECHECK=<该次证据目录>` 可冷启动读取原生会话和已有记录重新验收，不重新派发任务或重置文件；`DSH_TEST_PRESET`、`DSH_ROUTING_CASE` 可缩小检查范围。
+验收核对实际工具调用、子任务完成状态、写入前后内容、写入者生命周期及真实 sandbox mode/workspaceRoot。三个路由样本分别检查选中的方式，当前 Ultracode 下旁支也由 Workflow 创建，持久调查保留关联阶段；共享文件场景允许合理组合不同工具，但同文件只允许单写者或先后交接，拒绝并行写者与重复增量。记录仅保留在隔离 home，不进入 Git。`DSH_ROUTING_RECHECK=<该次证据目录>` 可冷启动读取原生会话和已有记录重新验收，不重新派发任务或重置文件；`DSH_TEST_PRESET`、`DSH_ROUTING_CASE` 可缩小检查范围。
+
+升级前保存的运行若资源预算或执行者类型与新规则不一致，续跑会拒绝；保留原日志和文件，不自动重跑。串行约束针对单个 Workflow 的模型执行者，不承诺跨独立用户任务或任意后台外部进程的全局文件锁。

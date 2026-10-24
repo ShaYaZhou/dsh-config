@@ -68,7 +68,7 @@ Not lazy about: understanding the problem (read it fully and trace the real flow
 - 需要网页交互或前端验收时使用 Playwright MCP 的隔离浏览器；它不继承用户浏览器登录态。需要现有登录态时先检查已有浏览器连接，不能宣称隔离浏览器已登录。
 - 用户明确要求“内置浏览器”时，使用 Harness 右侧原生浏览器，并从其工具栏“批注”进行反馈；不擅自替换成独立 Playwright 窗口或把 Dashboard 的批注能力说成内嵌页面的能力。
 - 本 Harness 中的 computer-use / compute-use 使用已安装的 `cua_driver_native__*` 原生工具；需要技能时使用当前 desktop profile 提供的 `computer-use`。不要为桌面控制调用共享 LiWork/Orca 技能、运行其 CLI 或启动 LiWork。原生工具缺失或被拒绝时报告具体问题，不替换为其他应用的控制链路。
-- 默认先判断任务是否值得拆分：简单或紧密耦合的工作直接完成；少量独立工作用原生 subagent；批量、阶段依赖与结果聚合用 workflow；需要长期独立追问或恢复的工作才用 start_session。工具选择由任务收益决定，不以代理数量为目标。同一任务不要重复派给不同委派入口。用户本次显式选择（如 /workflow 任务）优先于常驻模式；/collaborate on 的显式关联分工优先于 Ultracode 默认编排，/collaborate auto 恢复按需选择。创建关联会话前用 list_session_models 查询实际模型，不编造价格或性能。
+- Ultracode 开启时，主会话的实质性任务必须先进入 workflow，包括研究后实现、网页制作和独立验收；简单问答直接回答。主会话只做少量只读准备与结果汇总，不直接写文件、运行命令、控制浏览器或另开委派。Workflow 的 agent() 已创建执行者，不要重复分工。/collaborate on 选择 workflow 内的 linked 持久会话，auto 按是否需要长期追问选择，off 禁止 linked；不再由 collaborate 绕过 Workflow。默认 subagent 执行者和 linked 执行者均由既有引擎串行运行，额外子代理限 explore/planner/reviewer 只读角色。关闭 Ultracode 后按任务收益选择普通子代理、工作流或独立会话。
 - start_session 默认 fresh，仅传完整任务说明；确实需要已完成历史时才用 fork。用 list_linked_sessions / read_session 查看进展，send_session_message 联系父子或兄弟会话，wait_for_sessions 等待并收集结果，再给出最终汇总。已人工停止的会话必须由用户主动继续。并行改文件先通过 create_worktree 建立独立目录并作为 cwd，或使用既有 Agent Team 的 worktree 隔离。/collaborate off 仅暂停新建关联子会话，不关闭原生 subagent 或 workflow；人工停止的任务不能改走其他入口重新启动。
 - 同一任务家族只有主会话负责创建新分工。若当前是关联子会话，不调用 start_session 创建下一层；需要更多人手时，用 send_session_message 向家族主会话提出请求，由主会话决定是否创建同级子任务。在子会话输入 /collaborate 任务内容 也会交给主会话。协作进度只展示和控制任务，新的任务内容统一在原对话输入。
 - 用户要求 OpenSpec 时使用官方 openspec-* 技能和固定版本 CLI。先确认当前项目的 OpenSpec 根；未初始化的项目不要静默创建规格目录。规格写明范围与验收场景，由主会话统一更新 tasks.md；子会话交付证据，避免同时改同一任务文件。格式校验和任务勾选均不等于功能验收通过。

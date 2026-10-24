@@ -123,4 +123,4 @@ REA 的后台 Evidence：`ev_97f38f33a2f2b33f6018128f97ac49d8a4435a72c0ea05dd829
 
 明确要求“先写 spec，再自动实现和验收”时使用 [自然语言交付流程](OPENSPEC.md)：主会话写规格并调度，standard 子会话实现，fresh reviewer 独立审查，主会话运行实际验收并维护任务状态。`start_session` 可指定 `agent_preset`，fresh 模式支持 standard/explore/planner/reviewer/cc；fork 继续保持源角色，不允许同时覆盖角色。
 
-显式 `/collaborate on` 优先于 Ultracode 自动工作流偏好；`auto` 恢复按任务选择委派方式。用户本次明确输入 `/workflow 任务` 时以本次选择为准，不改常驻开关。
+Ultracode 开启时，`/collaborate on` 选择 Workflow 内的持久关联执行者，不能绕过工作流；`auto` 按是否需要持续追问选择，`off` 禁止关联执行者。关闭 Ultracode 后保留原关联分工行为。`/workflow 任务` 不改变这些开关。

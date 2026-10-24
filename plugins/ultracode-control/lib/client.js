@@ -37,8 +37,8 @@ window.__ModuleLoader__.load({
       if (!status) return {label:'Ultracode · 检查中', active:false, disabled:true, title:'正在核对当前模式的工作流能力'};
       if (status.error) return {label:'Ultracode · 状态未知', active:false, disabled:true, title:status.error};
       if (!status.supported) return {label:'Ultracode · 不可用', active:false, disabled:true, title:'当前模式未提供 Workflow；不会因保存的开启偏好而启动编排'};
-      const active = preference && status.mode === 'workflow';
-      const suffix = preference && status.mode === 'linked' ? ' · 协作优先'
+      const active = preference && ['workflow','linked'].includes(status.mode);
+      const suffix = preference && status.mode === 'linked' ? ' · 关联执行'
         : preference && status.mode === 'worker' ? ' · 按分工执行' : '';
       return {label:'Ultracode' + suffix, active, disabled:false, title:status.text};
     }

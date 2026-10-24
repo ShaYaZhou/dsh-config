@@ -8,6 +8,7 @@ const z = {
   boolean: () => ({nullable() { return this; }}),
 };
 const sandbox = {
+  Script: vm.Script,
   TypertRemoteService: class { constructor(ctx) {this.ctx=ctx;} },
   Remote: () => () => {},
   runInitializers: () => {},
@@ -20,17 +21,17 @@ const code = fs.readFileSync(new URL('../modules/ultracode.mjs', import.meta.url
   .replace(/^import .*;\r?\n/gm, '')
   .replace(/^export /gm, '');
 vm.createContext(sandbox);
-vm.runInContext(code + '\nthis.apply = apply; this.ultracodeProjection = ultracodeProjection; this.UltracodeState = UltracodeState;', sandbox);
+vm.runInContext(code + '\nthis.apply = apply; this.ultracodeProjection = ultracodeProjection; this.UltracodeState = UltracodeState; this.coordinatorCall = coordinatorCall;', sandbox);
 
 function fixture({state = null, defaultActive = false, hasWorkflow = true, delegationMode = "auto"} = {}) {
   const records = [];
-  const session = {id: 'session-test', records, header: {origin: 'user'}};
-  let section, command;
+  const session = {id: 'session-test', records, header: {origin: 'user'}, snapshotEvents: () => []};
+  let section, command, guard;
   const ctx = {
     get: (name) => name === 'enhancementSettings'
       ? {ultracodeDefault: () => defaultActive}
       : name === 'nestedSessions' ? {delegationMode: () => delegationMode} : undefined,
-    tools: {get: (name) => (hasWorkflow && name === 'workflow' ? {} : undefined)},
+    tools: {get: (name) => (hasWorkflow && name === 'workflow' ? {} : undefined),guard: fn => {guard=fn;return ()=>{};}},
     sessionProjections: {
       register: () => {},
       stateOf: () => state,
@@ -40,7 +41,7 @@ function fixture({state = null, defaultActive = false, hasWorkflow = true, deleg
     effect: (fn) => fn(),
   };
   sandbox.apply(ctx);
-  return {session, section, command, records};
+  return {session, section, command, records, guard, ctx};
 }
 
 test('projection restores only the ultracode record', () => {
@@ -58,7 +59,7 @@ test('the policy section follows the session record and the settings default', (
   assert.equal(off.section.text({agent: {session: off.session}}), '');
 
   const onByDefault = fixture({defaultActive: true});
-  assert.match(onByDefault.section.text({agent: {session: onByDefault.session}}), /ultracode is on/);
+  assert.match(onByDefault.section.text({agent: {session: onByDefault.session}}), /Ultracode is on/);
 
   const explicitOff = fixture({state: {active: false}, defaultActive: true});
   assert.equal(explicitOff.section.text({agent: {session: explicitOff.session}}), '');
@@ -70,6 +71,7 @@ test('the policy is withheld when the session has no workflow tool', () => {
   // 这两种会话开着 ultracode 也不能注入一段指向不存在工具的策略。
   const on = fixture({defaultActive: true, hasWorkflow: false});
   assert.equal(on.section.text({agent: {session: on.session}}), '');
+  assert.equal(on.guard({agent:{session:on.session},name:'write',arguments:{}}),undefined,'Unavailable Ultracode must not disable the underlying preset');
 
   const explicitOn = fixture({state: {active: true}, hasWorkflow: false});
   assert.equal(explicitOn.section.text({agent: {session: explicitOn.session}}), '');
@@ -93,10 +95,10 @@ test('/ultracode toggles a restorable session record', () => {
 
  test('explicit linked collaboration takes priority and off does not disable workflows', () => {
   const linked = fixture({state: {active: true}, delegationMode: 'linked'});
-  assert.doesNotMatch(linked.section.text({agent: {id: 'session-test', session: linked.session}}), /default to dynamic orchestration/);
-  assert.match(linked.command.handler({agent: {id: 'session-test', session: linked.session}, rawInput: 'status'}).text, /关联会话优先/);
+  assert.match(linked.section.text({agent: {id: 'session-test', session: linked.session}}), /MUST enter workflow/);
+  assert.match(linked.command.handler({agent: {id: 'session-test', session: linked.session}, rawInput: 'status'}).text, /持久关联会话/);
   const off = fixture({state: {active: true}, delegationMode: 'off'});
-  assert.match(off.section.text({agent: {id: 'session-test', session: off.session}}), /ultracode is on/);
+  assert.match(off.section.text({agent: {id: 'session-test', session: off.session}}), /Ultracode is on/);
  });
  test('status distinguishes requested on from unavailable workflow', () => {
   const f = fixture({state: {active: true}, hasWorkflow: false});
@@ -107,7 +109,7 @@ test('linked workers do not receive automatic orchestration and auto restores it
  const child = fixture({state:{active:true}, delegationMode:'worker'});
  assert.equal(child.section.text({agent:{session:child.session}}), '');
  const restored = fixture({state:{active:true}, delegationMode:'auto'});
- assert.match(restored.section.text({agent:{session:restored.session}}), /Collect actual terminal results/);
+ assert.match(restored.section.text({agent:{session:restored.session}}), /Await completed results/);
 });
 
  test('unsupported on refuses before persisting a misleading enabled preference', () => {
@@ -125,3 +127,69 @@ test('linked workers do not receive automatic orchestration and auto restores it
   allowed=true; const controller=new AbortController();const cancelled=service.read({sessionId:'owner'},controller.signal);controller.abort();resolve({agent:{id:'owner',session}});await assert.rejects(cancelled);
   const success=service.read({sessionId:'owner'});resolve({agent:{id:'owner',session}});assert.equal((await success).mode,'workflow');
  });
+
+
+test('Ultracode guard blocks direct execution and permits only bounded preparation', () => {
+ const f=fixture({state:{active:true}}),agent={id:'root',session:f.session};
+ for(const name of ['write','edit','bash','subagent','start_session','mcp__playwright__browser_evaluate'])
+  assert.match(f.guard({agent,name,arguments:{}}),/requires workflow/);
+ assert.equal(f.guard({agent,name:'workflow',arguments:{}}),undefined);
+ assert.equal(f.guard({agent,name:'render_widget',arguments:{html:'<div>answer</div>'}}),undefined);
+ for(let i=0;i<6;i++)assert.equal(f.guard({agent,name:'read',arguments:{}}),undefined);
+ assert.match(f.guard({agent,name:'read',arguments:{}}),/limit reached/);
+ const off=fixture({state:{active:false}});
+ assert.equal(off.guard({agent:{session:off.session},name:'write'}),undefined);
+});
+
+test('PTC envelope accepts JSON only and never permits raw code or nested expressions', () => {
+ const f=fixture({state:{active:true}}),agent={session:f.session};
+ assert.equal(f.guard({agent,name:'run_code',arguments:{code:'console.log(await tools.workflow({"script":"return 1","meta":{"name":"x"}}));'}}),undefined);
+ assert.equal(f.guard({agent,name:'run_code',arguments:{code:'console.log(\n await tools.read( {"file_path":"a"} )\n);'}}),undefined);
+ for(const code of ['await import("node:fs")','console.log(await tools.write({"content":"x"}));',
+  'console.log(await tools.workflow({"x":(process.exit(),1)}));',
+  'console.log(await tools.read({})); await tools.write({});'])
+  assert.match(f.guard({agent,name:'run_code',arguments:{code}}),/single literal JSON/);
+});
+
+test('workers cannot spawn competing writers or nested workflows', () => {
+ const f=fixture({state:{active:true}}),agent={session:{...f.session,header:{origin:'subagent'}}};
+ assert.equal(f.section.text({agent}),'');
+ assert.match(f.guard({agent,name:'subagent',arguments:{agent_preset:'standard'}}),/read-only/);
+ assert.equal(f.guard({agent,name:'subagent',arguments:{agent_preset:'reviewer'}}),undefined);
+ assert.match(f.guard({agent,name:'workflow',arguments:{}}),/no nested/);
+ assert.equal(f.guard({agent,name:'write',arguments:{}}),undefined);
+});
+
+
+test('worker restrictions follow the parent mode, not the child default', () => {
+ const f=fixture({state:{active:true}}),parent={id:'parent',session:{header:{origin:'user'}}};
+ const child={id:'child',session:{header:{origin:'subagent',parentSession:'parent'}}};
+ const get=f.ctx.get;f.ctx.get=name=>name==='agents'?{get:id=>id==='parent'?parent:undefined}:get(name);
+ f.ctx.sessionProjections.stateOf=session=>({active:session===parent.session?false:true});
+ assert.equal(f.guard({agent:child,name:'subagent',arguments:{agent_preset:'standard'}}),undefined);
+ f.ctx.sessionProjections.stateOf=session=>({active:session===parent.session?true:false});
+ assert.match(f.guard({agent:child,name:'subagent',arguments:{agent_preset:'standard'}}),/read-only/);
+ assert.match(f.guard({agent:child,name:'send_session_message',arguments:{}}),/no nested/);
+});
+
+test('read-only workflow helpers cannot race on their shared role memory file',()=>{
+ const f=fixture({state:{active:true}});
+ const agent={session:{...f.session,header:{origin:'subagent',agentPreset:'reviewer'}}};
+ assert.match(f.section.text({agent}),/strictly read-only/);
+ assert.match(f.guard({agent,name:'write',arguments:{file_path:'MEMORY.md',content:'note'}}),/shared role memory/);
+ assert.equal(f.guard({agent,name:'read',arguments:{file_path:'MEMORY.md'}}),undefined);
+});
+
+test('PTC diagnostics distinguish missing delimiters from non-JSON arguments',()=>{
+ const f=fixture({state:{active:true}}),agent={session:f.session};
+ assert.match(f.guard({agent,name:'run_code',arguments:{code:'console.log(await tools.workflow({"script":"return 1","meta":{"name":"x"}})'}}),/syntax error/i);
+ assert.match(f.guard({agent,name:'run_code',arguments:{code:'console.log(await tools.read({file_path:"a"}));'}}),/double quotes/);
+});
+
+test('coordinator diagnostics compile but never execute rejected code',()=>{
+ const f=fixture({state:{active:true}}),agent={session:f.session};
+ try {
+  assert.match(f.guard({agent,name:'run_code',arguments:{code:'globalThis.__ultracodeDiagnosticExecuted = true;'}}),/single literal JSON/);
+  assert.equal(globalThis.__ultracodeDiagnosticExecuted,undefined);
+ } finally {delete globalThis.__ultracodeDiagnosticExecuted;}
+});

@@ -240,6 +240,7 @@ export class NestedSessions extends TypertRemoteService {
     if (!this.automatic(sessionId)) return "off";
     return this.explicitlyRequested(sessionId) ? "linked" : "auto";
   }
+  parentOf(sessionId) { return this.domain.global.get().links[sessionId]?.parentId; }
   routeAgent(agent, selection) {
     if (this.modelDisposers.has(agent)) return;
     this.modelDisposers.set(agent, installSessionModel(agent, selection));
@@ -674,6 +675,57 @@ export class NestedSessions extends TypertRemoteService {
         selection,
       };
     });
+  }
+  /** Workflow-owned activation of a persistent conversation; no second scheduler. */
+  async startWorkflowChild({parent, prompt, title, provider, model, signal}) {
+    signal?.throwIfAborted();
+    if (!this.automatic(parent.id)) throw new Error("Linked sessions are disabled");
+    const created = await this.start({sessionId:parent.id, title, context:"fresh", wakeParent:false,
+      ...(provider ? {provider} : {}), ...(model ? {model} : {})});
+    const child = await this.agent(created.sessionId);
+    let ended = false, settle;
+    const terminal = new Promise(resolve => {settle = resolve;});
+    const release = this.ctx.on("session/event", (session, event) => {
+      if (session.id !== child.id || event.type !== "turn/end" || ended) return;
+      ended = true;
+      settle(event.data.reason?.kind ?? "error");
+    });
+    let stopping;
+    const cancel = () => {
+      if (stopping) return stopping;
+      if (ended) return Promise.resolve();
+      stopping = (async () => {
+        let failure;
+        try { await this.stop({sessionId:child.id}); }
+        catch (error) {
+          failure = error;
+          child.cancel({kind:"user"},{keepInbox:false});
+        }
+        await child.whenIdle();
+        if (!ended) {ended = true; settle("aborted");}
+        if (failure) throw failure;
+      })();
+      return stopping;
+    };
+    const abort = () => {void cancel().catch(error => {settle("error");this.ctx.logger?.warn(String(error));});};
+    signal?.addEventListener("abort", abort, {once:true});
+    const result = terminal.then(async reason => {
+      await child.whenIdle();
+      await this.tail;
+      const last = child.session.snapshotEvents().findLast(event => event.type === "assistant/message");
+      return {output:[{type:"text",text:messageText(last?.data)}],
+        stopReason:reason === "completed" ? "completed" : reason === "aborted" ? "cancelled" : "error"};
+    }).finally(() => {release();signal?.removeEventListener("abort",abort);});
+    try {
+      signal?.throwIfAborted();
+      await this.send({sessionId:parent.id,targetSessionId:child.id,message:prompt +
+        "\nThis stage is owned by the existing workflow. Return the result here; do not send a duplicate completion message or start another workflow/family. Keep one writer; any additional subagent must be read-only."});
+    } catch (error) {
+      await cancel();
+      await result;
+      throw error;
+    }
+    return {childId:child.id,result,dispose:async () => {await cancel();await result;}};
   }
   async detach(request) {
     const input = parse("detach", request);
@@ -1152,6 +1204,9 @@ function installTools(agent, service) {
           link = state.links[agent.id];
         if (link)
           return `You are a worker for "${link.title}". Focus on this brief. The single coordinator is root session ${familyRoot(state, agent.id)}. Do not call start_session or create grandchildren, even if the task family has collaboration enabled. If more independent work is needed, send_session_message to that root with the proposed work and wait for its decision. Report your result to the assigning parent ${link.parentId}; completion is relayed automatically. You may read or message existing family sessions for coordination. A user /collaborate task from any worker is routed to the root.`;
+        if (agent.ctx.get?.("ultracodeState")?.requiresWorkflow(agent)) {
+          return "Ultracode owns orchestration: substantive work MUST enter workflow. /collaborate on selects worker_mode=linked inside that workflow; auto allows linked only for persistent follow-up needs; off disables linked workers. Do not call start_session directly or create a second dispatch path. Linked workflow workers are retained for later human follow-up, return text, and must omit structured schema options. Only the workflow collects their results; do not send duplicate completion notifications.";
+        }
         return `${service.explicitlyRequested(agent.id) ? "The user has explicitly selected linked-session collaboration. Unless the user explicitly chooses a different method for the current task (such as /workflow), this selection takes priority over automatic workflow defaults. Analyze the work, then use start_session for separable work streams instead of doing every independent report in the parent. Choose worker count and models yourself; do not ask the user to configure them." : "Linked-session delegation is available on demand. First assess the request; keep simple or tightly coupled work local. Use ordinary subagents for small self-contained delegation, workflow for batch work and staged aggregation, and start_session only when independent persistent conversations or ongoing human follow-up are useful. Follow the active ultracode policy when present; linked sessions are not a prerequisite for workflow."} Choose the smallest sufficient number yourself. Query list_session_models before choosing provider/model, and give a short task/model rationale. Unknown prices or capabilities are not facts; using the current model is valid when alternatives have no demonstrated advantage. Use a complete fresh brief by default; fork only when completed history is needed. Give each child a concise deliverable with file evidence. Keep detailed subreports in their own conversations; the parent should produce a compact prioritized synthesis rather than copying every report again. Give parallel code writers separate existing worktrees and explicit cwd; never let them edit the same files concurrently. create_worktree changes the calling session's directory: record the delivery checkout and base commit first, return there before creating EACH worktree from that same base, then return before dispatching workers. Include only explicitly selected ignored configuration; do not implicitly copy credentials or uncommitted source changes. Review and integrate worker changes into the delivery checkout before final acceptance; branch-only work is not delivered work. Read or wait_for_sessions to collect all required results before final synthesis; if a child failed, report it and recover deliberately. Do not ask the user to open a manager or manually create sessions. You are the sole coordinator of this task family. Create all new workers as direct children and collect their actual results. Workers request more help from you rather than creating grandchildren. Child completion notifications resume you automatically.`;
       },
     }),
@@ -1246,7 +1301,7 @@ export async function apply(ctx) {
           text: task
             ? "任务已交给主会话，分工数量与模型由它选择。子会话只执行分配的任务，需要更多分工时向主会话请求。可在协作进度查看。"
             : value === "on"
-              ? "主会话协作已开启（尚未提交新任务）。请回主会话描述任务，或输入 /collaborate 任务内容。Agent 自己决定分工数量和模型。"
+              ? "关联协作已开启（尚未提交新任务）。Ultracode 开启时由 Workflow 编排持久会话；关闭时按原关联分工执行。"
               : value === "auto"
                 ? "已恢复按需模式：简单任务直接处理，可独立推进的工作由 Agent 判断是否分工。"
                 : "已暂停新增关联子会话；普通 subagent 和 workflow 不受此开关影响。已有关联任务可在协作进度中单独停止或全部停止。",

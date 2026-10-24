@@ -1298,3 +1298,40 @@ nativeTest('public delegation intent follows family policy without changing stor
   await f.service.policy({sessionId:'root',enabled:true,requested:false});
   assert.equal(f.service.delegationMode('root'), 'auto');
 });
+
+nativeTest('workflow linked workers return once without waking parent and retain their history', async () => {
+  const f=fixture(); let listener, released=false;
+  f.ctx.on=(name,fn)=>{assert.equal(name,'session/event');listener=fn;return ()=>{released=true;};};
+  const run=await f.service.startWorkflowChild({parent:f.agents.get('root'),prompt:'Read evidence',title:'stage',signal:new AbortController().signal});
+  assert.equal(f.domain.state.links[run.childId].wakeParent,false);
+  const child=f.agents.get(run.childId);
+  child.session.append('assistant/message',{message:{content:[{type:'text',text:'verified'}]}});
+  listener(child.session,{type:'turn/end',data:{reason:{kind:'completed'}}});
+  assert.equal((await run.result).output[0].text,'verified');
+  await run.dispose();
+  assert.equal(child.cancelled,undefined,'Settled persistent worker must not be stopped on release');
+  assert(released);assert(f.domain.state.links[run.childId]);
+  assert(!f.deliveries.some(row=>row.sessionId==='root'),'Workflow completion must not enqueue a duplicate parent turn');
+});
+
+nativeTest('workflow cancellation stops and joins the linked worker without erasing it', async () => {
+  const f=fixture();f.ctx.on=()=>()=>{};
+  const controller=new AbortController();
+  const run=await f.service.startWorkflowChild({parent:f.agents.get('root'),prompt:'Do work',title:'stage',signal:controller.signal});
+  controller.abort();
+  assert.equal((await run.result).stopReason,'cancelled');
+  await run.dispose();
+  assert(f.agents.get(run.childId).cancelled);
+  assert(f.domain.state.stopped[run.childId]);
+  assert(f.domain.state.links[run.childId]);
+});
+
+
+nativeTest('linked cleanup failure propagates even after cancellation settles the model', async () => {
+ const f=fixture();f.ctx.on=()=>()=>{};
+ const run=await f.service.startWorkflowChild({parent:f.agents.get('root'),prompt:'work',title:'stage',signal:new AbortController().signal});
+ f.service.stop=async()=>{throw new Error('storage failure');};
+ await assert.rejects(run.dispose(),/storage failure/);
+ assert(f.agents.get(run.childId).cancelled);
+ await assert.rejects(run.dispose(),/storage failure/);
+});

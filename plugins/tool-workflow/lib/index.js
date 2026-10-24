@@ -137,6 +137,7 @@ var SIZE_THRESHOLDS = {
 };
 function startExtras(args, guideline) {
   return {
+    ...args.worker_mode === void 0 ? {} : { workerMode: args.worker_mode },
     ...args.resume_from_run_id === void 0 ? {} : { resumeFromRunId: args.resume_from_run_id },
     ...args.budget_tokens === void 0 ? {} : { maxTokens: args.budget_tokens },
     ...args.budget_ms === void 0 ? {} : { maxDurationMs: args.budget_ms },
@@ -246,7 +247,7 @@ function apply(ctx, config) {
   ctx.systemPrompt.section({
     name: `tool:${toolName}`,
     order: ctx.systemPrompt.getSectionOrder("TOOL_WORKFLOW"),
-    text: `Use the ${toolName} tool ONLY when the user explicitly asks for a workflow or for large multi-agent orchestration: you write a JavaScript script (the tool description documents the exact format) that fans work out across many subagents with phases and structured results. For one or two delegations, prefer plain subagent calls.`
+    text: `When Ultracode is enabled, substantive tasks MUST use ${toolName}. Otherwise use it for explicit workflows or substantial orchestration: you write a JavaScript script (the tool description documents the exact format) that fans work out across many subagents with phases and structured results. With Ultracode off, one or two delegations may use plain subagent calls. With Ultracode on, use agent() inside this workflow. /collaborate on selects linked workers within this workflow, never a competing dispatch path.`
   });
   ctx.tools.register(defineTool({
     name: toolName,
@@ -254,6 +255,11 @@ function apply(ctx, config) {
 
 ${sizeGuidelineText(sizeGuideline)}`,
     parameters: {
+      worker_mode: {
+        type: "string",
+        enum: ["subagent", "linked"],
+        description: "Worker lifecycle: subagent by default, linked for persistent followable conversations. With Ultracode on, /collaborate on requires linked and off refuses linked. Linked agent() calls return text and must omit schema. All Ultracode workers run serially in the existing engine."
+      },
       script: {
         type: "string",
         required: true,

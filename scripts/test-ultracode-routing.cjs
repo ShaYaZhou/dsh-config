@@ -7,8 +7,8 @@ const {withAgentTestHomeLock} = require('./test-home.cjs');
 
 // Real-model acceptance: prompts describe user needs, never select delegation tools.
 const cases = [
-  {name:'isolated', route:'subagent', task:'检查 service.log 中唯一一次失败，给我事件 ID 和原因。日志检索是一个很小、独立的旁支，请隔离它产生的大量上下文，只把简短结论带回当前对话；不需要保留可独立追问的长期对话。不要修改文件。'},
-  {name:'persistent', route:'linked', task:'分别调查 api.txt 和 ui.txt 的问题。这两个方向我之后会分别追问，请为我保留两个可独立打开、继续对话的调查分支。现在完成各自调查，并在这里汇总两个证据 ID；不要修改文件。'},
+  {name:'isolated', route:'workflow', task:'检查 service.log 中唯一一次失败，给我事件 ID 和原因。日志检索是一个很小、独立的旁支，请隔离它产生的大量上下文，只把简短结论带回当前对话；不需要保留可独立追问的长期对话。不要修改文件。'},
+  {name:'persistent', route:'workflow', task:'分别调查 api.txt 和 ui.txt 的问题。这两个方向我之后会分别追问，请为我保留两个可独立打开、继续对话的调查分支。现在完成各自调查，并在这里汇总两个证据 ID；不要修改文件。'},
   {name:'staged', route:'workflow', task:'完成一个分阶段的批量处理任务：先分别核对 alpha.json 和 beta.json 的记录，各自把 count 增加 1；随后由独立检查核实两项结果，汇总证据 ID 与最终数值。每项增量只执行一次，不需要长期保留可追问的调查对话。'},
   {name:'shared', route:null, task:'shared.json 中 alpha 和 beta 是两个独立的待处理业务项，请分别调查各自 evidence，然后各把 count 增加 1，最后独立复核两项结果。注意它们实际保存在同一个文件。每项增量只执行一次，保留文件中所有其他字段，报告最终数值和证据 ID。'},
 ];
@@ -127,15 +127,9 @@ async function main() {
         assert(!rows.some(row=>forbidden.includes(row.name)), 'Unobserved mutation channel used');
         for(const name of ['AGENTS.md','service.log','api.txt','ui.txt']) assert.equal(fs.readFileSync(path.join(cwd,name),'utf8'),fixtures[name]);
         const writes=rows.filter(row=>row.name==='write');
-        if(scenario.name==='isolated') {
-          assert.equal(parentCalls.filter(row=>['subagent','subagent_fork'].includes(row.name)).length,1,'Repeated isolated assignment');
-          const children=activations.filter(row=>row.parentId===agent.id);
-          assert.equal(children.length,1);
-          assert.equal(children[0].stopReason,'completed');
-        }
         if(scenario.name==='persistent') {
-          assert.equal(parentCalls.filter(row=>row.name==='start_session').length,2,'Repeated persistent assignment');
-          assert.equal(links.length,2,'Linked sessions did not actually start');
+          assert.equal(parentCalls.filter(row=>row.name==='start_session').length,0,'Coordinator bypassed workflow');
+          assert(links.length>=2,'Persistent workflow stages did not actually start');
           assert(links.every(row=>row.parentId===agent.id&&row.status==='completed'),'Linked sessions did not complete');
         }
         if(['isolated','persistent'].includes(scenario.name)) {
