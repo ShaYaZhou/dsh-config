@@ -81,6 +81,8 @@ rtk proxy node scripts/harness.mjs status
 
 ## 如何维护
 
+Ponytail 已随仓库部署为 DSH 技能，用于减少过度设计并优先复用原生能力；官方仓库是 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)。安装路径、使用方式和更新边界见 [Ponytail 安装与使用](docs/SKILLS-ALIGNMENT.md#221-ponytail-安装与使用)。
+
 | 内容 | 版本控制位置 |
 |---|---|
 | 原生能力补丁与浏览器操作指引 | `modules/` |
