@@ -672,6 +672,15 @@ nativeTest(
   },
 );
 
+nativeTest('reasoning-only overrides apply locally without replacing the inherited model',async()=>{
+  const f=fixture();
+  const child=await f.service.start({sessionId:'root',title:'Bounded task',context:'fresh',reasoningEffort:'medium'});
+  assert.equal(child.selection.model,'current');
+  assert.equal(child.selection.reasoningEffort,'medium');
+  assert.equal(f.agents.get('root').options.reasoningEffort,undefined);
+  assert.equal(f.agents.get(child.sessionId).session.permission,'workspace-write');
+});
+
 nativeTest(
   "automatic delegation defaults on and a user pause prevents model-created children",
   async () => {

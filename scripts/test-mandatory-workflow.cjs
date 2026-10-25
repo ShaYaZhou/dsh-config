@@ -15,6 +15,8 @@ async function collectUsage(ctx, ids) {
       const history=await ctx.sessionController.inspect(sessionId);
       const usage=observed.projections?.values.tokenUsage??{};
       const row={sessionId,...usage,stats:observed.projections?.values.sessionStats,
+        requestedEfforts:[...new Set(history.events.filter(event=>event.type==='request/header')
+          .map(event=>event.data.header?.config?.reasoningEffort).filter(Boolean))],
         modelSteps:history.events.filter(event=>event.type==='step/start').length,
         toolCalls:history.events.filter(event=>event.type==='tool/call').length,
         ptcDispatches:history.events.filter(event=>event.type==='tool/ptc-dispatch').length};
@@ -29,7 +31,19 @@ function verifyWeb(rows, file, parentId, url) {
   const html=fs.readFileSync(file,'utf8');
   assert.match(html,/SYNTHETIC-4D-731/);assert.match(html,/<(?:canvas|svg)\b/i);
   const writes=rows.filter(row=>row.mutation);
-  assert(writes.length>0);assert(writes.every(row=>['write','edit'].includes(row.name)));
+  assert(writes.length>0);
+  // Execution-boundary safety, not prompt rules: mutations stay inside the case sandbox, conflicting
+  // writers never overlap, and nothing is written after the workflow settled. Whether a writer used a
+  // native write/edit or a shell command is recorded, not asserted.
+  for(const row of writes) {
+    assert.equal(path.resolve(row.policy.workspaceRoot),path.resolve(path.dirname(file)),'Mutation outside the case workspace');
+    if(typeof row.args?.file_path==='string')
+      assert(path.resolve(row.policy.workspaceRoot,row.args.file_path).startsWith(path.resolve(row.policy.workspaceRoot)+path.sep),'Write escaped the workspace root');
+  }
+  for(const [index,row] of writes.entries()) for(const other of writes.slice(index+1))
+    assert(!(row.start<other.end&&other.start<row.end),'Conflicting writers overlapped');
+  const settled=Math.max(...rows.filter(row=>['workflow','job_output'].includes(row.name)).map(row=>row.end??row.start));
+  assert(writes.every(row=>row.start<=settled),'Write after the workflow settled');
   for(const row of rows.filter(row=>['write','edit'].includes(row.name)&&!row.isError&&typeof row.args.file_path==='string')) {
     if(path.resolve(row.policy.workspaceRoot,row.args.file_path)===file)assert(row.mutation,'Repeated or no-op write to the deliverable');
   }
@@ -52,7 +66,9 @@ function verifyWeb(rows, file, parentId, url) {
   assert(finalReview.some(row=>row.name==='mcp__playwright__browser_navigate'&&row.args.url===url),'Independent reviewer did not open the actual final page');
   assert(finalReview.some(row=>row.name==='mcp__playwright__browser_console_messages'),'Final console check missing');
   assert(review.some(row=>row.name==='mcp__playwright__browser_resize'&&row.args.width<=500),'Mobile viewport not checked');
-  assert(review.some(row=>['mcp__playwright__browser_click','mcp__playwright__browser_press_key','mcp__playwright__browser_fill_form'].includes(row.name)||
+  assert(review.some(row=>['mcp__playwright__browser_click','mcp__playwright__browser_mouse_click_xy',
+    'mcp__playwright__browser_press_key','mcp__playwright__browser_fill_form',
+    'mcp__playwright__browser_type','mcp__playwright__browser_select_option','mcp__playwright__browser_drag'].includes(row.name)||
     row.name==='mcp__playwright__browser_evaluate'&&/dispatchEvent|\.click\(|\.value\s*=/.test(row.args.function)),'No actual independent control interaction');
   const lastFlow=rows.findLast(row=>row.name==='workflow');
   let final=lastFlow?.workflowResult?.result;
@@ -71,7 +87,7 @@ function verifyWeb(rows, file, parentId, url) {
     assert.notEqual(final.acceptance?.pass,false,'Independent acceptance failed');
     assert.notEqual(final.acceptance?.accepted,false,'Independent acceptance failed');
   }
-  return {writers:owners,mutations:writes.length};
+  return {writers:owners,mutations:writes.length,shellWriters:[...new Set(writes.filter(row=>!['write','edit'].includes(row.name)).map(row=>row.name))]};
 }
 
 async function main() {
@@ -159,7 +175,7 @@ async function main() {
         const {agent}=await ctx.sessionController.resolveAgent(made.sessionId);
         ctx.permissionPresets.set(agent.session,'workspace-write');
         current={name,preset,cwd,file,sessionId:agent.id,openEnded:process.env.DSH_OPEN_WEB==='1'};save();
-        const signal=AbortSignal.timeout(1800000);
+        const signal=AbortSignal.timeout(Number(process.env.DSH_ACCEPTANCE_TIMEOUT_MS??1800000));
         for(const command of ['/ultracode on',name==='linked'||name==='smoke'?'/collaborate on':'/collaborate auto'])
           assert.equal((await ctx.commands.execute(agent,command,[],signal)).result.kind,'success');
         assert.equal(agent.ctx.tools.modeFor(agent),preset==='ptc'?'ptc':'native');

@@ -48,7 +48,7 @@ export async function resolveSessionModel(ctx, parent, request) {
           ? { reasoningEffort: request.reasoningEffort }
           : {}),
       }
-    : inherited;
+    : {...inherited, ...(request.reasoningEffort ? {reasoningEffort: request.reasoningEffort} : {})};
   const models = await ctx.llm.listModels(candidate.provider);
   if (!models.some((model) => model.id === candidate.model))
     throw new Error("所选模型未在当前宿主配置，请先查询 list_session_models");

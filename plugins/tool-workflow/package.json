@@ -43,7 +43,11 @@
       "sizeGuideline config states the expected agent scale in the tool description and forwards the matching warning threshold to the engine.",
       "resume_from_run_id, budget_tokens, and budget_ms parameters forwarded to the engine on both foreground and background starts.",
       "Honor mandatory Ultracode orchestration, remove contradictory explicit-only guidance, and expose worker_mode for ordinary or persistent linked workers.",
-      "PTC workflows default to existing native background jobs even with a dispatch budget; retain explicit short foreground calls and collect completion rather than extending run_code timeouts."
+      "PTC workflows default to existing native background jobs even with a dispatch budget; retain explicit short foreground calls and collect completion rather than extending run_code timeouts.",
+      "Describe native per-worker reasoning effort, one independent acceptance owner with batched page observations, same-script chaining for already-determined stages, single start/collect dispatch, and one bounded retry for an empty read-only result while retaining full acceptance coverage.",
+      "Keep a PTC foreground workflow in its native background job so a transport-deadline abort returns the jobId instead of cancelling completed work; short calls still return inline.",
+      "Document the browser_evaluate promise bound and the authoring-error diagnosis for a script that throws before its first agent.",
+      "Describe the cwd option as a coordinator-prepared native worktree; workers must not create worktrees with git."
     ]
   }
 }

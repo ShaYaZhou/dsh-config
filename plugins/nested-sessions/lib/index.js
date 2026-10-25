@@ -677,11 +677,11 @@ export class NestedSessions extends TypertRemoteService {
     });
   }
   /** Workflow-owned activation of a persistent conversation; no second scheduler. */
-  async startWorkflowChild({parent, prompt, title, provider, model, cwd, prepare, signal}) {
+  async startWorkflowChild({parent, prompt, title, provider, model, reasoningEffort, cwd, prepare, signal}) {
     signal?.throwIfAborted();
     if (!this.automatic(parent.id)) throw new Error("Linked sessions are disabled");
     const created = await this.start({sessionId:parent.id, title, context:"fresh", wakeParent:false, ...(cwd ? {cwd} : {}),
-      ...(provider ? {provider} : {}), ...(model ? {model} : {})});
+      ...(provider ? {provider} : {}), ...(model ? {model} : {}), ...(reasoningEffort ? {reasoningEffort} : {})});
     const child = await this.agent(created.sessionId);
     await prepare?.(child);
     let ended = false, settle;

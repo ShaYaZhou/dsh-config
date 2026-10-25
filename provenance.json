@@ -176,7 +176,8 @@
           "Inline subagent entry in the main transcript: the native subagent/subagent_fork tool call renders its description, live child status and buttons that open the child beside the conversation or in the main view, resolving the child id from the tool result and reusing native subagent chat resources.",
           "Expose linked delegation intent through a public read-only method and clarify orchestration preference precedence.",
           "Expose a workflow-owned linked-session activation with retained history, caller-owned result delivery, cancellation joining and no duplicate parent wakeups.",
-          "Workflow-owned fresh sessions accept a prepared cwd and pre-prompt capability validation without changing inherited permissions."
+          "Workflow-owned fresh sessions accept a prepared cwd and pre-prompt capability validation without changing inherited permissions.",
+          "Honor reasoning-only overrides on the inherited model, including Workflow-owned linked sessions, without changing parent selections."
         ]
       }
     },
@@ -211,7 +212,9 @@
           "Fail-closed v2 journals bind execution identity, claim one successor, persist stop/failure locks, retain replayed checkpoints and wait for cleanup. Writable schema failures are not automatically retried.",
           "Preserve configured parallelism; enforce overlapping writable-root and shared-browser admission, retain uncertain leases, use native read-only workers and fresh linked sessions for genuinely isolated cwd; bind per-call execution capabilities to replay.",
           "Confine the orchestration process to the native read-only sandbox independently of admitted worker permissions; node:vm is not a filesystem security boundary.",
-          "Retain a failed writable result's directory lease until the current script settles, rejecting replacement writers without blocking unrelated isolated work."
+          "Retain a failed writable result's directory lease until the current script settles, rejecting replacement writers without blocking unrelated isolated work.",
+          "Forward optional per-worker reasoning_effort through native subagent and linked-session model options, and bind it to checkpoint replay without changing parent preferences or permissions.",
+          "Fail a script that throws before its first agent with an authoring-error hint instead of an engine-defect signal."
         ]
       }
     },
@@ -232,7 +235,11 @@
           "Expose recovery run IDs on failures and cancellations, reusing native jobs and workflow records.",
           "Honor mandatory Ultracode orchestration, remove contradictory explicit-only guidance, and expose worker_mode for ordinary or persistent linked workers.",
           "Document per-agent readonly, cwd, persistence and browser options without forcing every phase into a persistent session.",
-          "PTC workflows default to existing native background jobs even with a dispatch budget; retain explicit short foreground calls and collect completion rather than extending run_code timeouts."
+          "PTC workflows default to existing native background jobs even with a dispatch budget; retain explicit short foreground calls and collect completion rather than extending run_code timeouts.",
+          "Describe native per-worker reasoning effort, one independent acceptance owner with batched page observations, same-script chaining for already-determined stages, single start/collect dispatch, and one bounded retry for an empty read-only result while retaining full acceptance coverage.",
+          "Keep a PTC foreground workflow in its native background job so a transport-deadline abort returns the jobId instead of cancelling completed work; short calls still return inline.",
+          "Document the browser_evaluate promise bound and the authoring-error diagnosis for a script that throws before its first agent.",
+          "Describe the cwd option as a coordinator-prepared native worktree; workers must not create worktrees with git."
         ]
       }
     },

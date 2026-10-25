@@ -177,7 +177,7 @@ async function main() {
         assert.equal(preference.result.kind, "success");
         const mixed = await run(
           "mixed-executors",
-          "return await parallel([()=>agent('Read evidence.txt and return the number.',{read_only:true,session:'subagent'}),()=>agent('Read evidence.txt and return twice the number.',{read_only:true,session:'linked'})]);",
+          "return await parallel([()=>agent('Read evidence.txt and return the number.',{read_only:true,session:'subagent',reasoning_effort:'medium'}),()=>agent('Read evidence.txt and return twice the number.',{read_only:true,session:'linked',reasoning_effort:'medium'})]);",
         );
         const family = (
           await ctx.get("nestedSessions").list({ sessionId: parent.id })
@@ -188,6 +188,12 @@ async function main() {
           "Temporary stages became persistent sessions",
         );
         assert.equal(family[0].wakeParent, false);
+        for (const child of timeline.filter(event => event.runId === mixed.runId && event.type === "start")) {
+          const history = await ctx.sessionController.inspect(child.childId);
+          const headers = history.events.filter(event => event.type === "request/header");
+          assert(headers.length > 0);
+          assert(headers.every(event => event.data.header.config.reasoningEffort === "medium"), "Native worker ignored reasoning_effort");
+        }
         const starts = timeline.filter(
           (e) => e.runId === mixed.runId && e.type === "start",
         );

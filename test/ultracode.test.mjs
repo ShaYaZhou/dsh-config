@@ -162,6 +162,28 @@ test('Ultracode guard blocks direct execution and permits read-only preparation 
  assert.equal(off.guard({agent:{session:off.session},name:'write'}),undefined);
 });
 
+test('browser_evaluate cannot return an unraced promise that hangs the call', () => {
+ const f=fixture({state:{active:true}}),agent={id:'worker',session:{...f.session,header:{origin:'subagent'}}};
+ f.ctx.createdService.registerWorker(agent.id,{readOnly:false,browser:true});
+ const get=f.ctx.get;
+ f.ctx.get=name=>name==='sandboxPolicy'?{resolve:()=>({mode:'workspace-write'})}:get(name);
+ const evaluate=code=>f.guard({agent,name:'mcp__playwright__browser_evaluate',arguments:{function:code}});
+ assert.match(evaluate('() => new Promise(r => setTimeout(r, 500))'),/bound every wait/);
+ assert.equal(evaluate('() => Promise.race([load(), new Promise(r => setTimeout(r, 500))])'),undefined);
+ assert.equal(evaluate('() => document.title'),undefined);
+});
+
+test('workers cannot create checkouts with git instead of the native worktree tool', () => {
+ const f=fixture({state:{active:true}}),agent={id:'writer',session:{...f.session,header:{origin:'subagent'}}};
+ f.ctx.createdService.registerWorker(agent.id,{readOnly:false,browser:false});
+ const get=f.ctx.get;
+ f.ctx.get=name=>name==='sandboxPolicy'?{resolve:()=>({mode:'workspace-write'})}:get(name);
+ const bash=command=>f.guard({agent,name:'bash',arguments:{command}});
+ assert.match(bash('git worktree add .worktrees/area feature-a'),/native create_worktree/);
+ assert.equal(bash('git worktree list --porcelain'),undefined);
+ assert.equal(bash('git commit -am done'),undefined);
+});
+
 test('PTC envelope accepts JSON only and never permits raw code or nested expressions', () => {
  const f=fixture({state:{active:true}}),agent={session:f.session};
  assert.equal(f.guard({agent,name:'run_code',arguments:{code:'console.log(await tools.workflow({"script":"return 1","meta":{"name":"x"}}));'}}),undefined);

@@ -38,8 +38,8 @@ async function main() {
   const project =
     previous?.project ?? path.join(output, "project-" + Date.now());
   assert.equal(
-    path.dirname(path.resolve(project)),
-    output,
+    fs.realpathSync(path.dirname(path.resolve(project))),
+    fs.realpathSync(output),
     "Resume only this synthetic fixture",
   );
   fs.mkdirSync(path.join(project, "src"), { recursive: true });
@@ -217,10 +217,11 @@ console.log('WORKTREE_INTEGRATION_ACCEPTANCE_PASS');
       calls.push({
         agentId: exec.agent?.id,
         name: exec.name,
+        startedAt: Date.now(),
         ...(["create_worktree", "start_session"].includes(exec.name)
           ? { arguments: exec.arguments }
           : {}),
-        ...(exec.agent?.id === parent.id && ["pwsh", "bash"].includes(exec.name)
+        ...(["pwsh", "bash"].includes(exec.name)
           ? { command: JSON.stringify(exec.arguments) }
           : {}),
       });
@@ -251,7 +252,7 @@ console.log('WORKTREE_INTEGRATION_ACCEPTANCE_PASS');
             startedAt,
             command: JSON.stringify(exec.arguments),
           });
-        else mutations.push({ ...change, tool: exec.name });
+        else mutations.push({ ...change, tool: exec.name, startedAt });
       }
       return outcome;
     });
@@ -280,13 +281,13 @@ console.log('WORKTREE_INTEGRATION_ACCEPTANCE_PASS');
         };
         if (exec.agent?.id === parent.id)
           parentShellChanges.push({ ...mutation, startedAt: Date.now() });
-        else mutations.push(mutation);
+        else mutations.push({ ...mutation, startedAt: Date.now() });
       }
     });
     const task = `并行修复 src/area.mjs 的 area（返回 width*height）和 src/temperature.mjs 的 fahrenheit（返回 c*9/5+32），保留导出。两个实现应独立推进，由你自行选择模型与分工。
-使用独立 Git worktree 和嵌套会话，交付工作区是 ${project}；主会话不得代替实现者编写源码，仅负责审阅和整合。每个实现者只改分配的 src 文件，在自己的分支提交本地 commit 并回报 SHA；不用推送。
+使用独立 Git worktree 和嵌套会话，交付工作区是 ${project}；主会话不得代替实现者编写源码，仅负责审阅和整合。每个实现者只改分配的 src 文件。每个分支必须有一个只包含该分配文件的本地 commit；worktree 的 git 元数据在该 checkout 之外，实现者本身无法提交，可由协调者或以仓库根为 cwd 的执行者代为提交并回报 SHA；不用推送。
 只将源目录忽略文件 fixture.config.json 显式复制到每个写入者 worktree，保留原样；其他忽略文件不带入，尤其不读取或复制 excluded.private。不要覆盖源目录的未提交 local-note.txt。
-收集实际结果后检查每个 commit 的 diff，再由主会话整合回源 checkout（优先 cherry-pick），整合提交须对应实现者的实际补丁，运行原样的 node acceptance.mjs，最后写 integration.md 说明分支、实际并发、整合的 SHA 和验收结果。保持验收文件与 AGENTS.md 原样。工作区与分支保留；不要 reset、clean、删除目录或自行做回滚。主会话须等全部任务结束后再报告。`;
+收集实际结果后检查每个 commit 的 diff，并在最终回报里贴出每个 commit 的补丁原文（git show --format= --no-ext-diff --no-textconv 的输出），再由主会话整合回源 checkout（优先 cherry-pick），整合提交须对应实现者的实际补丁，运行原样的 node acceptance.mjs，最后写 integration.md 说明分支、实际并发、整合的 SHA 和验收结果。保持验收文件与 AGENTS.md 原样。工作区与分支保留；不要 reset、clean、删除目录或自行做回滚。主会话须等全部任务结束后再报告。`;
     const signal = AbortSignal.timeout(900000);
     if (!previous) {
       await ctx.sessionController.prompt(
@@ -485,8 +486,17 @@ console.log('WORKTREE_INTEGRATION_ACCEPTANCE_PASS');
         ],
         writer.cwd,
       ).replaceAll("\r\n", "\n");
+      // Workflow return values are JSON, so a worker's patch arrives with escaped
+      // newlines inside the coordinator's tool result. Unescape before matching.
+      const unescaped = (text) =>
+        text
+          .replaceAll("\\n", "\n")
+          .replaceAll("\\t", "\t")
+          .replaceAll('\\"', '"');
       assert(
-        reviews.some((text) => text.includes(patch)),
+        reviews.some(
+          (text) => text.includes(patch) || unescaped(text).includes(patch),
+        ),
         "A worker patch was not returned to the coordinator for review",
       );
       assert.equal(
@@ -495,8 +505,38 @@ console.log('WORKTREE_INTEGRATION_ACCEPTANCE_PASS');
         "Worker left uncommitted tracked changes",
       );
     }
+    // Under mandatory workflow the coordinator integrates through a delegated worker, so a
+    // non-writer may replay a writer's exact change into the delivery checkout after that
+    // writer finished. Anything else is still an independent edit of implementation sources.
+    const sourceRelative = (file) => {
+      const absolute = path.resolve(file);
+      let best = null;
+      for (const cwd of [
+        project,
+        ...worktrees.map((tree) => tree.path),
+        ...checkouts,
+      ]) {
+        const relative = path.relative(path.resolve(cwd), absolute);
+        if (relative.startsWith("..") || path.isAbsolute(relative)) continue;
+        if (best === null || relative.length < best.length) best = relative;
+      }
+      return best ?? absolute;
+    };
+    const integrationEcho = (change) =>
+      mutations.some(
+        (source) =>
+          source !== change &&
+          writerIds.has(source.agentId) &&
+          sourceRelative(source.file) === sourceRelative(change.file) &&
+          source.before === change.before &&
+          source.after === change.after &&
+          source.startedAt <= change.startedAt,
+      );
+    const unauthorized = mutations.filter(
+      (change) => !writerIds.has(change.agentId) && !integrationEcho(change),
+    );
     assert(
-      mutations.every((change) => writerIds.has(change.agentId)),
+      unauthorized.length === 0,
       "A non-writer directly edited implementation sources",
     );
     for (const change of parentShellChanges) {
@@ -532,12 +572,20 @@ console.log('WORKTREE_INTEGRATION_ACCEPTANCE_PASS');
         "Coordinator shell changed implementation outside integration",
       );
     }
-    const parentCommands = calls
-      .filter((call) => call.agentId === parent.id)
-      .map((call) => call.command ?? "")
-      .join("\n");
+    // Under mandatory workflow the integrated acceptance is delegated to a worker, so it only
+    // has to run after the final integration write, not by the parent itself.
+    const lastIntegrationWrite = Math.max(
+      0,
+      ...mutations
+        .filter((change) => !writerIds.has(change.agentId))
+        .map((change) => change.startedAt ?? 0),
+    );
     assert(
-      /acceptance\.mjs/.test(parentCommands),
+      calls.some(
+        (call) =>
+          /acceptance\.mjs/.test(call.command ?? "") &&
+          (call.startedAt ?? 0) >= lastIntegrationWrite,
+      ),
       "Coordinator did not run integrated acceptance",
     );
     assert.equal(hash(oracle), oracleHash, "Protected acceptance changed");

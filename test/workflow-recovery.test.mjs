@@ -150,11 +150,11 @@ test('workflow admission allows isolated writers and readers, rejects only overl
  releaseB();releaseRead();nextA();releaseBrowser();assert.equal(engine.resourceClaims.size,0);
 });
 test('recovery binds worker directory, readonly mode, persistence and browser claim',t=>{
- for(const field of ['cwd','read_only','session','browser']) {
+ for(const field of ['cwd','read_only','session','browser','reasoning_effort']) {
   const {create}=fixture(t);const a=create();
-  const req={...request,cwd:'/fixture/tree',read_only:true,session:'subagent',browser:false};
+  const req={...request,cwd:'/fixture/tree',read_only:true,session:'subagent',browser:false,reasoning_effort:'medium'};
   a.j.recordIntent(req,'spawn');a.j.recordCall(req,'spawn','child');a.j.recordResult(1,{output:[],stopReason:'completed'});a.j.finish({stopReason:'completed'});
-  const b=create(header,a.id);assert.throws(()=>b.j.takeReplay({...req,[field]:field==='cwd'?'/elsewhere':field==='session'?'linked':!req[field]},'spawn'),/changed/);b.j.finish({stopReason:'error'});
+  const b=create(header,a.id);assert.throws(()=>b.j.takeReplay({...req,[field]:field==='cwd'?'/elsewhere':field==='session'?'linked':field==='reasoning_effort'?'high':!req[field]},'spawn'),/changed/);b.j.finish({stopReason:'error'});
  }
 });
 
