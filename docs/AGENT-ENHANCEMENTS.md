@@ -156,15 +156,15 @@ DSH 原生已经给消息里的文件提及着色（`--dsw-alias-link`），悬�
 
 `plugins/file-links` 在客户端包装原生 `chatFileMentions.forClosing`：先交给原生解析，未命中时用保守的语法判定识别 `src/main.ts`、`README.md:42`、`./a/b.c#L7`、盘符开头的绝对路径这类 token，再走同一个 `owner.openFile` 打开侧边栏。含空白、URL、UNC、引号、`and/or`、`3.5`、`e.g` 以及目录名（如 `src/`）的一律保持纯文本。它不注册第二个服务，也不改样式，因此观感与原生的文件 chip 一致。
 
-限制：路径是否存在要点击后由预览确认，缺失文件显示原生预览错误；绝对路径与相对路径都按当前会话 cwd 解析。该行为依赖宿主 0.2.1-rc.2 的内部接口形状，升级 Harness 后必须重新验收。
+限制：路径是否存在要点击后由预览确认，缺失文件显示原生预览错误；绝对路径与相对路径都按当前会话 cwd 解析。该行为依赖宿主内部接口形状（0.2.1-rc.3 已复核 `client-ui-chat` 未变），升级 Harness 后必须重新验收。
 
 ## 会话内可视化与 ultracode 开关
 
-模型做交互 UI 时不再写 `.html` 交付文件。`plugins/dynamic-ui-view` 注册 `render_widget`（`html` 片段、`title`、`height`），客户端按 wire 名挂 `tool.call.toolview`，把片段放进 `sandbox="allow-scripts allow-forms"` 的 iframe：没有 `allow-same-origin`，片段读不到父文档、存储或原生 API；文档壳再加 CSP `default-src 'none'`、`style-src`/`script-src 'unsafe-inline'`、`img-src data: blob:`、`connect-src 'none'`，禁掉全部网络。片段上限 200000 字符，`height` 只作为初始帧高夹在 200–900；带 `<!doctype>`/`<html>`/`<body>` 的整页会被拒绝，模型据错误重试。卡片高度最终由内容决定：文档壳在片段后追加一段内联脚本，用 `ResizeObserver` 量 `body.scrollHeight` 并 `postMessage` 上报，父文档只接受来自该帧的消息，夹在 200–2400 后设给 iframe，因此内容不会被固定高度裁掉；极长内容超过 2400 时仍由外层滚动。`skills/dynamic-ui` 的通道 1 已改用它，写文件交付降为兜底。宿主会把完成的工具调用折进 `hidden="until-found"`（先是「已完成，用时…」，再是「已调用工具」两级）。`tool.call.toolview` 槽位在工具调用节点内部，卡片必然跟着折叠，所以客户端改为搬出去渲染：卡片旁留一个隐藏锚点，挂载后用 `MutationObserver` 监听 `hidden` 属性、`childList` 与子树变化，沿祖先找最外层折叠分组，把 `.dyn-widget-host` 容器插到该分组之后，再用 `createPortal` 把卡片渲染进去——分组保持原生折叠，卡片独立完整显示。锚点不在折叠区时收回容器、卡片退回槽位内联；宿主重建节点导致容器脱落时下一次 DOM 变化会重新插入。工具描述同时要求片段不要自带固定高度加 `overflow` 的滚动容器，高度一律交给卡片按内容撑开，不再依赖用户提醒。这段 DOM 适配只在客户端单点实现，固定宿主 0.2.1-rc.2，升级须重验。
+模型做交互 UI 时不再写 `.html` 交付文件。`plugins/dynamic-ui-view` 注册 `render_widget`（`html` 片段、`title`、`height`），客户端按 wire 名挂 `tool.call.toolview`，把片段放进 `sandbox="allow-scripts allow-forms"` 的 iframe：没有 `allow-same-origin`，片段读不到父文档、存储或原生 API；文档壳再加 CSP `default-src 'none'`、`style-src`/`script-src 'unsafe-inline'`、`img-src data: blob:`、`connect-src 'none'`，禁掉全部网络。片段上限 200000 字符，`height` 只作为初始帧高夹在 200–900；带 `<!doctype>`/`<html>`/`<body>` 的整页会被拒绝，模型据错误重试。卡片高度最终由内容决定：文档壳在片段后追加一段内联脚本，用 `ResizeObserver` 量 `body.scrollHeight` 并 `postMessage` 上报，父文档只接受来自该帧的消息，夹在 200–2400 后设给 iframe，因此内容不会被固定高度裁掉；极长内容超过 2400 时仍由外层滚动。`skills/dynamic-ui` 的通道 1 已改用它，写文件交付降为兜底。宿主会把完成的工具调用折进 `hidden="until-found"`（先是「已完成，用时…」，再是「已调用工具」两级）。`tool.call.toolview` 槽位在工具调用节点内部，卡片必然跟着折叠，所以客户端改为搬出去渲染：卡片旁留一个隐藏锚点，挂载后用 `MutationObserver` 监听 `hidden` 属性、`childList` 与子树变化，沿祖先找最外层折叠分组，把 `.dyn-widget-host` 容器插到该分组之后，再用 `createPortal` 把卡片渲染进去——分组保持原生折叠，卡片独立完整显示。锚点不在折叠区时收回容器、卡片退回槽位内联；宿主重建节点导致容器脱落时下一次 DOM 变化会重新插入。工具描述同时要求片段不要自带固定高度加 `overflow` 的滚动容器，高度一律交给卡片按内容撑开，不再依赖用户提醒。这段 DOM 适配只在客户端单点实现，0.2.1-rc.3 已复核工具调用折叠结构（`hidden="until-found"`）未变；升级仍须重验。
 
-`plugins/ultracode-control` 在 composer 工具行、模型选择器左侧放一个 `role="switch"` 药丸。状态读原生 `ultracode` projection；会话还没写过记录（`active: null`）时显示「Harness增强」里的新会话默认值。点击只发送现有 `/ultracode on|off`，切换会像 `/permission` 一样在会话里留下原生命令节点；不新增记录、不复制设置。开启时药丸带缓慢流光与呼吸点，`prefers-reduced-motion: reduce` 下全部静止。
+Ultracode 的入口收敛到 **设置 → Harness增强 → Ultracode** 页签，composer 药丸已从桌面 bundle 列表移除，不再加载。页签里是三个默认关闭的原子开关：强制工作流编排（`ultracodeDefault`，等同于原药丸与 `/ultracode on` 的会话默认值）、协调者只读与工具白名单（`ultracodeCoordinatorLock`）、默认使用关联执行者（`ultracodeLinkedWorkerDefault`）。前一项可在会话内用 `/ultracode on|off` 覆盖，后两项只按设置生效。执行边界（浏览器不能运行服务端代码、`browser_evaluate` 必须有界等待、准入后沙箱不可漂移）与开关解耦，始终生效。
 
-策略段本身只在该 agent 作用域内 `workflow` 工具可见时注入。本部署的 PTC 由安装器复用 standard 的能力配置，仅将工具呈现改成 PTC；因此可在 run_code 内调用 workflow。explore/planner/reviewer 三个只读角色预设没有 delegation 组，minimal 也没有 workflow，这些模式不会收到指向不存在工具的指令。判据取 `ctx.tools.get("workflow", agent)` 的可见性而不是预设名，新增预设无需维护白名单。工具名与 `tool-workflow` 的 `toolName` 配置耦合，模板目前不改它；药丸通过带会话访问检查的 ultracodeState/read 查询实际能力；不支持时显示“不可用”并禁用，查询失败显示“状态未知”，持久关联执行显示“关联执行”，仍保持 Ultracode 生效。
+策略段本身只在该 agent 作用域内 `workflow` 工具可见时注入。本部署的 PTC 由安装器复用 standard 的能力配置，仅将工具呈现改成 PTC；因此可在 run_code 内调用 workflow。explore/planner/reviewer 三个只读角色预设没有 delegation 组，minimal 也没有 workflow，这些模式不会收到指向不存在工具的指令。判据取 `ctx.tools.get("workflow", agent)` 的可见性而不是预设名，新增预设无需维护白名单。工具名与 `tool-workflow` 的 `toolName` 配置耦合，模板目前不改它；`ultracodeState/read` 仍是带会话访问检查的能力查询，设置页与会话命令据此判断“可用/不可用”。
 
 限制：模型弹出菜单（`conversation.input.model`）是 single 槽，宿主只允许一个占用者，无法在其中加行，所以开关放在同一行的左侧而非菜单内；该位置也是会话作用域，每个会话独立。
 
@@ -190,7 +190,7 @@ DSH 原生已经给消息里的文件提及着色（`--dsw-alias-link`），悬�
 - 并发上限保持既有配置。read_only:true 使用原生只读沙箱；独立实现通过 create_worktree({enter:false}) 准备目录，再传给 agent() 的 cwd。原生 rc.2 子代理的 cwd 不改变沙箱根，所以不同 cwd 使用现有关联会话创建路径；显式要求不同 cwd 的普通子代理会被拒绝，不伪称隔离。
 - 同一或包含关系的可写目录只能有一个执行者；browser:true 声明共享浏览器占用。资源冲突在派工前拒绝，独立任务继续，不新增等待队列。清理未确认时保留占用，冷启动执行者没有可沿用的内存写入授权。现有合法通信保留，自动完成通知由 Workflow 统一收取。
 - 编排进程单独使用原生只读沙箱，执行者权限按既有策略继承；JavaScript VM 不充当文件安全边界。写入者失败或缺少结果时，本次脚本保留其目录占用以拒绝自动重派，无关目录仍可工作；停止与恢复继续由既有日志和人工控制命令处理。
-- 状态药丸中的“关联执行”仍表示 Ultracode 生效，不再显示“协作优先”并熄灭。完成条件是实际交付与独立验收，不是启动数量；没有具体失败或新改动时停止追加视觉微调。
+- 完成条件是实际交付与独立验收，不是启动数量；没有具体失败或新改动时停止追加视觉微调。
 
 验收入口：先安装隔离 DSH_HOME，再运行 `node scripts/harness.mjs mandatory-workflow-test --home <隔离目录>`，仅在进程环境注入既有模型凭据。Standard 和 PTC 都包含简单问答、四维概念寓言网页、持久关联执行的网页任务。旧 `orchestration-test` 保留作为轻量回归，PTC 原生沙箱探针在独立会话明确关闭 Ultracode，以分别验证沙箱边界与编排 guard。
 

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 
 const code = fs.readFileSync(new URL('../modules/workflow-command.mjs', import.meta.url), 'utf8')
   .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
-function fixture(available = true, engine, failPrompt = false) {
+function fixture(available = true, engine = {}, failPrompt = false) {
   const sandbox = {randomUUID: () => 'request-test', AbortSignal};
   vm.createContext(sandbox);
   vm.runInContext(code + '\nthis.apply = apply;', sandbox);
@@ -13,6 +13,7 @@ function fixture(available = true, engine, failPrompt = false) {
   let command;
   sandbox.apply({
     workflowEngine: engine,
+    get: name => name === 'workflowEngine' ? engine : undefined,
     effect: fn => fn(),
     commands: {register: value => { command = value; }},
     tools: {get: () => available ? {} : undefined},
@@ -38,6 +39,28 @@ test('unavailable workflow refuses before enqueue', async () => {
   const f = fixture(false);
   assert.equal((await f.run('task')).kind, 'error');
   assert.equal(f.requests.length, 0);
+});
+
+test('missing engine keeps command loadable but refuses every action without dispatch', async () => {
+  assert.doesNotMatch(code, /const inject[^\n]*workflowEngine/);
+  const f = fixture(true, null);
+  for (const input of ['', 'task', 'new task', 'resume 11111111-1111-4111-8111-111111111111', 'stop 11111111-1111-4111-8111-111111111111']) {
+    assert.equal((await f.run(input)).kind, 'error');
+  }
+  assert.equal(f.requests.length, 0);
+});
+
+test('workflow tool registration waits for its optional engine in a disposable scope', () => {
+  const source = fs.readFileSync(new URL('../plugins/tool-workflow/lib/index.js', import.meta.url), 'utf8');
+  const wrapper = source.slice(source.indexOf('function apply(ctx, config) {'), source.indexOf('function applyWithEngine(ctx, config) {'));
+  let callback, applied = 0;
+  const sandbox = {applyWithEngine: (scope, config) => {
+    assert.equal(scope.engineAvailable, true); assert.equal(config.sizeGuideline, 'small'); applied++;
+  }};
+  vm.createContext(sandbox); vm.runInContext(wrapper + '\nthis.install=apply;', sandbox);
+  sandbox.install({inject: (deps, fn) => {assert.equal(deps[0], 'workflowEngine'); callback = fn;}}, {sizeGuideline: 'small'});
+  assert.equal(applied, 0);
+  callback({engineAvailable: true}); assert.equal(applied, 1);
 });
 
 test('resume uses the original owned request and stop never queues model work', async () => {

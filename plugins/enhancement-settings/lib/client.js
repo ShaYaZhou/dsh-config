@@ -6,6 +6,7 @@ window.__ModuleLoader__.load({
     const inject = ['slots', 'configForms', 'remote', 'remote.pluginManager'];
     const PANEL = 'settings.enhancement.panel';
     const OVERVIEW = 'enhancement';
+    const ULTRACODE = 'ultracode';
     // 每个功能对应 profile 里真实的插件条目：开关走原生 pluginManager，
     // 关闭后该条目不再加载，模块内部的运行时判断随之消失。
     const FEATURES = [
@@ -51,8 +52,12 @@ window.__ModuleLoader__.load({
       function Section({close, renderSlot, useTabs}) {
         const snap = React.useSyncExternalStore(listener => form.subscribe(listener), () => form.getSnapshot());
         const pages = useTabs(value => value);
-        // 「Harness增强」本身是第一个页签，其余是各插件的分页。
-        const rows = [{id:OVERVIEW, order:-1, label:'Harness增强'}, ...pages.filter(row => row.id !== OVERVIEW)];
+        // 「Harness增强」是第一个页签，「Ultracode」是内建的第二个页签，其余是各插件的分页。
+        const rows = [
+          {id:OVERVIEW, order:-1, label:'Harness增强'},
+          {id:ULTRACODE, order:0, label:'Ultracode'},
+          ...pages.filter(row => row.id !== OVERVIEW && row.id !== ULTRACODE),
+        ];
         const [activeId, setActiveId] = React.useState();
         const [visited, setVisited] = React.useState(() => new Set([OVERVIEW]));
         const [plugins, setPlugins] = React.useState();
@@ -104,19 +109,43 @@ window.__ModuleLoader__.load({
             disabled: plugins === undefined || busy || rows.some(row => row === undefined || row.readOnlyReason !== undefined),
           };
         };
-        const ultracode = snap.value?.ultracodeDefault ?? snap.base?.ultracodeDefault ?? false;
+        const setting = key => (snap.value?.[key] ?? snap.base?.[key]) === true;
+        const ultracode = setting('ultracodeDefault');
+        const coordinatorLock = setting('ultracodeCoordinatorLock');
+        const linkedWorkers = setting('ultracodeLinkedWorkerDefault');
+        const settingDisabled = snap.status !== 'ready' || !snap.writable || busy;
+        const setSetting = key => next =>
+          void change(() => form.set(key, next), '保存未成功，请重试。');
         const overview = h('div', {role:'tabpanel', hidden:active !== OVERVIEW},
           h('p', {style:{fontSize:13,opacity:0.72,margin:'0 0 14px'}}, '开关直接启用或关闭当前 profile 的插件条目；下次部署会恢复模板默认值。'),
           ...FEATURES.map(([label, description, ids]) =>
             h(Row, {key:label, label, description, ...stateOf(ids), onChange:next => void changePlugins(ids, next)})),
-          h(Row, {
-            label:'新会话默认开启 ultracode',
-            description:'没有显式 /ultracode 记录的会话跟随此默认值；会话内可用 /ultracode on|off 覆盖。',
-            checked:ultracode === true,
-            disabled:snap.status !== 'ready' || !snap.writable || busy,
-            onChange:next => void change(() => form.set('ultracodeDefault', next), '保存未成功，请重试。'),
-          }),
           h('p', {style:{fontSize:13,opacity:0.72}}, '插件开关会触发一次重载；系统提示类改动对新会话生效。'),
+          error && h('p', {role:'alert'}, error));
+        const ultracodePanel = h('div', {role:'tabpanel', hidden:active !== ULTRACODE},
+          h('p', {style:{fontSize:13,opacity:0.72,margin:'0 0 14px'}}, '这里的开关只影响 Ultracode 编排，默认全部关闭；会话内仍可用 /ultracode on|off 单独覆盖第一条。当前模式没有 workflow 工具（如 minimal）时，这些开关不生效。'),
+          h(Row, {
+            label:'强制工作流编排',
+            description:'实质性任务必须进入 Workflow；关闭后按普通标准模式处理，简单问答不受影响。',
+            checked:ultracode,
+            disabled:settingDisabled,
+            onChange:setSetting('ultracodeDefault'),
+          }),
+          h(Row, {
+            label:'协调者只读与工具白名单',
+            description:'Ultracode 开启时，主会话只能读取、准备 worktree、控制工作流；写入与浏览器交给执行者。关闭后主会话仍可自己改文件。',
+            checked:coordinatorLock,
+            disabled:settingDisabled || !ultracode,
+            onChange:setSetting('ultracodeCoordinatorLock'),
+          }),
+          h(Row, {
+            label:'默认使用关联执行者',
+            description:'Workflow 子执行者默认创建可追问的关联会话，而不是临时子代理；每个关联会话有自己的上下文与模型，开销更高。',
+            checked:linkedWorkers,
+            disabled:settingDisabled || !ultracode,
+            onChange:setSetting('ultracodeLinkedWorkerDefault'),
+          }),
+          h('p', {style:{fontSize:13,opacity:0.72}}, '执行边界（浏览器不能运行服务端代码、evaluate 必须有界等待、沙箱准入后不可漂移）不属于开关，始终生效。'),
           error && h('p', {role:'alert'}, error));
         return h('section', {style:{maxWidth:680,padding:24,lineHeight:1.7}},
           h('h2', {style:{margin:'0 0 6px'}}, 'Harness增强'),
@@ -139,8 +168,10 @@ window.__ModuleLoader__.load({
           ...rows.filter(row => row.id === active || visited.has(row.id)).map(row =>
             row.id === OVERVIEW
               ? h('div', {key:OVERVIEW}, overview)
-              : h('div', {key:row.id, role:'tabpanel', hidden:row.id !== active},
-                  renderSlot(PANEL, {close}, {only:row.id}))));
+              : row.id === ULTRACODE
+                ? h('div', {key:ULTRACODE}, ultracodePanel)
+                : h('div', {key:row.id, role:'tabpanel', hidden:row.id !== active},
+                    renderSlot(PANEL, {close}, {only:row.id}))));
       }
       ctx.slots.inject('settings.section', () => {
         ctx.effect(() => ctx.configForms.whileServed(['enhancement-settings'], () =>

@@ -600,3 +600,62 @@ Standard 阶段：ux-draft 48 秒与 math-contract 67 秒并行；实现 291 秒
 - 补丁回报与交互白名单的两处归一化缺陷已在上一节记录。
 
 之前记录的「`links` 为空」是误判，已删除：关联会话确实存在，失败来自路径比较。
+
+### Ultracode 原子化与小任务 2×2 消融（2026-10-25）
+
+起因是同一任务的两次真实运行：`/ultracode on` + `/collaborate off` 在 20.1 分钟后以确定性死锁结束——脚本把两个可写执行者派进同一目录，第二个在派发前被 `RESOURCE_CONFLICT` 拒绝，`failedCalls>0` 把整轮判成 error，`stopOwner()` 锁住会话，而协调者白名单里写的是 `ask_user`（实际工具名 `ask_user_question`），连提问都被拒，只能人工 `/workflow resume`；该轮交付为 0。另一组 `/ultracode off` + `/collaborate on` 在 45 分钟上限被切断，但已落盘 85,859 B 页面。据此把 Ultracode 拆成三个默认关闭的原子开关，并把执行边界从开关里解耦：
+
+- 「强制工作流编排」（原 `ultracodeDefault`）：策略段与 `requiresWorkflow`，会话内可用 `/ultracode on|off` 覆盖。
+- 「协调者只读与工具白名单」（`ultracodeCoordinatorLock`）：白名单、单条 JSON 信封、`create_worktree` 只允许 `enter:false`；关闭后主会话可以自己写文件，策略段也不再声称传输受限。
+- 「默认使用关联执行者」（`ultracodeLinkedWorkerDefault`）：`workflow-ptc` 的 worker 默认值，仅在 Ultracode 生效且 `/collaborate` 未显式 `off|worker` 时起作用。
+- 执行边界不再依赖开关：已准入执行者的沙箱漂移、浏览器服务端代码与自定义导出路径、未加 `Promise.race` 的 `browser_evaluate`，对任何子代理都拒绝（`browser_evaluate cannot…`、`execution boundaries survive with Ultracode off` 覆盖）。
+- composer 药丸 `plugins/ultracode-control` 从桌面 bundle 列表移除，不再加载；`/ultracode` 命令与 `ultracodeState/read` 保留。模板三项默认值全部改为 `false`。
+- 协调者白名单补上实际工具名 `ask_user_question`（原先只有旧名 `ask_user`）；锁开启时不会再出现「派发失败 → 会话锁 → 连提问都被拒」的死锁尾巴。
+
+消融条件：同一冻结构建、真实 `deepseek-v4.1-flash`、四个独立 home、同一任务文本与同一客观验收（`node --test` 全过、CLI 对 `1h30m+45s` 输出 `5445` 秒）。任务为三文件的零依赖时长解析器 CLI。
+
+| 组 | 开关 | 耗时 | 模型步骤 | 工具调用 | 输出 token | 非缓存输入 | 缓存读取 | workflow / 关联会话 | 测试 | 结果 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
+| S | 全关 | 1.0 分钟 | 8 | 7 | 8,211 | 26,079 | 534,656 | 0 / 0 | 16 通过 | 通过 |
+| U | 仅强制编排 | 1.8 分钟 | 16 | 17 | 14,418 | 67,300 | 1,048,448 | 1 / 0 | 16 通过 | 通过 |
+| C | 仅 collaborate on | 1.6 分钟 | 12 | 11 | 14,722 | 28,262 | 885,248 | 0 / 0 | 13 通过 | 通过 |
+| UC | 两者都开 | 4.7 分钟 | 30 | 33 | 33,232 | 203,803 | 2,044,032 | 1 / 2 | 10 通过 | 通过 |
+
+- 四组交付等价：CLI 输出一致、测试全过，S/U 各 16 例、C 13 例、UC 10 例。
+- 小任务上强制编排是纯开销：U 相对 S 是 1.8 倍时间、1.75 倍输出、2.6 倍非缓存输入，质量无差异。
+- 两者叠加是超加性开销：UC 相对 S 是 4.7 倍时间、4 倍输出、7.8 倍非缓存输入；两个阶段（实现 79 秒、独立验收 154 秒）里验收占 66%。
+- C 没有创建关联会话：`/collaborate on` 是偏好而非强制，小任务直接做完是合理选择；UC 则实际创建了两个关联执行者，说明当前构建下「Ultracode + collaborate on」确实能落到 linked，早先「很难触发」的体感主要来自模板默认开着 Ultracode、而药丸与默认值又让人以为已经关了。
+- 这是每臂一次样本，不作统计显著性结论；方向与 4D 网页任务那次（Standard 18.9 分钟通过 / PTC 25.8 分钟通过 / ultracode 死锁）一致。
+
+### 宿主升级 0.2.1-rc.2 → 0.2.1-rc.3（2026-10-25）
+
+应用自动更新把桌面运行时换成了 rc.3。rc.3 对插件 peer 版本做了硬校验：任何 `peerDependencies` 仍写死 `@deepseek-ai/dsh-*: 0.2.1-rc.2` 的插件都会被拒绝加载，不是警告。升级后第一次 `smoke` 直接失败：`workflow-ptc` 与 `tool-workflow` 被禁用后 `workflow-command` 报 `waiting for workflowEngine`，整个 profile 起不来。第三方 `@michengai/dsh-btw`、`dsh-code-review`、`dsh-skills-manager` 与 `@dsh-external/dsh-memory` 同样被跳过。
+
+rc.3 相对 rc.2 的实际内容差异（逐包哈希比对，排除 `package.json`）：
+
+- 新增 `@deepseek-ai/dsh-client-ui-entry-customization`，由 `dsh-web-app` 的 `cordis.patch.yml` 默认加载：左侧栏、会话 View 页签、右侧栏指引三处各自的 More 菜单，提供「浏览其他插件」与「用 Creator 预设起草插件」。
+- `dsh-client-ui-conversation`：View 页签支持固定/取消固定与 More 菜单，新增槽位 `conversation.session.header.views.actions`；`whenDraftExists: replace|append|keep`；提交事件新增 `newSession` 与 `agentPreset`。
+- `dsh-client-ui-sidebar`：新增槽位 `sidebar.panellist.actions` 与侧栏菜单埋点；`dsh-client-ui-workspace` 仅草稿处理相关改动。
+- `dsh-client-ui-primitives`：Tooltip 位置 API 与 Menu 类型。
+- `dsh-client-ui-agent-preset`、`dsh-client-ui-plugin-manager`：客户端交互调整。
+- 其余 `dsh-session`、`dsh-typert-protocol`、`dsh-tools`、`dsh-llm`、`dsh-workflow`、`dsh-workflow-ptc`、`dsh-tool-workflow`、`dsh-compaction-basic`、`dsh-tool-ask-user` 等 27 个本仓库声明过的 peer 包内容逐字节一致，只有版本号变化。
+
+适配改动：
+
+- 本地插件与本地工作流包的 peer 从精确 `0.2.1-rc.2` 放宽为 `0.2.1-rc.2 || 0.2.1-rc.3`（7 个包、37 处）；`plugins/btw` 的 5 条范围追加 rc.3。
+- `provenance.runtime` 升到 `0.2.1-rc.3`；全局 CLI `@deepseek-ai/dsh` 从 rc.2 升到 rc.3（安装器会同时校验桌面与全局运行时）。
+- 模板依赖 `dsh-computer-use`、`dsh-experimental-computer-use-cua-driver-native`、`dsh-hook-protocol`、`dsh-hooks-claude-code` 升到 rc.3（内容一致）；第三方 `@michengai/dsh-code-review` 1.0.1→1.0.3、`@michengai/dsh-skills-manager` 1.2.8→1.2.19（新版本 peer 为 `>=0.2.0-rc.1 <0.3.0-0`）。
+- `install --refresh-lock` 重新解析并写回 `config/desktop.lock.yaml`、`config/headless.lock.yaml`。
+- `test/browser.test.mjs` 不再写死运行时版本，改为与 `provenance.runtime` 比对。
+
+验收：`npm test` 242 项、184 通过、58 跳过、0 失败；`status` 无漂移；`smoke` 取得 `PORTABLE_SMOKE_PASS`，启动日志不再出现任何 `skipping profile bundle ... incompatible`。客户端槽位逐个核对仍在 rc.3 中：`conversation.input.right`、`conversation.input.dock`、`conversation.chat.commandview`、`conversation.session.header.actions`、`sidebar.footer.action`、`sidebar.workspaces.session.menu.item`、`sidebar.right.pane.tab`、`shell.overlay`、`tool.call.toolview`、`settings.section`、`settings.enhancement.panel`；`desktop-commands` 使用的 `clearPreviousDraft` 语义未变。
+
+## rc.3 加载恢复与可选增强降级（2026-10-25）
+
+- 复现：升级宿主后，本地包的 rc.2 peer 范围被原生兼容检查拒绝，workflow-command 等待 workflowEngine，导致 Standard/PTC 无法新建会话。
+- 修复：采用 rc.3 依赖及明确兼容范围；Workflow 工具适配器和空闲整理适配器通过原生生命周期按需绑定可选服务。命令缺引擎时明确拒绝，不派发任务、不绕过权限和停止锁。
+- 原生 rc.3 隔离验收：Standard、PTC、explore、planner、reviewer 全部加载；Workflow 工具及关联会话工具可见，命令可用。关联会话、记忆写策略、本地环境、follow-ups 服务存在。
+- 故障注入：只在隔离安装把 Workflow 引擎 peer 改为不兼容并关闭空闲整理服务；原生兼容检查保持生效，五个预设仍加载，Workflow 工具不暴露、命令明确拒绝。之后恢复隔离包。
+- 未豁免发布时间保护。候选 code-review 1.0.3 / skills-manager 1.2.19 被 minimumReleaseAge 拒绝，改用明确兼容 rc.3 且满足门槛的 1.0.2 / 1.2.16，重新生成锁文件。
+- 可复用无模型请求验收脚本：scripts/test-preset-loading.cjs，要求隔离 DSH_HOME 和 DSH_NATIVE_ROOT；不将加载通过当成真实模型长任务通过。
+- 最终回归：npm test 187通过、0失败、58项依赖特定环境而跳过；portable 14/14；安全扫描0 high。日常部署完成并保留安装器备份，重开后插件页无此前兼容异常，Standard新建和PTC切换正常。此次不包含真实模型长任务性能验收。

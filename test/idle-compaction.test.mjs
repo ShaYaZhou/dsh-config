@@ -5,6 +5,25 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import {createRequire} from 'node:module';
 
+test('optional idle scheduler does not block presets and binds when available', () => {
+  const code = fs.readFileSync(new URL('../modules/idle-compaction-agent.mjs', import.meta.url), 'utf8')
+    .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
+  const scope = {}, sandbox = {scopeOf: () => scope};
+  vm.createContext(sandbox);
+  vm.runInContext(code + '\nthis.apply=apply;this.required=inject;', sandbox);
+  assert(!sandbox.required.includes('localIdleCompaction'));
+  let bind, registered = 0, released = 0;
+  sandbox.apply({inject: (deps, callback) => {assert.equal(deps[0], 'localIdleCompaction'); bind = callback;}});
+  assert.equal(registered, 0);
+  const ctx = {compaction: {}, tokenMeter: {}, effect: fn => {ctx.cleanup = fn();},
+    localIdleCompaction: {register: (owner, engine, meter) => {
+      assert.equal(owner, scope); assert.equal(engine, ctx.compaction); assert.equal(meter, ctx.tokenMeter);
+      registered++; return () => released++;
+    }}};
+  bind(ctx); assert.equal(registered, 1);
+  ctx.cleanup(); assert.equal(released, 1);
+});
+
 let nativeSchema;
 try { nativeSchema=createRequire(path.join(process.env.APPDATA || '', 'npm/node_modules/@deepseek-ai/dsh/package.json'))('@deepseek-ai/schemastery'); } catch {}
 test('idle settings use the actual native schema and reject invalid intervals', {skip:!nativeSchema && 'Requires installed Harness schema runtime'},()=>{

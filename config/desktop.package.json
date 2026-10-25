@@ -2,14 +2,14 @@
   "name": "dsh-profile-desktop",
   "private": true,
   "dependencies": {
-    "@deepseek-ai/dsh-computer-use": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-experimental-computer-use-cua-driver-native": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-hook-protocol": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-hooks-claude-code": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-computer-use": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-experimental-computer-use-cua-driver-native": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-hook-protocol": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-hooks-claude-code": "0.2.1-rc.3",
     "@dsh-external/dsh-memory": "@artifact/memory",
     "@michengai/dsh-btw": "@artifact/btw",
-    "@michengai/dsh-code-review": "1.0.1",
-    "@michengai/dsh-skills-manager": "1.2.8",
+    "@michengai/dsh-code-review": "1.0.2",
+    "@michengai/dsh-skills-manager": "1.2.16",
     "@playwright/mcp": "0.0.83",
     "@tt-a1i/archify-dsh": "1.0.0",
     "dsh-better-sidebar": "0.28.0",
@@ -57,7 +57,6 @@
         "@local/dsh-file-links",
         "@local/dsh-team-view",
         "@local/dsh-delete-session",
-        "@local/dsh-ultracode-control",
         "@local/dsh-dynamic-ui-view"
       ]
     }

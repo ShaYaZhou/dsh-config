@@ -24,14 +24,14 @@
   "license": "MIT",
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-agent": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-jobs": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-llm": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-session": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-system-prompt": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-tools": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-workflow": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-util-values": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-agent": "0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-jobs": "0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-llm": "0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-session": "0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-system-prompt": "0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-tools": "0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-workflow": "0.2.1-rc.2 || 0.2.1-rc.3",
+    "@deepseek-ai/dsh-util-values": "0.2.1-rc.2 || 0.2.1-rc.3",
     "@deepseek-ai/schemastery": "^3.18.0"
   },
   "harnessTuning": {
@@ -47,7 +47,8 @@
       "Describe native per-worker reasoning effort, one independent acceptance owner with batched page observations, same-script chaining for already-determined stages, single start/collect dispatch, and one bounded retry for an empty read-only result while retaining full acceptance coverage.",
       "Keep a PTC foreground workflow in its native background job so a transport-deadline abort returns the jobId instead of cancelling completed work; short calls still return inline.",
       "Document the browser_evaluate promise bound and the authoring-error diagnosis for a script that throws before its first agent.",
-      "Describe the cwd option as a coordinator-prepared native worktree; workers must not create worktrees with git."
+      "Describe the cwd option as a coordinator-prepared native worktree; workers must not create worktrees with git.",
+      "Bind the optional Workflow tool adapter through native service lifecycle injection; unavailable engines disable the tool without invalidating Standard or PTC."
     ]
   }
 }

@@ -1,5 +1,5 @@
 {
-  "runtime": "0.2.1-rc.2",
+  "runtime": "0.2.1-rc.3",
   "date": "2026-10-20",
   "nativeSource": "Official installed DeepSeek Harness desktop package",
   "plugins": [
@@ -54,7 +54,9 @@
         "unpublishedLocalBuild": true,
         "changes": [
           "Native settings section that gathers local enhancement pages behind one entry and exposes feature toggles through ConfigForms.",
-          "Hosts the feature switches for Team, worktree, browser guidance, session bus, Claude context and usage report, plus the ultracode default, through the public enhancementSettings service; modules fall back to enabled when the plugin is absent."
+          "Hosts the feature switches for Team, worktree, browser guidance, session bus, Claude context and usage report, plus the ultracode default, through the public enhancementSettings service; modules fall back to enabled when the plugin is absent.",
+          "Ultracode has its own page tab with three atomic switches, all default off: forced workflow orchestration, coordinator read-only lock (tool allowlist and literal-JSON transport), and the linked-worker default.",
+          "The coordinator lock is independent of forced orchestration, and execution boundaries (server-side browser code, unbounded browser_evaluate, post-admission sandbox drift) stay enforced regardless of these switches."
         ]
       }
     },
@@ -239,7 +241,8 @@
           "Describe native per-worker reasoning effort, one independent acceptance owner with batched page observations, same-script chaining for already-determined stages, single start/collect dispatch, and one bounded retry for an empty read-only result while retaining full acceptance coverage.",
           "Keep a PTC foreground workflow in its native background job so a transport-deadline abort returns the jobId instead of cancelling completed work; short calls still return inline.",
           "Document the browser_evaluate promise bound and the authoring-error diagnosis for a script that throws before its first agent.",
-          "Describe the cwd option as a coordinator-prepared native worktree; workers must not create worktrees with git."
+          "Describe the cwd option as a coordinator-prepared native worktree; workers must not create worktrees with git.",
+          "Bind the optional Workflow tool adapter through native service lifecycle injection; unavailable engines disable the tool without invalidating Standard or PTC."
         ]
       }
     },
@@ -268,7 +271,8 @@
           "Writes only through the existing /ultracode on|off command; no new record type, remote method or settings store.",
           "Clarify that the switch records preference; /ultracode status reports effective orchestration state.",
           "Query owner-scoped host capability and effective mode; unavailable modes cannot display an enabled switch; ignore cancelled or stale session responses.",
-          "Show linked workflow execution as enabled Ultracode, not a competing collaboration override."
+          "Show linked workflow execution as enabled Ultracode, not a competing collaboration override.",
+          "Retired from the desktop bundle list: the Harness enhancement page now owns the Ultracode switches, so the composer pill no longer loads even though the package stays resolvable."
         ]
       }
     },

@@ -36,7 +36,7 @@ function createWorkflowRecordMirror(ctx) {
 
 // packages/workflow/tool-workflow/src/index.ts
 var name = "tool-workflow";
-var inject = ["tools", "workflowEngine", "systemPrompt"];
+var inject = ["tools", "systemPrompt"];
 var Config = z.object({
   toolName: z.string().default("workflow"),
   maxResultChars: z.natural().min(1).default(5e4),
@@ -251,6 +251,11 @@ function startBackgroundRun(ctx, args, parent, toolCall, recordsRun, deps, captu
   return { kind: "background", jobId, runId: run.id };
 }
 function apply(ctx, config) {
+  // Optional tool adapter: keep the preset usable when engine admission fails.
+  // Cordis owns registration cleanup if the engine disappears; never substitute an executor.
+  ctx.inject(["workflowEngine"], (scope) => applyWithEngine(scope, config));
+}
+function applyWithEngine(ctx, config) {
   const { toolName, maxResultChars, enableRunInBackground, sizeGuideline } = config;
   const recorder = createWorkflowRecorder(ctx);
   const mirror = createWorkflowRecordMirror(ctx);

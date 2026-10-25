@@ -846,7 +846,11 @@ var PtcWorkflowEngine = class extends WorkflowEngine {
     const strict = this.ctx.get("ultracodeState")?.requiresWorkflow(request.parent) === true;
     const linked = this.ctx.get("nestedSessions");
     const preference = linked?.delegationMode(request.parent.session.id);
-    const workerMode = extras.workerMode ?? (strict && preference === "linked" ? "linked" : "subagent");
+    // 关联执行者默认值是独立开关：只在 Ultracode 生效时改变默认值，
+    // 且从不覆盖 /collaborate off|worker 的明确禁用。
+    const linkedDefault = strict && preference !== "off" && preference !== "worker" &&
+      this.ctx.get("enhancementSettings")?.ultracodeLinkedWorkerDefault?.() === true;
+    const workerMode = extras.workerMode ?? (linkedDefault || (strict && preference === "linked") ? "linked" : "subagent");
     if (!["subagent", "linked"].includes(workerMode)) throw new Error("Unknown workflow worker mode");
     if (workerMode === "linked" && (!linked?.startWorkflowChild || preference === "off" || preference === "worker"))
       throw new Error("Linked workers are unavailable or disabled; do not bypass the linked-session boundary");

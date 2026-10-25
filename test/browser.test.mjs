@@ -7,7 +7,7 @@ test('desktop browser exposes visible highlights and annotations; native compute
  const rows=patch.flatMap(row=>[row,...(row.insert??[])]),browser=rows.find(row=>row.id==='mcp-playwright');
  assert(!browser.config.args.includes('--headless'));assert(browser.config.args.includes('vision,devtools'));assert(browser.config.args.includes('--snapshot-boxes'));assert.equal(browser.config.toolCallTimeoutMs,600000);
  for(const id of ['computer-use','computer-use-native','browser-guidance'])assert(rows.some(row=>row.id===id));
- const pkg=JSON.parse(plan.get('profiles/desktop/package.json'));assert.equal(pkg.dependencies['@deepseek-ai/dsh-experimental-computer-use-cua-driver-native'],'0.2.1-rc.2');assert(!pkg.dependencies['dsh-annotate']);
+ const pkg=JSON.parse(plan.get('profiles/desktop/package.json'));const runtime=JSON.parse(fs.readFileSync(path.join(repository,'provenance.json'),'utf8')).runtime;assert.equal(pkg.dependencies['@deepseek-ai/dsh-experimental-computer-use-cua-driver-native'],runtime);assert(!pkg.dependencies['dsh-annotate']);
  assert(plan.has('profiles/desktop/agent-capabilities/browser-guidance.mjs'));assert(!plan.get('profiles/headless/package.json').includes('cua-driver'));
  assert(plan.has('profiles/desktop/agent-capabilities/skills/computer-use/SKILL.md'));
 });

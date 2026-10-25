@@ -775,7 +775,9 @@
     "id": "enhancement-settings",
     "name": "@local/dsh-enhancement-settings",
     "config": {
-      "ultracodeDefault": true
+      "ultracodeDefault": false,
+      "ultracodeCoordinatorLock": false,
+      "ultracodeLinkedWorkerDefault": false
     }
   },
   {

@@ -198,12 +198,14 @@ test("the section exposes its child pages as ordered tabs", () => {
   const tabs = find(draw(), "button").filter((node) => node.props.role === "tab");
   assert.deepEqual(
     tabs.map((node) => node.children[0]),
-    ["Harness增强", "上下文压缩", "本地环境", "后续建议"],
+    ["Harness增强", "Ultracode", "上下文压缩", "本地环境", "后续建议"],
   );
   assert.equal(tabs[0].props["aria-selected"], true);
   assert.equal(find(draw(), "panel-slot").length, 0);
 
   tabs[1].props.onClick();
+  assert.equal(find(draw(), "panel-slot").length, 0, "Ultracode is a built-in page, not a slot");
+  tabs[2].props.onClick();
   draw();
   const slot = find(draw(), "panel-slot");
   assert.equal(slot.length, 1);
@@ -211,7 +213,7 @@ test("the section exposes its child pages as ordered tabs", () => {
   assert.equal(slot[0].props.only, "idle-compaction");
 });
 
-test("feature switches drive native plugin entries and ultracode keeps the shared form", async () => {
+test("feature switches drive native plugin entries and ultracode owns atomic switches", async () => {
   const plugins = [
     { entryId: "include:agent-team-local", enabled: true },
     { entryId: "include:tool-agent-team-local", enabled: true },
@@ -231,7 +233,7 @@ test("feature switches drive native plugin entries and ultracode keeps the share
   draw();
   await settle();
   const switches = find(draw(), "native-switch");
-  assert.equal(switches.length, 7);
+  assert.equal(switches.length, 6);
   assert.equal(switches[0].props.checked, true);
   assert.equal(switches[0].props.disabled, false);
   assert.equal(
@@ -248,6 +250,15 @@ test("feature switches drive native plugin entries and ultracode keeps the share
   ]);
   assert.equal(find(draw(), "native-switch")[0].props.checked, false);
 
-  await find(draw(), "native-switch")[6].props.onChange(true);
+  find(draw(), "button")
+    .filter((node) => node.props.role === "tab")[1]
+    .props.onClick();
+  draw();
+  const atomic = find(draw(), "native-switch").slice(6);
+  assert.equal(atomic.length, 3, "Ultracode page keeps its own switches out of the plugin list");
+  assert.equal(atomic[0].props.checked, false);
+  assert.equal(atomic[1].props.disabled, true, "coordinator lock depends on forced orchestration");
+  assert.equal(atomic[2].props.disabled, true);
+  await atomic[0].props.onChange(true);
   assert.deepEqual(writes, [["ultracodeDefault", true]]);
 });

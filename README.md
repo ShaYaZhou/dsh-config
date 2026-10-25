@@ -1,6 +1,6 @@
 # DeepSeek Harness 可迁移配置
 
-本机调校配置的 Git 源仓库，固定匹配 DeepSeek Harness **0.2.1-rc.2**。包含持久角色和独立记忆、Team 模型与 worktree 路由、旁问连续历史和后台转任务、文件独立回退、定向摘要，以及原有插件筛选和代理配置。
+本机调校配置的 Git 源仓库，固定匹配 DeepSeek Harness **0.2.1-rc.3**。包含持久角色和独立记忆、Team 模型与 worktree 路由、旁问连续历史和后台转任务、文件独立回退、定向摘要，以及原有插件筛选和代理配置。
 
 源码与模板没有机器绝对路径。安装器在目标电脑解析用户目录、Node 路径和运行时位置，生成本机实际配置。**生成的配置不提交到这个仓库**。
 
@@ -42,7 +42,7 @@ rtk proxy node scripts/harness.mjs install
 
 侧栏底部 **本地环境** 或 **设置 → 本地环境** 可打开最近文件夹、保存多仓库配置，选择当前目录或独立 worktree，并配置本机变量。导出定义不带绝对路径和变量值，其他电脑导入后重新绑定目录即可。启动会打开新会话，**返回原会话** 可继续启动前的草稿。详见 [本地环境](docs/local-environment-execution.md)。
 
-长会话默认在空闲约 54 分钟、估算上下文达到 20 万 token 后使用原生引擎生成摘要，保留原始记录。**设置 → Harness增强** 集中了上下文压缩、本地环境、后续建议三个分页和各本地功能的启用开关；**上下文压缩** 页可即时关闭，也可修改触发百分比（默认 80%，可还原默认）。会话内 `/ultracode on|off` 切换动态编排：开启后实质性任务默认用原生 workflow 展开，新会话默认值在同一设置页；输入框工具行、模型选择器左侧的 ultracode 药丸是同一个开关。模型画的交互 UI 以 `render_widget` 卡片内嵌在会话里，不再生成 `.html` 文件交付。停止与归档保护、代理缓存的费用边界和真实验收见 [空闲压缩](docs/IDLE-COMPACTION.md)。
+长会话默认在空闲约 54 分钟、估算上下文达到 20 万 token 后使用原生引擎生成摘要，保留原始记录。**设置 → Harness增强** 集中了上下文压缩、本地环境、后续建议三个分页和各本地功能的启用开关；**上下文压缩** 页可即时关闭，也可修改触发百分比（默认 80%，可还原默认）。会话内 `/ultracode on|off` 切换动态编排：开启后实质性任务默认用原生 workflow 展开。**设置 → Harness增强 → Ultracode** 是三个默认关闭的原子开关：强制工作流编排、协调者只读与工具白名单、默认使用关联执行者；输入框的 ultracode 药丸已移除，设置页是唯一入口。模型画的交互 UI 以 `render_widget` 卡片内嵌在会话里，不再生成 `.html` 文件交付。停止与归档保护、代理缓存的费用边界和真实验收见 [空闲压缩](docs/IDLE-COMPACTION.md)。
 
 旧 `liangshen` preset 已移除。升级前先完全退出 Harness，再迁移旧会话；安装器发现仍有会话绑定旧 preset 时会拒绝覆盖配置：
 
@@ -59,7 +59,7 @@ rtk proxy node scripts/harness.mjs install
 先安装匹配版本的 DeepSeek Harness 桌面程序、Node.js 22.19+（22 系列）或 24+，以及所选浏览器。全局 CLI 的原生依赖闭包必须与桌面版本一致：
 
 ```powershell
-rtk npm install --global @deepseek-ai/dsh@0.2.1-rc.2
+rtk npm install --global @deepseek-ai/dsh@0.2.1-rc.3
 ```
 
 克隆本仓库后进入目录。将 `config/local.example.json` 复制为 `.local/settings.json`，填写自己的 proxy 地址、默认模型及权限预设；`.local` 已被 Git 忽略。也可以通过 `OPENAI_BASE_URL` 覆盖 proxy 地址。默认模型必须存在于 `config/desktop.patch.json` 的模型列表。

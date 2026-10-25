@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 export const name = 'workflow-command';
-export const inject = ['commands', 'tools', 'sessionController', 'workflowEngine'];
+export const inject = ['commands', 'tools', 'sessionController'];
 
 export function apply(ctx) {
   ctx.effect(() => ctx.commands.register({
@@ -9,6 +9,10 @@ export function apply(ctx) {
     description: '显式工作流：/workflow 任务内容；resume <运行ID> 续跑；stop <运行ID> 停止。',
     input: { hint: '任务内容 | resume 运行ID | stop 运行ID | new 新任务' },
     async handler(invocation) {
+      // The command is optional UI; a denied engine must not invalidate the preset.
+      const engine = ctx.get('workflowEngine');
+      if (!engine || ctx.tools.get('workflow', invocation.agent) === undefined)
+        return { kind: 'error', text: 'Workflow 当前不可用：引擎或工具未加载。请检查插件兼容性和加载状态；未提交任务，也不会切换其他执行路径。' };
       let task = invocation.rawInput.trim();
       if (!task) return {
         kind: 'success',
@@ -25,7 +29,6 @@ export function apply(ctx) {
       const action=newTask ? null : /^(resume|stop)\s+([0-9a-f-]{36})$/i.exec(task);
       if (!newTask && /^(resume|stop)(?:\s|$)/i.test(task) && !action)
         return {kind:'error',text:'请提供完整运行 ID，例如 /workflow resume <runId>。'};
-      const engine=ctx.workflowEngine;
       if(!action && !newTask && engine?.isBlocked?.(invocation.agent))
         return {kind:'error',text:'该会话有停止或失败的工作流。请 /workflow resume <运行ID>；核对文件后确需新任务时，用 /workflow new <任务内容>，避免把继续误当成重新执行。'};
       if(action?.[1].toLowerCase()==='stop') {

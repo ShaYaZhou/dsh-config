@@ -23,13 +23,17 @@ const code = fs.readFileSync(new URL('../modules/ultracode.mjs', import.meta.url
 vm.createContext(sandbox);
 vm.runInContext(code + '\nthis.apply = apply; this.ultracodeProjection = ultracodeProjection; this.UltracodeState = UltracodeState; this.coordinatorCall = coordinatorCall;', sandbox);
 
-function fixture({state = null, defaultActive = false, hasWorkflow = true, delegationMode = "auto"} = {}) {
+function fixture({state = null, defaultActive = false, coordinatorLock = true, linkedDefault = false, hasWorkflow = true, delegationMode = "auto"} = {}) {
   const records = [];
   const session = {id: 'session-test', records, header: {origin: 'user'}, snapshotEvents: () => []};
   let section, command, guard;
   const ctx = {
     get: (name) => name === 'enhancementSettings'
-      ? {ultracodeDefault: () => defaultActive}
+      ? {
+          ultracodeDefault: () => defaultActive,
+          ultracodeCoordinatorLock: () => coordinatorLock,
+          ultracodeLinkedWorkerDefault: () => linkedDefault,
+        }
       : name === 'nestedSessions' ? {delegationMode: () => delegationMode} : undefined,
     tools: {get: (name) => (hasWorkflow && name === 'workflow' ? {} : undefined),guard: fn => {guard=fn;return ()=>{};}},
     sessionProjections: {
@@ -100,6 +104,13 @@ test('/ultracode toggles a restorable session record', () => {
   const off = fixture({state: {active: true}, delegationMode: 'off'});
   assert.match(off.section.text({agent: {id: 'session-test', session: off.session}}), /Ultracode is on/);
  });
+ test('status does not claim enforcement when the coordinator lock is off', () => {
+  const advisory = fixture({state: {active: true}, coordinatorLock: false});
+  const text = advisory.command.handler({agent: {session: advisory.session}, rawInput: 'status'}).text;
+  assert.match(text, /协调者只读边界未开启/);
+  const locked = fixture({state: {active: true}});
+  assert.match(locked.command.handler({agent: {session: locked.session}, rawInput: 'status'}).text, /已开启且生效/);
+ });
  test('status distinguishes requested on from unavailable workflow', () => {
   const f = fixture({state: {active: true}, hasWorkflow: false});
   assert.match(f.command.handler({agent: {session: f.session}, rawInput: 'status'}).text, /未生效/);
@@ -153,6 +164,7 @@ test('Ultracode guard blocks direct execution and permits read-only preparation 
  for(const name of ['write','edit','bash','subagent','start_session','mcp__playwright__browser_evaluate'])
   assert.match(f.guard({agent,name,arguments:{}}),/requires workflow/);
  assert.equal(f.guard({agent,name:'workflow',arguments:{}}),undefined);
+ assert.equal(f.guard({agent,name:'ask_user_question',arguments:{questions:[]}}),undefined,'The real question tool must be allowed, not just the legacy name');
  assert.equal(f.guard({agent,name:'send_message',arguments:{}}),undefined);
  assert.equal(f.guard({agent,name:'send_session_message',arguments:{}}),undefined);
  assert.equal(f.guard({agent,name:'render_widget',arguments:{html:'<div>answer</div>'}}),undefined);
@@ -160,6 +172,28 @@ test('Ultracode guard blocks direct execution and permits read-only preparation 
  assert.equal(f.guard({agent,name:'read',arguments:{}}),undefined);
  const off=fixture({state:{active:false}});
  assert.equal(off.guard({agent:{session:off.session},name:'write'}),undefined);
+});
+
+test('forced orchestration can run without locking the coordinator out of direct execution', () => {
+ const f=fixture({state:{active:true},coordinatorLock:false}),agent={id:'root',session:f.session};
+ assert.equal(f.guard({agent,name:'write',arguments:{file_path:'index.html'}}),undefined);
+ assert.equal(f.guard({agent,name:'bash',arguments:{command:'node --test'}}),undefined);
+ assert.match(f.section.text({agent}),/MUST enter workflow/,'The policy text survives: only the enforcement is off');
+ assert.doesNotMatch(f.section.text({agent}),/PTC coordinator limitation/,'No false claim about a lock that is off');
+ const locked=fixture({state:{active:true}});
+ assert.match(locked.section.text({agent:{id:'root',session:locked.session}}),/PTC coordinator limitation/);
+});
+
+test('execution boundaries survive with Ultracode off', () => {
+ const f=fixture({state:{active:false}}),agent={id:'worker',session:{...f.session,header:{origin:'subagent'}}};
+ const get=f.ctx.get;
+ f.ctx.get=name=>name==='sandboxPolicy'?{resolve:()=>({mode:'workspace-write'})}:get(name);
+ f.ctx.createdService.registerWorker(agent.id,{readOnly:false,browser:true});
+ assert.match(f.guard({agent,name:'mcp__playwright__browser_evaluate',arguments:{function:'() => new Promise(r => setTimeout(r, 500))'}}),/bound every wait/);
+ assert.match(f.guard({agent,name:'mcp__playwright__browser_run_code_unsafe',arguments:{code:'x'}}),/server-side/);
+ assert.equal(f.guard({agent,name:'write',arguments:{file_path:'a'}}),undefined,'An admitted writer still writes');
+ f.ctx.createdService.registerWorker(agent.id,{readOnly:true,browser:false});
+ assert.match(f.guard({agent,name:'write',arguments:{file_path:'a'}}),/sandbox changed|read-only/);
 });
 
 test('browser_evaluate cannot return an unraced promise that hangs the call', () => {
