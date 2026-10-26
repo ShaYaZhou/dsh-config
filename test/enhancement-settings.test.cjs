@@ -185,6 +185,17 @@ test("Harness enhancement is one settings section owning the panel slot", () => 
   });
 });
 
+test('daily management UI stays visible without activating missing execution features', async () => {
+  const f=setup();f.draw();await settle();
+  let tree=f.draw();
+  assert(find(tree,'native-switch').every(row=>row.props.disabled));
+  const tab=find(tree,'button').find(row=>row.props.role==='tab'&&row.children[0]==='Ultracode');
+  tab.props.onClick();tree=f.draw();
+  assert(find(tree,'native-switch').every(row=>row.props.disabled));
+  assert.equal(f.writes.length,0);assert.equal(f.toggles.length,0);
+  assert(JSON.stringify(tree).includes('未加载 Ultracode'));
+});
+
 test("the section exposes its child pages as ordered tabs", () => {
   const { props, draw } = setup();
   assert.deepEqual(

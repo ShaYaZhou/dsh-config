@@ -4,14 +4,18 @@
   "dependencies": {
     "@playwright/mcp": "0.0.83",
     "@local/dsh-nested-sessions": "@artifact/nested-sessions",
-    "@local/dsh-shared": "@artifact/shared"
+    "@local/dsh-shared": "@artifact/shared",
+    "dshmarket": "1.66.44",
+    "@local/dsh-enhancement-settings": "@artifact/enhancement-settings"
   },
   "dsh": {
     "profile": {
       "bundles": [
         "@deepseek-ai/dsh-base",
         "@deepseek-ai/dsh-web-app",
-        "@local/dsh-nested-sessions"
+        "@local/dsh-nested-sessions",
+        "dshmarket",
+        "@local/dsh-enhancement-settings"
       ]
     }
   }

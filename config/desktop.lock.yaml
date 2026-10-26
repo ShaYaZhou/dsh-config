@@ -335,7 +335,7 @@ packages:
 
   '@local/dsh-enhancement-settings@file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}':
     resolution: {integrity: ${ENHANCEMENT-SETTINGS_INTEGRITY}, tarball: file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}}
-    version: 1.0.0
+    version: 1.0.1
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.5
       '@deepseek-ai/schemastery': 3.18.5

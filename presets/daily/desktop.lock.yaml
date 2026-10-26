@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@local/dsh-enhancement-settings':
+        specifier: file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}
+        version: file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ})
       '@local/dsh-nested-sessions':
         specifier: file:../../local-plugins/${NESTED-SESSIONS_TGZ}
         version: file:../../local-plugins/${NESTED-SESSIONS_TGZ}(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ})
@@ -17,8 +20,19 @@ importers:
       '@playwright/mcp':
         specifier: 0.0.83
         version: 0.0.83
+      dshmarket:
+        specifier: 1.66.44
+        version: 1.66.44
 
 packages:
+
+  '@local/dsh-enhancement-settings@file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}':
+    resolution: {integrity: ${ENHANCEMENT-SETTINGS_INTEGRITY}, tarball: file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}}
+    version: 1.0.1
+    peerDependencies:
+      '@deepseek-ai/cordis': ^4.0.5
+      '@deepseek-ai/schemastery': 3.18.5
+      '@local/dsh-shared': 0.1.0
 
   '@local/dsh-nested-sessions@file:../../local-plugins/${NESTED-SESSIONS_TGZ}':
     resolution: {integrity: ${NESTED-SESSIONS_INTEGRITY}, tarball: file:../../local-plugins/${NESTED-SESSIONS_TGZ}}
@@ -42,6 +56,25 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
+  argparse@2.0.1:
+    resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
+
+  dshmarket@1.66.44:
+    resolution: {integrity: sha512-NtkqdxnGrSiOORBPAlkHn0gckVu+iGzulI+ryRuAOgfd9giTpACUQQtgMAFBfQGXKX5VIV9xVGHW8tdNpoFizQ==}
+    peerDependencies:
+      '@deepseek-ai/cordis': ^4.0.1
+      '@deepseek-ai/dsh-settings': ^0.1.0-rc.7 || ^0.1.1-rc.2 || ^0.1.2-alpha.2 || ^0.2.0-rc.1 || ^0.2.1-alpha.3 || ^0.2.1-rc.1
+      '@deepseek-ai/schemastery': ^3.18.1
+    peerDependenciesMeta:
+      '@deepseek-ai/dsh-settings':
+        optional: true
+      '@deepseek-ai/schemastery':
+        optional: true
+
+  js-yaml@4.3.2:
+    resolution: {integrity: sha512-SFNOvSJ+Dgf/9An904Yx+CgSlIPCkIpao4qo51lpee25TIRejdH3rhR4EZMGoNx3/TP3O+wzWuiTFl4sqbltzA==}
+    hasBin: true
+
   playwright-core@1.64.0-alpha-1790635538000:
     resolution: {integrity: sha512-pNwaXirhXMRLaRQs4NQ18EpTdtDoFwyPH9FOaaDC7YXG4hpwE2xmwCic/1srbuExVQC7zT9LJSJpDBAru+Vo9A==}
     engines: {node: '>=20'}
@@ -52,7 +85,15 @@ packages:
     engines: {node: '>=20'}
     hasBin: true
 
+  undici@7.30.1:
+    resolution: {integrity: sha512-03KrMbjIFDWQR5RNPrSw3bd1r12JpyFQl9/yxjUbJtqkjmllqC5lFjZh6ujeuJCKr8EOQvRW872Oy/az+nLYxg==}
+    engines: {node: '>=20.18.1'}
+
 snapshots:
+
+  '@local/dsh-enhancement-settings@file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ})':
+    dependencies:
+      '@local/dsh-shared': file:../../local-plugins/${SHARED_TGZ}
 
   '@local/dsh-nested-sessions@file:../../local-plugins/${NESTED-SESSIONS_TGZ}(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ})':
     dependencies:
@@ -65,8 +106,21 @@ snapshots:
       playwright: 1.64.0-alpha-1790635538000
       playwright-core: 1.64.0-alpha-1790635538000
 
+  argparse@2.0.1: {}
+
+  dshmarket@1.66.44:
+    dependencies:
+      js-yaml: 4.3.2
+      undici: 7.30.1
+
+  js-yaml@4.3.2:
+    dependencies:
+      argparse: 2.0.1
+
   playwright-core@1.64.0-alpha-1790635538000: {}
 
   playwright@1.64.0-alpha-1790635538000:
     dependencies:
       playwright-core: 1.64.0-alpha-1790635538000
+
+  undici@7.30.1: {}

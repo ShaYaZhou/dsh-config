@@ -48,7 +48,7 @@
     {
       "id": "enhancement-settings",
       "package": "@local/dsh-enhancement-settings",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
@@ -56,7 +56,8 @@
           "Native settings section that gathers local enhancement pages behind one entry and exposes feature toggles through ConfigForms.",
           "Hosts the feature switches for Team, worktree, browser guidance, session bus, Claude context and usage report, plus the ultracode default, through the public enhancementSettings service; modules fall back to enabled when the plugin is absent.",
           "Ultracode has its own page tab with three atomic switches, all default off: forced workflow orchestration, coordinator read-only lock (tool allowlist and literal-JSON transport), and the linked-worker default.",
-          "The coordinator lock is independent of forced orchestration, and execution boundaries (server-side browser code, unbounded browser_evaluate, post-admission sandbox drift) stay enforced regardless of these switches."
+          "The coordinator lock is independent of forced orchestration, and execution boundaries (server-side browser code, unbounded browser_evaluate, post-admission sandbox drift) stay enforced regardless of these switches.",
+          "Keep management UI available in daily profile; absent features stay disabled and missing Ultracode policy never exposes active-looking switches."
         ]
       }
     },

@@ -149,7 +149,7 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
  const lock=path.join(repository,'presets/daily/desktop.lock.yaml');
  if(fs.existsSync(lock)){
   let text=fs.readFileSync(lock,'utf8');
-  for(const id of ['nested-sessions','shared']){
+  for(const id of ['nested-sessions','shared','enhancement-settings']){
    text=text.replaceAll('${'+id.toUpperCase()+'_TGZ}',artifacts[id]?.filename??id+'-preview.tgz');
    text=text.replaceAll('${'+id.toUpperCase()+'_INTEGRITY}',artifacts[id]?.integrity??'sha512-preview');
   }
@@ -291,7 +291,7 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
    }
    sources['profiles/desktop/agent-capabilities/isolated-browser.mjs']='modules/isolated-browser.mjs';
    for(const [target,source]of Object.entries(sources))
-    if(target.startsWith('profiles/enhanced/node_modules/')&&['plugins/nested-sessions/','plugins/shared/'].some(prefix=>source.startsWith(prefix)))
+    if(target.startsWith('profiles/enhanced/node_modules/')&&['plugins/nested-sessions/','plugins/shared/','plugins/enhancement-settings/'].some(prefix=>source.startsWith(prefix)))
      sources[target.replace('profiles/enhanced/','profiles/desktop/')]=source;
   }
   for(const relative of Object.keys(sources))tracked[relative]=digest(path.join(home,relative));
@@ -343,7 +343,7 @@ export function saveLocks(home){
  for(const profile of daily?['desktop','headless','enhanced']:['desktop','headless']){
   if(daily&&profile==='headless')continue; // unchanged official native profile
   let text=fs.readFileSync(path.join(home,'profiles',profile,'pnpm-lock.yaml'),'utf8');
-  for(const plugin of provenance.plugins.filter(p=>profile===(daily?'enhanced':'desktop')||(daily&&profile==='desktop'&&['nested-sessions','shared'].includes(p.id)))){
+  for(const plugin of provenance.plugins.filter(p=>profile===(daily?'enhanced':'desktop')||(daily&&profile==='desktop'&&['nested-sessions','shared','enhancement-settings'].includes(p.id)))){
    const packed=artifacts[plugin.id];assert(text.includes(packed.filename),'Lock does not match the current built sources: '+plugin.id);
    assert(typeof packed.integrity==='string'&&text.includes(packed.integrity),'Lock integrity does not match the built package: '+plugin.id);
    text=text.replaceAll(packed.filename,'${'+plugin.id.toUpperCase()+'_TGZ}').replaceAll(packed.integrity,'${'+plugin.id.toUpperCase()+'_INTEGRITY}');

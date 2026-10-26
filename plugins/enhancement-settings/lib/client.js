@@ -113,35 +113,37 @@ window.__ModuleLoader__.load({
         const ultracode = setting('ultracodeDefault');
         const coordinatorLock = setting('ultracodeCoordinatorLock');
         const linkedWorkers = setting('ultracodeLinkedWorkerDefault');
-        const settingDisabled = snap.status !== 'ready' || !snap.writable || busy;
+        const policyLoaded = Boolean(find('ultracode'));
+        const settingDisabled = snap.status !== 'ready' || !snap.writable || busy || !policyLoaded;
         const setSetting = key => next =>
           void change(() => form.set(key, next), '保存未成功，请重试。');
         const overview = h('div', {role:'tabpanel', hidden:active !== OVERVIEW},
-          h('p', {style:{fontSize:13,opacity:0.72,margin:'0 0 14px'}}, '开关直接启用或关闭当前 profile 的插件条目；下次部署会恢复模板默认值。'),
+          h('p', {style:{fontSize:13,opacity:0.72,margin:'0 0 14px'}}, '管理入口始终保留；开关仅控制当前配置中已有的功能。未加载的功能保持关闭，不会因打开此页而启用。'),
           ...FEATURES.map(([label, description, ids]) =>
-            h(Row, {key:label, label, description, ...stateOf(ids), onChange:next => void changePlugins(ids, next)})),
-          h('p', {style:{fontSize:13,opacity:0.72}}, '插件开关会触发一次重载；系统提示类改动对新会话生效。'),
+            h(Row, {key:label, label, description: description + (plugins && ids.some(id => !find(id)) ? '（当前配置未加载；完整增强配置提供。）' : ''), ...stateOf(ids), onChange:next => void changePlugins(ids, next)})),
+          h('p', {style:{fontSize:13,opacity:0.72}}, '需要未加载的本地能力时，使用完整增强配置：dsh --profile enhanced。已有功能的开关会触发重载；系统提示改动对新会话生效。'),
           error && h('p', {role:'alert'}, error));
         const ultracodePanel = h('div', {role:'tabpanel', hidden:active !== ULTRACODE},
+          !policyLoaded && h('p', {role:'status'}, '当前为精简配置，未加载 Ultracode 执行策略，以下开关不可用。需要完整增强时使用 dsh --profile enhanced。'),
           h('p', {style:{fontSize:13,opacity:0.72,margin:'0 0 14px'}}, '这里的开关只影响 Ultracode 编排，默认全部关闭；会话内仍可用 /ultracode on|off 单独覆盖第一条。当前模式没有 workflow 工具（如 minimal）时，这些开关不生效。'),
           h(Row, {
             label:'强制工作流编排',
             description:'实质性任务必须进入 Workflow；关闭后按普通标准模式处理，简单问答不受影响。',
-            checked:ultracode,
+            checked:policyLoaded && ultracode,
             disabled:settingDisabled,
             onChange:setSetting('ultracodeDefault'),
           }),
           h(Row, {
             label:'协调者只读与工具白名单',
             description:'Ultracode 开启时，主会话只能读取、准备 worktree、控制工作流；写入与浏览器交给执行者。关闭后主会话仍可自己改文件。',
-            checked:coordinatorLock,
+            checked:policyLoaded && coordinatorLock,
             disabled:settingDisabled || !ultracode,
             onChange:setSetting('ultracodeCoordinatorLock'),
           }),
           h(Row, {
             label:'默认使用关联执行者',
             description:'Workflow 子执行者默认创建可追问的关联会话，而不是临时子代理；每个关联会话有自己的上下文与模型，开销更高。',
-            checked:linkedWorkers,
+            checked:policyLoaded && linkedWorkers,
             disabled:settingDisabled || !ultracode,
             onChange:setSetting('ultracodeLinkedWorkerDefault'),
           }),

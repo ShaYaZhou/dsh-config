@@ -56,7 +56,7 @@ rtk proxy node scripts/harness.mjs install
 
 ## 日常默认：精简 PTC
 
-常规安装现在把桌面入口设为**原生 PTC＋每个执行者独立的浏览器工具＋按需嵌套会话**；完整增强保留在 `enhanced` profile，显式运行 `dsh --profile enhanced` 时才加载。上文的协作、记忆、Ultracode 和增强界面说明适用于该按需 profile。旧工作流恢复、停止保护和日志不会删除，安装器仍先备份并支持回滚。详见 [日常精简 PTC](docs/DAILY-PTC.md)。
+常规安装现在把桌面入口设为**原生 PTC＋每个执行者独立的浏览器工具＋按需嵌套会话**，保留插件市场与「设置 → Harness增强」管理入口。管理页对未加载的执行功能明确标注并禁用开关；上文的完整协作、记忆、Ultracode 等能力在 `enhanced` profile 中提供，显式运行 `dsh --profile enhanced` 时才加载。旧工作流恢复、停止保护和日志不会删除，安装器仍先备份并支持回滚。详见 [日常精简 PTC](docs/DAILY-PTC.md)。
 
 ## 新电脑使用
 
