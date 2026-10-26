@@ -26,7 +26,7 @@ async function main() {
       assert(agent); ctx.permissionPresets.set(agent.session,'workspace-write'); agents.push(agent);
       assert(agent.ctx.tools.get('start_session',agent),'Nested sessions must be available');
       assert.equal(ctx.get('nestedSessions').delegationMode(agent.id),'auto');
-      if(process.env.DSH_TEST_PROFILE!=='enhanced')assert(!agent.ctx.tools.get('render_widget',agent),'Daily must not expose optional UI tooling');
+      assert(agent.ctx.tools.get('render_widget',agent),'Inline cards must remain available');
     }
     assert(process.env.OPENAI_API_KEY, 'Real-model validation requires the configured proxy key');
     const results=[],allResults=[];

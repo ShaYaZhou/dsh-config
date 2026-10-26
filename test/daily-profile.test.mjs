@@ -6,18 +6,39 @@ import path from 'node:path';
 import os from 'node:os';
 import {renderDailyPlan, settingsFrom, repository} from '../scripts/harness.mjs';
 
+test('machine-local provider definitions survive rendering without embedding credentials',()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'dsh-provider-'));
+ try{
+  const file=path.join(dir,'settings.json'),value={defaultProvider:'custom',defaultModel:'custom-model',reasoningEffort:null,
+   additionalProviders:{custom:{baseURL:'https://models.example.invalid/v1',apiKeyEnv:'CUSTOM_API_KEY',api:'openai-completions',models:[{id:'custom-model',name:'Custom'}]}}};
+  fs.writeFileSync(file,JSON.stringify(value));
+  const plan=renderDailyPlan(path.join(dir,'home'),settingsFrom(file,{}));
+  for(const profile of ['desktop','headless']){
+   const rows=JSON.parse(plan.get('profiles/'+profile+'/cordis.patch.yml'));
+   assert.equal(rows.find(r=>r.id==='llm-pi-ai').config.providers.custom.apiKeyEnv,'CUSTOM_API_KEY');
+   const model=rows.find(r=>r.id==='agent-default-model').config;
+   assert.equal(model.provider,'custom');assert.equal(model.model,'custom-model');assert(!Object.hasOwn(model,'reasoningEffort'));
+  }
+  value.additionalProviders.custom.apiKey='not-a-real-credential';fs.writeFileSync(file,JSON.stringify(value));
+  assert.throws(()=>settingsFrom(file,{}),/keep secrets in the credential store/);
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
+
 test('daily profile uses native PTC and private browsers while enhanced capabilities remain opt-in', () => {
  const home=path.join(os.tmpdir(),'daily profile with spaces');
  const plan=renderDailyPlan(home,settingsFrom(path.join(repository,'config/local.example.json'),{}));
  const daily=JSON.parse(plan.get('profiles/desktop/package.json'));
- assert.deepEqual(Object.keys(daily.dependencies),['@playwright/mcp','@local/dsh-nested-sessions','@local/dsh-shared','dshmarket','@local/dsh-enhancement-settings']);
- assert.deepEqual(daily.dsh.profile.bundles,['@deepseek-ai/dsh-base','@deepseek-ai/dsh-web-app','@local/dsh-nested-sessions','dshmarket','@local/dsh-enhancement-settings']);
+ assert.deepEqual(Object.keys(daily.dependencies),['@playwright/mcp','@local/dsh-nested-sessions','@local/dsh-shared','dshmarket','@local/dsh-enhancement-settings','@local/dsh-dynamic-ui-view']);
+ assert.deepEqual(daily.dsh.profile.bundles,['@deepseek-ai/dsh-base','@deepseek-ai/dsh-web-app','@local/dsh-nested-sessions','dshmarket','@local/dsh-enhancement-settings','@local/dsh-dynamic-ui-view']);
  const patch=JSON.parse(plan.get('profiles/desktop/cordis.patch.yml'));
  assert.equal(patch.find(p=>p.id==='agent-preset-registry').config.default,'ptc');
  assert.equal(patch.find(p=>p.id==='ui-settings-account').config.step,'done');
  assert.equal(patch.find(p=>p.id==='ui-settings-account').config.completion,'api-key');
  assert(!patch.some(p=>p.id==='preset-ptc'||p.id==='preset-standard'));
  assert(!plan.has('profiles/desktop/agent-capabilities/ultracode.mjs'));
+ assert.equal(patch.find(p=>p.id==='dynamic-ui-view').config.skillDirectory,path.join(home,'profiles/desktop/agent-capabilities/inline-skills/dynamic-ui'));
+ assert(plan.has('profiles/desktop/agent-capabilities/inline-skills/dynamic-ui/SKILL.md'));
+ assert(plan.has('profiles/desktop/agent-capabilities/inline-skills/dynamic-ui/patterns/manifest.json'));
  assert.deepEqual([...plan.keys()].filter(p=>p.startsWith('profiles/desktop/agent-capabilities/skills/')),
   ['profiles/desktop/agent-capabilities/skills/computer-use/SKILL.md']);
  const optional=patch.flatMap(p=>p.insert??[]).filter(p=>p.disabled===true);

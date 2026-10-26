@@ -2,16 +2,34 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 
 function host() {
   const code = fs.readFileSync(new URL('../plugins/dynamic-ui-view/lib/index.js', import.meta.url), 'utf8')
     .replace(/^import .*;\r?\n/gm, '')
     .replace(/^export /gm, '');
-  const sandbox = {};
+  const sandbox = {readFileSync:fs.readFileSync,path,defineTool:tool=>tool,
+    z:{object:value=>value,string:()=>({})}};
   vm.createContext(sandbox);
-  vm.runInContext(code + '\nthis.normalizeWidget = normalizeWidget;', sandbox);
+  vm.runInContext(code + '\nthis.normalizeWidget = normalizeWidget;this.apply = apply;', sandbox);
   return sandbox;
 }
+
+test('bundled dynamic-ui is on demand and shares the native agent lifecycle',()=>{
+  const {apply}=host(),events=new Map(),tools=[],skills=[];let cleanup,removed=0;
+  const agent={ctx:{tools:{register:tool=>{tools.push(tool);return ()=>removed++;}},get:name=>{
+    assert.equal(name,'skills');return {register:skill=>{skills.push(skill);return ()=>removed++;}};
+  }}};
+  apply({agents:{list:()=>[agent]},on:(event,fn)=>events.set(event,fn),effect:fn=>{cleanup=fn();}},
+    {skillDirectory:fileURLToPath(new URL('../skills/dynamic-ui',import.meta.url))});
+  events.get('agent/created')({agent});
+  assert.equal(tools.length,1);assert.equal(skills.length,1);
+  assert.equal(skills[0].name,'dynamic-ui');assert(!skills[0].content.startsWith('---'));
+  assert.match(tools[0].description,/Full websites, applications, dashboards/);
+  assert.equal(skills[0].source,'runtime');
+  events.get('agent/disposed')({agent});assert.equal(removed,2);cleanup();assert.equal(removed,2);
+});
 
 function client() {
   let exported;

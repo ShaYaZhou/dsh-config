@@ -3,5 +3,7 @@
   "defaultModel": "deepseek-v4.1-flash",
   "reasoningEffort": "medium",
   "permissionPreset": "workspace-write",
-  "browser": "chrome"
+  "browser": "chrome",
+  "defaultProvider": "openai",
+  "additionalProviders": {}
 }

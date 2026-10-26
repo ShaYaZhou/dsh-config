@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-dynamic-ui-view",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
@@ -24,5 +24,8 @@
         "@deepseek-ai/dsh-client-ui-tool"
       ]
     }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/schemastery": "3.18.5"
   }
 }

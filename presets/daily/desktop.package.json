@@ -6,7 +6,8 @@
     "@local/dsh-nested-sessions": "@artifact/nested-sessions",
     "@local/dsh-shared": "@artifact/shared",
     "dshmarket": "1.66.44",
-    "@local/dsh-enhancement-settings": "@artifact/enhancement-settings"
+    "@local/dsh-enhancement-settings": "@artifact/enhancement-settings",
+    "@local/dsh-dynamic-ui-view": "@artifact/dynamic-ui-view"
   },
   "dsh": {
     "profile": {
@@ -15,7 +16,8 @@
         "@deepseek-ai/dsh-web-app",
         "@local/dsh-nested-sessions",
         "dshmarket",
-        "@local/dsh-enhancement-settings"
+        "@local/dsh-enhancement-settings",
+        "@local/dsh-dynamic-ui-view"
       ]
     }
   }

@@ -161,9 +161,9 @@ test('native preset mounts only official bundles and no external hooks or role m
  assert(![...plan.keys()].some(x=>x.endsWith('.mjs')));
 });
 test('reverting to native removes only old managed module files, never data or package-manager files',()=>{
- const safe='profiles/desktop/agent-capabilities/role-policy.mjs',skill='profiles/desktop/agent-capabilities/skills/computer-use/SKILL.md';
- const previous={sources:{[safe]:'hash',[skill]:'hash','skills/user/SKILL.md':'hash','sessions/user.json':'hash','memories/user.md':'hash','profiles/desktop/node_modules/package/lib/index.js':'hash','profiles/desktop/agent-capabilities/../../outside.mjs':'hash'}};
- assert.deepEqual(staleModulePaths(previous,new Map()),[safe,skill]);assert.deepEqual(staleModulePaths(previous,new Map([[safe,'new'],[skill,'new']])),[]);
+ const safe='profiles/desktop/agent-capabilities/role-policy.mjs',skill='profiles/desktop/agent-capabilities/skills/computer-use/SKILL.md',inline='profiles/desktop/agent-capabilities/inline-skills/dynamic-ui/SKILL.md';
+ const previous={sources:{[safe]:'hash',[skill]:'hash',[inline]:'hash','skills/user/SKILL.md':'hash','sessions/user.json':'hash','memories/user.md':'hash','profiles/desktop/node_modules/package/lib/index.js':'hash','profiles/desktop/agent-capabilities/../../outside.mjs':'hash'}};
+ assert.deepEqual(staleModulePaths(previous,new Map()),[safe,skill,inline]);assert.deepEqual(staleModulePaths(previous,new Map([[safe,'new'],[skill,'new'],[inline,'new']])),[]);
 });
 test('versioned sources contain neither personal host paths nor credential files',()=>{
  function scan(dir){return fs.readdirSync(dir,{withFileTypes:true}).flatMap(x=>x.name.startsWith('.')||['node_modules','build'].includes(x.name)?[]:x.isDirectory()?scan(path.join(dir,x.name)):[path.join(dir,x.name)]);}

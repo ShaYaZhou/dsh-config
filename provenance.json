@@ -282,13 +282,14 @@
     {
       "id": "dynamic-ui-view",
       "package": "@local/dsh-dynamic-ui-view",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
         "changes": [
           "render_widget tool renders a model-authored HTML fragment inline in the conversation as a sandboxed card instead of a standalone .html file.",
-          "The frame document adds a CSP that blocks all network access and its sandbox withholds same-origin, so the fragment cannot reach the app or its storage."
+          "The frame document adds a CSP that blocks all network access and its sandbox withholds same-origin, so the fragment cannot reach the app or its storage.",
+          "Daily profile restores render_widget and one explicitly bundled on-demand dynamic-ui skill without loading the full skill library; tool scope excludes full websites and dashboards."
         ]
       }
     },

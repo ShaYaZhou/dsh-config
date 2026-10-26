@@ -37,8 +37,17 @@ export function settingsFrom(file,env=process.env){
  assert(!url.username&&!url.password&&!url.search&&!url.hash,'Do not put credentials or query parameters in proxyBaseUrl');
  assert(['read-only','workspace-write','danger-full-access'].includes(value.permissionPreset),'Unknown permission preset');
  assert(['chrome','msedge','chromium','firefox','webkit'].includes(value.browser),'Unsupported browser');
- const provider=configuration('desktop.patch.json').find(x=>x.id==='llm-pi-ai').config.providers.openai;
- assert(provider.models.some(x=>x.id===value.defaultModel),'Add your model definition to config/desktop.patch.json before selecting it');
+ assert(value.additionalProviders&&typeof value.additionalProviders==='object'&&!Array.isArray(value.additionalProviders),'additionalProviders must be an object');
+ for(const [id,provider] of Object.entries(value.additionalProviders)){
+  assert(/^[a-z][a-z0-9_-]*$/i.test(id)&&!['__proto__','prototype','constructor'].includes(id),'Invalid additional provider id');
+  assert(provider&&typeof provider==='object'&&!Array.isArray(provider),'Invalid additional provider');
+  for(const key of Object.keys(provider))assert(['displayName','apiKeyEnv','api','baseURL','models'].includes(key),'Unsupported provider field; keep secrets in the credential store');
+  if(provider.apiKeyEnv!==undefined)assert(typeof provider.apiKeyEnv==='string','apiKeyEnv must name an environment/credential reference');
+  assert(Array.isArray(provider.models)&&provider.models.every(m=>m&&typeof m.id==='string'&&m.id.length>0),'Additional provider needs model ids');
+  if(provider.baseURL){const endpoint=new URL(provider.baseURL);assert(['http:','https:'].includes(endpoint.protocol)&&!endpoint.username&&!endpoint.password&&!endpoint.search&&!endpoint.hash,'Provider URL must not embed credentials');}
+ }
+ const providers={...configuration('desktop.patch.json').find(x=>x.id==='llm-pi-ai').config.providers,...value.additionalProviders};
+ assert(providers[value.defaultProvider]?.models?.some(x=>x.id===value.defaultModel),'Configure the selected provider/model before deploying');
  return value;
 }
 export function renderPlan(home,settings,artifacts={}, {clean=false}={}){
@@ -67,6 +76,10 @@ export function renderPlan(home,settings,artifacts={}, {clean=false}={}){
   files.set('profiles/'+profile+'/package.json',json(manifest));
   files.set('profiles/'+profile+'/pnpm-workspace.yaml',json(config('pnpm-workspace.json')));
   const patch=substitute(config(profile+'.patch.json'),tokens);
+  const modelAdapter=patch.find(row=>row.id==='llm-pi-ai');
+  if(modelAdapter)Object.assign(modelAdapter.config.providers,settings.additionalProviders);
+  const defaultModel=patch.find(row=>row.id==='agent-default-model');
+  if(defaultModel){defaultModel.config.provider=settings.defaultProvider;if(settings.reasoningEffort===null)delete defaultModel.config.reasoningEffort;}
   if(!clean&&profile==='desktop'){
    // PTC reuses the standard capability composition; only model-facing transport differs.
    const standard=patch.find(row=>row.id==='preset-standard')?.config;
@@ -138,6 +151,11 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
  for(const row of configuration('desktop.patch.json'))
   if(['ui-settings-account','locale','ui-theme'].includes(row.id))patch.push(row);
  patch.push({id:'agent-preset-registry',config:{default:'ptc',selectedDefault:'ptc'}});
+ const widgetSkill=path.join(oldPath,'agent-capabilities','inline-skills','dynamic-ui');
+ patch.push({id:'dynamic-ui-view',config:{skillDirectory:widgetSkill}});
+ for(const file of ['SKILL.md',...skillResources(path.join(repository,'skills/dynamic-ui'))])
+  files.set('profiles/desktop/agent-capabilities/inline-skills/dynamic-ui/'+file,
+   fs.readFileSync(path.join(repository,'skills/dynamic-ui',file),'utf8'));
  patch.push(substitute(configuration('desktop.patch.json').find(row=>row.id==='permission'),{'${PERMISSION_PRESET}':settings.permissionPreset}));
  patch.push({insert:[{id:'isolated-browser',name:pathToFileURL(path.join(oldPath,'agent-capabilities','isolated-browser.mjs')).href,config:{
   command:process.execPath,cli:path.join(oldPath,'node_modules','@playwright','mcp','cli.js'),browser:settings.browser,outputRoot:path.join(home,'browser-output','isolated')
@@ -166,7 +184,7 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
  const lock=path.join(repository,'presets/daily/desktop.lock.yaml');
  if(fs.existsSync(lock)){
   let text=fs.readFileSync(lock,'utf8');
-  for(const id of ['nested-sessions','shared','enhancement-settings']){
+  for(const id of ['nested-sessions','shared','enhancement-settings','dynamic-ui-view']){
    text=text.replaceAll('${'+id.toUpperCase()+'_TGZ}',artifacts[id]?.filename??id+'-preview.tgz');
    text=text.replaceAll('${'+id.toUpperCase()+'_INTEGRITY}',artifacts[id]?.integrity??'sha512-preview');
   }
@@ -264,7 +282,7 @@ export function staleModulePaths(previous,next){
  return Object.keys(previous?.sources??{}).filter(relative=>{
   if(!relative.startsWith(base))return false;
   const rest=relative.slice(base.length).split('/');
-  return ((rest.length===1&&rest[0].endsWith('.mjs'))||(rest.length>=3&&rest[0]==='skills'))&&!next.has(relative);
+  return ((rest.length===1&&rest[0].endsWith('.mjs'))||(rest.length>=3&&['skills','inline-skills'].includes(rest[0])))&&!next.has(relative);
  });
 }
 export function install(home,settings,{dryRun=false,refreshLock=false,clean=false}={}){
@@ -307,8 +325,10 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
     delete sources[key];
    }
    sources['profiles/desktop/agent-capabilities/isolated-browser.mjs']='modules/isolated-browser.mjs';
+   for(const file of ['SKILL.md',...skillResources(path.join(repository,'skills/dynamic-ui'))])
+    sources['profiles/desktop/agent-capabilities/inline-skills/dynamic-ui/'+file]='skills/dynamic-ui/'+file;
    for(const [target,source]of Object.entries(sources))
-    if(target.startsWith('profiles/enhanced/node_modules/')&&['plugins/nested-sessions/','plugins/shared/','plugins/enhancement-settings/'].some(prefix=>source.startsWith(prefix)))
+    if(target.startsWith('profiles/enhanced/node_modules/')&&['plugins/nested-sessions/','plugins/shared/','plugins/enhancement-settings/','plugins/dynamic-ui-view/'].some(prefix=>source.startsWith(prefix)))
      sources[target.replace('profiles/enhanced/','profiles/desktop/')]=source;
   }
   for(const relative of Object.keys(sources))tracked[relative]=digest(path.join(home,relative));
@@ -360,7 +380,7 @@ export function saveLocks(home){
  for(const profile of daily?['desktop','headless','enhanced']:['desktop','headless']){
   if(daily&&profile==='headless')continue; // unchanged official native profile
   let text=fs.readFileSync(path.join(home,'profiles',profile,'pnpm-lock.yaml'),'utf8');
-  for(const plugin of provenance.plugins.filter(p=>profile===(daily?'enhanced':'desktop')||(daily&&profile==='desktop'&&['nested-sessions','shared','enhancement-settings'].includes(p.id)))){
+  for(const plugin of provenance.plugins.filter(p=>profile===(daily?'enhanced':'desktop')||(daily&&profile==='desktop'&&['nested-sessions','shared','enhancement-settings','dynamic-ui-view'].includes(p.id)))){
    const packed=artifacts[plugin.id];assert(text.includes(packed.filename),'Lock does not match the current built sources: '+plugin.id);
    assert(typeof packed.integrity==='string'&&text.includes(packed.integrity),'Lock integrity does not match the built package: '+plugin.id);
    text=text.replaceAll(packed.filename,'${'+plugin.id.toUpperCase()+'_TGZ}').replaceAll(packed.integrity,'${'+plugin.id.toUpperCase()+'_INTEGRITY}');

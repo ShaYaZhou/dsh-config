@@ -1,9 +1,13 @@
 // render_widget：把模型产出的 HTML 片段内嵌渲染在当前会话的工具卡片里。
 // 宿主只做参数校验和元数据；片段本身留在调用参数里，不落盘、不新增记录类型。
 import {defineTool} from '@deepseek-ai/dsh-tools';
+import {readFileSync} from 'node:fs';
+import path from 'node:path';
+import z from '@deepseek-ai/schemastery';
 
 export const name = 'dynamic-ui-view';
 export const inject = ['agents', 'tools'];
+export const Config = z.object({skillDirectory:z.string()});
 
 const MAX_HTML = 200000;
 const MIN_HEIGHT = 200;
@@ -26,7 +30,7 @@ export function normalizeWidget(args = {}) {
   return {title, height, bytes: html.length};
 }
 
-const DESCRIPTION = `Render an interactive widget inline in this conversation, the way Claude artifacts appear. The fragment is displayed as a sandboxed card inside the current session, so use it instead of writing a standalone .html file whenever the user asks for a chart, diagram, dashboard, form, simulator or any interactive UI.
+const DESCRIPTION = `Render a compact interactive card inline in this conversation: a small chart, diagram, comparison, or single-control explanation. Use the dynamic-ui skill when available. Full websites, applications, dashboards and long documents should use their normal file delivery workflow; this tool does not require browser automation.
 
 Pass a self-contained HTML fragment: inline <style>, <script>, inline SVG and data: URLs only. No external resources — the frame's CSP blocks every network request, and there is no localStorage or fetch. Do not pass doctype/html/head/body; the host supplies the document shell and its light/dark base styles. Keep the fragment under 200000 characters. The card grows to fit whatever the fragment renders, so height only sets the size before the content reports itself. Never wrap the content in your own scroll container (a fixed height with overflow:auto/scroll): the card already sizes itself to the content and a nested scroller would cut the widget off. Lay everything out at its natural height and let the page scroll.`;
 
@@ -68,11 +72,27 @@ function installTool(agent) {
   }));
 }
 
-export function apply(ctx) {
+export function apply(ctx, config = {}) {
+  // Only this profile's explicit bundled skill is registered; its body is
+  // retrieved by the native skill tool on demand, not injected into every turn.
+  let skill;
+  if (config.skillDirectory) {
+    const file=path.join(config.skillDirectory,'SKILL.md');
+    const markdown=readFileSync(file,'utf8');
+    const description=/^description: (.+)$/m.exec(markdown)?.[1];
+    if (!description) throw new Error('dynamic-ui skill is missing its description');
+    skill={name:'dynamic-ui',description,source:'runtime',path:file,
+      resourceBase:{kind:'directory',path:config.skillDirectory},
+      content:markdown.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/,'')};
+  }
   const installed = new Map();
   const install = (agent) => {
     if (installed.has(agent)) return;
-    installed.set(agent, installTool(agent));
+    const removeTool=installTool(agent);
+    try {
+      const removeSkill=skill ? agent.ctx.get('skills').register(skill) : undefined;
+      installed.set(agent,()=>{removeSkill?.();removeTool();});
+    } catch(error) {removeTool();throw error;}
   };
   for (const agent of ctx.agents.list()) install(agent);
   ctx.on('agent/created', ({agent}) => install(agent));

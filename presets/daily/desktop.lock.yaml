@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@local/dsh-dynamic-ui-view':
+        specifier: file:../../local-plugins/${DYNAMIC-UI-VIEW_TGZ}
+        version: file:../../local-plugins/${DYNAMIC-UI-VIEW_TGZ}
       '@local/dsh-enhancement-settings':
         specifier: file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}
         version: file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ})
@@ -25,6 +28,12 @@ importers:
         version: 1.66.44
 
 packages:
+
+  '@local/dsh-dynamic-ui-view@file:../../local-plugins/${DYNAMIC-UI-VIEW_TGZ}':
+    resolution: {integrity: ${DYNAMIC-UI-VIEW_INTEGRITY}, tarball: file:../../local-plugins/${DYNAMIC-UI-VIEW_TGZ}}
+    version: 1.0.1
+    peerDependencies:
+      '@deepseek-ai/schemastery': 3.18.5
 
   '@local/dsh-enhancement-settings@file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}':
     resolution: {integrity: ${ENHANCEMENT-SETTINGS_INTEGRITY}, tarball: file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}}
@@ -90,6 +99,8 @@ packages:
     engines: {node: '>=20.18.1'}
 
 snapshots:
+
+  '@local/dsh-dynamic-ui-view@file:../../local-plugins/${DYNAMIC-UI-VIEW_TGZ}': {}
 
   '@local/dsh-enhancement-settings@file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ})':
     dependencies:
