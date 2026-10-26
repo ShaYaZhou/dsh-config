@@ -331,6 +331,24 @@
         "Refuse privileged server code and custom exports; dispose stopped owners without replay.",
         "Normal agent release permits re-verification with a fresh connection; explicit stop and unconfirmed cleanup persist a fail-closed owner latch and block shell/PTC bypass."
       ]
+    },
+    "dailyOptionalFeatures": {
+      "modules": [
+        "team.mjs",
+        "team-tools.mjs",
+        "worktree.mjs",
+        "worktree-tools.mjs",
+        "browser-guidance.mjs",
+        "session-bus.mjs",
+        "claude-context.mjs",
+        "usage-report.mjs"
+      ],
+      "default": "disabled except passive worktree service",
+      "activation": "native pluginManager entries",
+      "notes": [
+        "No Team, bus, context, usage or guidance tools/prompts are activated by opening the settings page.",
+        "Browser guidance does not install desktop providers; native skill discovery remains conditional on enabling its module."
+      ]
     }
   }
 }

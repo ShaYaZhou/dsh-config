@@ -5,7 +5,7 @@ description: Operate native desktop applications from DeepSeek Harness through t
 
 # Computer use in DeepSeek Harness
 
-This skill uses the native CUA provider already mounted in this Harness. It does not use LiWork, Orca, Codex, or their CLI/desktop automation bridges. Do not start those applications to satisfy a computer-use request here.
+This skill uses the native CUA provider when it is installed and visible in this agent; loading this guidance does not install the provider. It does not use LiWork, Orca, Codex, or their CLI/desktop automation bridges. Do not start those applications to satisfy a computer-use request here.
 
 Discover the actual installed tool schemas; the relevant names start with `cua_driver_native__`.
 

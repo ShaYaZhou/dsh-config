@@ -18,7 +18,11 @@ test('daily profile uses native PTC and private browsers while enhanced capabili
  assert.equal(patch.find(p=>p.id==='ui-settings-account').config.completion,'api-key');
  assert(!patch.some(p=>p.id==='preset-ptc'||p.id==='preset-standard'));
  assert(!plan.has('profiles/desktop/agent-capabilities/ultracode.mjs'));
- assert(![...plan.keys()].some(p=>p.startsWith('profiles/desktop/agent-capabilities/skills/')));
+ assert.deepEqual([...plan.keys()].filter(p=>p.startsWith('profiles/desktop/agent-capabilities/skills/')),
+  ['profiles/desktop/agent-capabilities/skills/computer-use/SKILL.md']);
+ const optional=patch.flatMap(p=>p.insert??[]).filter(p=>p.disabled===true);
+ assert.deepEqual(optional.map(p=>p.id),['agent-team-local','tool-agent-team-local','tool-worktree','browser-guidance','session-bus','claude-context','usage-report']);
+ for(const row of optional) assert(plan.has('profiles/desktop/agent-capabilities/'+path.basename(new URL(row.name).pathname)));
  assert(plan.has('profiles/enhanced/agent-capabilities/ultracode.mjs'));
  assert(plan.has('profiles/enhanced/agent-capabilities/skills/ponytail/SKILL.md'));
  const enhanced=plan.get('profiles/enhanced/cordis.patch.yml');
