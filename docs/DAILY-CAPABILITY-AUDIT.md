@@ -15,8 +15,8 @@
 | 初次移出项 | 影响 | 本轮处置或现状 |
 |---|---|---|
 | dshmarket | 插件市场入口消失 | 已在此前修复恢复；本轮保护市场安装内容跨部署保留 |
-| archify-dsh | Archify架构图技能不再由daily提供 | enhanced按需；清单说明。dynamic-ui不是同一技能 |
-| dsh-btw | /btw、旁问气泡及快捷键退出daily | enhanced按需，清单显式列入口；不能称已证明无价值 |
+| archify-dsh | Archify架构图技能不再由daily提供 | 2026-10-27补回日常，提供/archify按需技能；dynamic-ui不是同一技能 |
+| dsh-btw | /btw、旁问气泡及快捷键退出daily | 2026-10-27补回日常，恢复/btw与旁问快捷键 |
 | dsh-rewind-plugin | Rewind按钮、/rewind、文件快照回退入口丢失 | 本轮恢复；实际文件还原、聊天回退、错误目标及卸载后冷读验收 |
 | dsh-better-sidebar | 该插件的文件树、编辑器、变更和侧聊面板退出daily | enhanced按需；原生侧栏/文件预览不等于这个扩展工作台 |
 | dsh-code-review | 专用代码审查入口退出daily | enhanced按需；普通子代理审查仍在，但不宣称体验等价 |

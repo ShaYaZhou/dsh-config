@@ -28,7 +28,7 @@ async function main() {
       assert(ctx.get(service), service + ' failed to load');
     if(profile==='desktop'){
       const plugins=await ctx.pluginManager.listPlugins();
-      for(const id of ['browser-review','file-links','desktop-commands','delete-session','dsh-rewind-plugin','dynamic-ui-view','enhancement-settings']){
+      for(const id of ['browser-review','file-links','desktop-commands','delete-session','dsh-rewind-plugin','dynamic-ui-view','enhancement-settings','michengai-btw','archify-skill-filesystem']){
         const row=plugins.find(row=>row.patchId===id);
         assert(row?.enabled&&row.fiberPhase==='active',id+' is missing or inactive');
       }

@@ -32,9 +32,15 @@ importers:
       '@local/dsh-shared':
         specifier: file:../../local-plugins/${SHARED_TGZ}
         version: file:../../local-plugins/${SHARED_TGZ}
+      '@michengai/dsh-btw':
+        specifier: file:../../local-plugins/${BTW_TGZ}
+        version: file:../../local-plugins/${BTW_TGZ}
       '@playwright/mcp':
         specifier: 0.0.83
         version: 0.0.83
+      '@tt-a1i/archify-dsh':
+        specifier: 1.0.0
+        version: 1.0.0
       dsh-rewind-plugin:
         specifier: file:../../local-plugins/${REWIND_TGZ}
         version: file:../../local-plugins/${REWIND_TGZ}
@@ -96,10 +102,27 @@ packages:
     peerDependencies:
       zod: ^4.0.0
 
+  '@michengai/dsh-btw@file:../../local-plugins/${BTW_TGZ}':
+    resolution: {integrity: ${BTW_INTEGRITY}, tarball: file:../../local-plugins/${BTW_TGZ}}
+    version: 1.0.0-local.1
+    engines: {node: '>=22'}
+    peerDependencies:
+      '@deepseek-ai/cordis': ^4.0.2
+      '@deepseek-ai/dsh-commands': 0.2.0-rc.1 || 0.2.0-rc.2 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3
+      '@deepseek-ai/dsh-session': 0.2.0-rc.1 || 0.2.0-rc.2 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3
+      '@deepseek-ai/dsh-subagent': 0.2.0-rc.1 || 0.2.0-rc.2 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3
+      '@deepseek-ai/dsh-system-prompt': 0.2.0-rc.1 || 0.2.0-rc.2 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3
+      '@deepseek-ai/dsh-tools': 0.2.0-rc.1 || 0.2.0-rc.2 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3
+      react: ^18.3.1
+
   '@playwright/mcp@0.0.83':
     resolution: {integrity: sha512-oNcl+Ae2/IAjhfPeP46BfIkSakfmprY+aOtkv5MjrQ4lPav4/yNtPhL0iq8SlIM90oApWgBDUxaNKvktazUKOg==}
     engines: {node: '>=18'}
     hasBin: true
+
+  '@tt-a1i/archify-dsh@1.0.0':
+    resolution: {integrity: sha512-ae5L+SyZngy3EzYnWHHfccAYJCZh5e9MTkEBh7mrwTMfpwpFtkIhiOg2vI5xnluCS8CSb+Ne1hi1kOWRQQtGBQ==}
+    engines: {node: ^22.19.0 || >=24.0.0}
 
   argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
@@ -216,10 +239,14 @@ snapshots:
 
   '@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}': {}
 
+  '@michengai/dsh-btw@file:../../local-plugins/${BTW_TGZ}': {}
+
   '@playwright/mcp@0.0.83':
     dependencies:
       playwright: 1.64.0-alpha-1790635538000
       playwright-core: 1.64.0-alpha-1790635538000
+
+  '@tt-a1i/archify-dsh@1.0.0': {}
 
   argparse@2.0.1: {}
 

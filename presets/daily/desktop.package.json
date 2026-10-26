@@ -12,7 +12,9 @@
     "@local/dsh-file-links": "@artifact/file-links",
     "dsh-rewind-plugin": "@artifact/rewind",
     "@local/dsh-desktop-commands": "@artifact/desktop-commands",
-    "@local/dsh-delete-session": "@artifact/delete-session"
+    "@local/dsh-delete-session": "@artifact/delete-session",
+    "@michengai/dsh-btw": "@artifact/btw",
+    "@tt-a1i/archify-dsh": "1.0.0"
   },
   "dsh": {
     "profile": {
@@ -27,7 +29,9 @@
         "@local/dsh-file-links",
         "dsh-rewind-plugin",
         "@local/dsh-desktop-commands",
-        "@local/dsh-delete-session"
+        "@local/dsh-delete-session",
+        "@michengai/dsh-btw",
+        "@tt-a1i/archify-dsh"
       ]
     }
   }
