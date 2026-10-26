@@ -669,3 +669,4 @@ rc.3 相对 rc.2 的实际内容差异（逐包哈希比对，排除 `package.js
 - enhanced 原生装配：Standard/PTC/explore/planner/reviewer 全部加载，关联会话、记忆写策略、本地环境、follow-ups 与 Workflow 命令可用。
 - 隔离演练：完整配置→精简配置→rollback，原 profile manifest 恢复，27 个历史/记忆文件哈希不变，status 无漂移，恢复后的历史可冷读。
 - npm test：190通过、0失败、58项因特定环境跳过；portable＋daily 定向17通过。安全扫描0 high。未用本次短验证声称网页长任务有确定百分比提速。
+- 日常桌面首次重开暴露原生引导标记缺失：补回已配置API接入、语言和主题的原生UI配置；未引入额外能力。定向回归检查step=done，部署后需再核对新会话默认PTC。

@@ -14,6 +14,8 @@ test('daily profile uses native PTC and private browsers while enhanced capabili
  assert.deepEqual(daily.dsh.profile.bundles,['@deepseek-ai/dsh-base','@deepseek-ai/dsh-web-app']);
  const patch=JSON.parse(plan.get('profiles/desktop/cordis.patch.yml'));
  assert.equal(patch.find(p=>p.id==='agent-preset-registry').config.default,'ptc');
+ assert.equal(patch.find(p=>p.id==='ui-settings-account').config.step,'done');
+ assert.equal(patch.find(p=>p.id==='ui-settings-account').config.completion,'api-key');
  assert(!patch.some(p=>p.id==='preset-ptc'||p.id==='preset-standard'));
  assert(!plan.has('profiles/desktop/agent-capabilities/ultracode.mjs'));
  assert(![...plan.keys()].some(p=>p.startsWith('profiles/desktop/agent-capabilities/skills/')));

@@ -130,6 +130,10 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
  const daily = readJson(path.join(repository,'presets/daily/desktop.package.json'));
  files.set('profiles/desktop/package.json',json(daily));
  const patch = JSON.parse(files.get('profiles/desktop/cordis.patch.yml'));
+ // Preserve the configured API-key setup and native appearance; removing these
+ // UI preferences would send an already configured desktop back into onboarding.
+ for(const row of configuration('desktop.patch.json'))
+  if(['ui-settings-account','locale','ui-theme'].includes(row.id))patch.push(row);
  patch.push({id:'agent-preset-registry',config:{default:'ptc',selectedDefault:'ptc'}});
  patch.push(substitute(configuration('desktop.patch.json').find(row=>row.id==='permission'),{'${PERMISSION_PRESET}':settings.permissionPreset}));
  patch.push({insert:[{id:'isolated-browser',name:pathToFileURL(path.join(oldPath,'agent-capabilities','isolated-browser.mjs')).href,config:{
