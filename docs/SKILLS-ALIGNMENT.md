@@ -1,6 +1,6 @@
 # 技能与部署环境对齐
 
-> 日常精简配置：额外技能仅由 enhanced profile 按需加载，日常 desktop 不列出该技能库。详见 [日常精简 PTC](DAILY-PTC.md)。
+> 日常精简配置：除内联卡片所需的一份 dynamic-ui 外，整套额外技能仅由 enhanced profile 按需加载，日常 desktop 不列出该技能库。详见 [日常精简 PTC](DAILY-PTC.md)。
 
 这份文档是给 AI agent 执行的对齐手册：读完即可把一台机器上的 Harness 部署、插件和技能副本对齐到本仓库状态。仓库是唯一来源，本机不保留第二份可编辑副本，也不再使用目录联接。技能只落 DSH 的 `agent-capabilities/skills/`，不写入 `~/.claude/skills`、`~/.agents/skills`、`~/.codex/skills` 等 agent 全局目录，避免被其他 agent 发现。
 
@@ -41,7 +41,7 @@
 | `check`、`handoff`、`implement`、`grill-me`、`grill-with-docs`、`grilling`、`domain-modeling` | [`skills/`](../skills/)（自本机 `~/.claude/skills`、`~/.agents/skills` 入仓） | 同上 | 见各自目录；`grill-me` 依赖 `grilling`，`grill-with-docs` 依赖 `grilling` + `domain-modeling`，四项必须同时部署 |
 | 其余 DSH 专用技能 | [`skills/`](../skills/) | 同上 | 见各自目录 |
 
-目标均在 `DSH_HOME/profiles/enhanced/agent-capabilities/skills/<名称>/`，由安装器整棵复制，不需要单独登记。技能不再复制到 agent 全局目录。目标机若在 `~/.claude/skills`、`~/.agents/skills`、`~/.codex/skills` 已有同名技能，DSH 的外部 provider 可能优先加载那些副本；本仓库不写入也不删除这些目录，需要时由机器所有者自行处理。附录只内联自维护的 `dynamic-ui` 全文；`think`、`pua` 及其余下载技能只写仓库链接。
+完整技能库目标在 `DSH_HOME/profiles/enhanced/agent-capabilities/skills/<名称>/`，由安装器整棵复制，不需要单独登记。日常 desktop 另只部署 `agent-capabilities/inline-skills/dynamic-ui/`，由卡片插件通过原生技能注册表按需提供，包含 patterns 与 preview.py 资源。技能不再复制到 agent 全局目录。目标机若在 `~/.claude/skills`、`~/.agents/skills`、`~/.codex/skills` 已有同名技能，DSH 的外部 provider 可能优先加载那些副本；本仓库不写入也不删除这些目录，需要时由机器所有者自行处理。附录只内联自维护的 `dynamic-ui` 全文；`think`、`pua` 及其余下载技能只写仓库链接。
 
 ### 2.2.1 Ponytail 安装与使用
 
