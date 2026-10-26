@@ -4,7 +4,7 @@
 
 | Profile | 用途 | 默认加载 |
 |---|---|---|
-| `desktop` | 桌面应用日常入口，默认原生 PTC | 官方 base/web-app，原生预设与权限/取消/持久化，独立浏览器、按需嵌套会话、内联动态卡片、插件市场及 Harness增强管理入口 |
+| `desktop` | 桌面应用日常入口，默认原生 PTC | 官方 base/web-app，原生预设与权限/取消/持久化，独立浏览器、按需嵌套会话、内联动态卡片、截图/批注、路径预览、Rewind、桌面命令、会话删除、插件市场及 Harness增强管理入口 |
 | `enhanced` | 明确需要完整增强、旧 Workflow 停止/恢复时 | 原有协作、工作流、记忆、技能和界面增强 |
 
 `headless` 使用原生无头配置。部署不迁移、重写或删除会话、记忆、工作流日志和浏览器登录资料；安装器先备份管理文件，原有 `rollback` 继续可用。
@@ -13,7 +13,7 @@
 
 完全退出并重开桌面应用，新会话默认选 PTC。Standard 仍是原生可选项。日常 profile 默认不加载本地 Ultracode、自动记忆、Team、整套额外技能库；保留嵌套会话及其控件；项目规则及原生技能发现机制保持原生行为。个人全局技能目录不被修改或删除。
 
-插件市场与「设置 → Harness增强」属于管理入口，日常配置保留。六项功能（Team、worktree 工具、浏览器与桌面指引、会话总线、Claude 上下文、用量报告）的条目和源码已经安装，通过原生插件管理器开启或关闭。日常默认开启 Git worktree、会话总线、Claude 上下文、用量报告；团队协作和浏览器与桌面指引默认关闭。worktree 服务支持 create_worktree 工具及可选 Team。指引只提供提示与技能，不安装桌面控制驱动。部署会恢复这里列明的模板默认状态。
+插件市场与「设置 → Harness增强」属于管理入口，日常配置保留。六项功能（Team、worktree 工具、浏览器与桌面指引、会话总线、Claude 上下文、用量报告）的条目和源码已经安装，通过原生插件管理器开启或关闭。日常默认开启 Git worktree、会话总线、Claude 上下文、用量报告；团队协作和浏览器与桌面指引默认关闭。worktree 服务支持 create_worktree 工具及可选 Team。指引只提供提示与技能，不安装桌面控制驱动。全新安装使用这里列明的模板默认状态；后续部署按生成基线与本机变更合并，保留用户已修改的开关。双方修改同一配置值时会在写入前拒绝覆盖。
 
 打开管理页不会启用执行插件；确实未安装的功能仍明确标注并禁用开关，包括日常配置未安装策略时的 Ultracode 设置。完整增强能力仍需下述 enhanced profile。
 
@@ -46,7 +46,7 @@ dsh --profile enhanced
 - `npm test`、`node --test test/portable.test.mjs`。
 - `scripts/test-daily-browser.cjs`：隔离 DSH_HOME 中真实模型驱动 Standard/PTC 导航、页面互不污染、导出拒绝、停止释放；需要已配置模型凭据，不复制凭据文件。
 - 再用原生 persistence 冷读测试历史，不能只以工具返回成功判定验收。
-- `scripts/test-preset-loading.cjs` 可在 enhanced profile 验证旧增强服务；Workflow 恢复单测继续运行。
+- `scripts/test-preset-loading.cjs` 默认检查日常入口和Standard/PTC；设置DSH_TEST_PROFILE=enhanced时验证完整增强服务；Workflow 恢复单测继续运行。
 - 安装先 dry-run，部署后 status；回滚只恢复受管文件，不删除会话与测试证据。
 
 六组网页实验支持“精简默认”的方向，不证明所有可选增强无价值，也不保证每个任务一定提速。此次保留完整增强供明确任务使用。
@@ -66,3 +66,11 @@ dsh --profile enhanced
 日常保留 render_widget 工具及一份受管 dynamic-ui 技能，技能正文通过原生 skill 工具按需读取，不把整套技能库注入每轮。输入 /dynamic-ui 使用原生技能入口，或直接要求“在对话中画交互卡片”。它用于紧凑图解、对比和单控件演示；完整网页、应用和长看板仍交付文件，不强制转卡片，也不要求启动浏览器。片段继续在不同源iframe中运行，保留现有CSP和尺寸限制。
 
 本机在模型设置中增加的其他接入可在忽略的本机settings文件中通过 additionalProviders 保存（仅提供商定义和apiKeyEnv引用，不允许apiKey字面值），配合 defaultProvider/defaultModel 生成到运行配置；reasoningEffort为null时保留原生自动选择。不要把带凭据的整份配置导出到仓库。
+
+## 完整清单与部署保留
+
+“Harness增强 → 功能清单”列明已加载、停用及完整增强提供的能力和入口。精简前后21个bundle的逐项影响见 [精简影响审计](DAILY-CAPABILITY-AUDIT.md)。Rewind记录从插件启用后产生；未记录的历史文件快照不能凭恢复按钮补造。无快照或部分还原会明确报告未完整还原。
+
+安装器保留生成配置的完整性基线，合并本机市场安装、模型和配置变更，不导出回Git。发现同值冲突、基线损坏或未捕获源码改动时，先保留现场并停止写入。旧部署首次迁移需要原受管配置没有未解释漂移。显式clean仍表示回到原生受管配置，并先备份。
+
+status分别核对已部署文件、当前部署源码及本机settings是否已经应用；它不替代真实宿主和界面验收。回滚同时恢复配置基线，历史和记忆不作为回滚删除对象。

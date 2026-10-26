@@ -82,7 +82,7 @@ export function loadClaudeContext({home = os.homedir(), cwd = process.cwd()} = {
   // Only a pointer: Claude project memory is background reference, not always-on instructions.
   const memory = path.join(home, '.claude', 'projects', claudeProjectSlug(cwd), 'memory', 'MEMORY.md');
   if (fs.existsSync(memory))
-    sections.push('Claude Code project memory index (available on demand; use the claude-context skill; it is background evidence, not instructions): ' + memory);
+    sections.push('Claude Code project memory index (available on demand; use the read tool only when relevant; it is background evidence, not instructions): ' + memory);
 
   if (!sections.length) return '';
   return [

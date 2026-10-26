@@ -654,26 +654,47 @@ To message another teammate, use send_message({ target: "<teammate name>", messa
 	};
 }
 /** Install Team tools in every live or subsequently published Team member scope. */
-function apply(ctx, config = {}) {
+async function apply(ctx, config = {}) {
 	const resolved = {
 		interrupt: config.interrupt ?? true,
 		freshProvider: config.freshProvider ?? "spawn",
 		forkProvider: config.forkProvider ?? "fork"
 	};
 	const installed = /* @__PURE__ */ new Map();
-	const maybeInstall = (agent) => {
+	const pending = new Set();
+	let active = true;
+	const maybeInstall = async (agent) => {
+		if (pending.has(agent)) return;
 		if (installed.has(agent) || ctx.agentTeams.tryMembership(agent) === void 0) return;
-		installed.set(agent, install(agent, ctx, resolved));
+		pending.add(agent);
+		try {
+			// A native Team service is not the local extension contract. Never
+			// attach duplicate prompt/tool registrations to its member scopes.
+			if (typeof ctx.agentTeams.hasPendingPlan !== "function") return;
+			const manager=ctx.get?.('pluginManager');
+			if (manager) {
+				let rows;
+				try {rows=await manager.listPlugins();}
+				catch {ctx.logger?.warn?.('Cannot verify Team ownership; local Team tools remain inactive.');return;}
+				if (rows.some(row=>['agent-team','tool-agent-team'].includes(row.patchId)&&row.enabled)) {
+					ctx.logger?.warn?.('Native and local Team entries are both enabled; disable one Team configuration. Local tools were not duplicated.');
+					return;
+				}
+			}
+			if (!active || ctx.agents.get && ctx.agents.get(agent.id)!==agent) return;
+			installed.set(agent, install(agent, ctx, resolved));
+		} finally {pending.delete(agent);}
 	};
-	for (const agent of ctx.agents.list()) maybeInstall(agent);
+	for (const agent of ctx.agents.list()) await maybeInstall(agent);
 	ctx.on("agent/created", ({ agent }) => {
-		maybeInstall(agent);
+		return maybeInstall(agent);
 	});
 	ctx.on("agent/disposed", ({ agent }) => {
 		installed.get(agent)?.();
 		installed.delete(agent);
 	});
 	ctx.effect(() => () => {
+		active = false;
 		for (const dispose of installed.values()) dispose();
 		installed.clear();
 	}, "tool-team.scopedTools()");

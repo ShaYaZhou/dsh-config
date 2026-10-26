@@ -337,7 +337,7 @@ packages:
 
   '@local/dsh-enhancement-settings@file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}':
     resolution: {integrity: ${ENHANCEMENT-SETTINGS_INTEGRITY}, tarball: file:../../local-plugins/${ENHANCEMENT-SETTINGS_TGZ}}
-    version: 1.0.1
+    version: 1.0.2
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.5
       '@deepseek-ai/schemastery': 3.18.5
@@ -947,7 +947,7 @@ packages:
 
   dsh-rewind-plugin@file:../../local-plugins/${REWIND_TGZ}:
     resolution: {integrity: ${REWIND_INTEGRITY}, tarball: file:../../local-plugins/${REWIND_TGZ}}
-    version: 0.17.1-local.2
+    version: 0.17.1-local.3
     engines: {dsh: '>=0.2.1-rc.1 <0.3.0-0', node: ^22.19.0 || >=24.0.0}
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.5

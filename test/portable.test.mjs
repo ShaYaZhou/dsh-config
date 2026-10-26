@@ -6,6 +6,7 @@ import os from 'node:os';
 import {pathToFileURL} from 'node:url';
 import {repository,renderPlan,settingsFrom,emitYaml,parseArgs,status,capture,staleModulePaths} from '../scripts/harness.mjs';
 import {createHash} from 'node:crypto';
+import {deploymentInputs} from '../scripts/deployment-state.mjs';
 const hash=p=>createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 const settings=settingsFrom(path.join(repository,'config/local.example.json'),{});
 const plugins=JSON.parse(fs.readFileSync(path.join(repository,'provenance.json'),'utf8')).plugins;
@@ -139,7 +140,7 @@ test('machine settings reject embedded credentials and unsupported settings',()=
 test('drift detection reports changed deployed code without reading credentials',()=>{
  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'dsh-drift-'));fs.mkdirSync(path.join(folder,'.portable-harness'));
  const file=path.join(folder,'module.mjs');fs.writeFileSync(file,'original');
- fs.writeFileSync(path.join(folder,'.portable-harness/state.json'),JSON.stringify({files:{'module.mjs':hash(file)}}));
+ fs.writeFileSync(path.join(folder,'.portable-harness/state.json'),JSON.stringify({files:{'module.mjs':hash(file)},inputHashes:deploymentInputs(repository)}));
  assert.deepEqual(status(folder),[]);fs.writeFileSync(file,'changed');assert.deepEqual(status(folder),['module.mjs']);
  fs.unlinkSync(file);fs.unlinkSync(path.join(folder,'.portable-harness/state.json'));fs.rmdirSync(path.join(folder,'.portable-harness'));fs.rmdirSync(folder);
 });
@@ -149,6 +150,24 @@ test('capture refuses simultaneous repository and installed changes before writi
  fs.writeFileSync(path.join(folder,'.portable-harness/state.json'),JSON.stringify({files:{'local.mjs':'old'},sources:{'local.mjs':source},sourceHashes:{[source]:'another-old-hash'}}));
  assert.throws(()=>capture(folder),/Both repository and deployed source changed/);assert.equal(hash(path.join(repository,source)),before);
  fs.unlinkSync(path.join(folder,'local.mjs'));fs.unlinkSync(path.join(folder,'.portable-harness/state.json'));fs.rmdirSync(path.join(folder,'.portable-harness'));fs.rmdirSync(folder);
+});
+test('status detects unapplied source changes independently of installed file drift',()=>{
+ const folder=fs.mkdtempSync(path.join(os.tmpdir(),'dsh-status-source-'));
+ try{
+  fs.mkdirSync(path.join(folder,'.portable-harness'));const file=path.join(folder,'.portable-harness/state.json');
+  const inputs=deploymentInputs(repository);inputs['presets/daily/desktop.package.json']='not-deployed';
+  fs.writeFileSync(file,JSON.stringify({files:{},inputHashes:inputs}));
+  assert.deepEqual(status(folder),['source:presets/daily/desktop.package.json']);
+ }finally{fs.rmSync(folder,{recursive:true,force:true});}
+});
+test('capture refuses divergent copies of one source across profiles',()=>{
+ const folder=fs.mkdtempSync(path.join(os.tmpdir(),'dsh-capture-copies-'));
+ try{
+  fs.mkdirSync(path.join(folder,'.portable-harness'));fs.writeFileSync(path.join(folder,'a.mjs'),'edit A');fs.writeFileSync(path.join(folder,'b.mjs'),'edit B');
+  const source='modules/claude-context.mjs',before=hash(path.join(repository,source));
+  fs.writeFileSync(path.join(folder,'.portable-harness/state.json'),JSON.stringify({files:{'a.mjs':'old','b.mjs':'old'},sources:{'a.mjs':source,'b.mjs':source},sourceHashes:{[source]:before}}));
+  assert.throws(()=>capture(folder),/Different deployed copies/);assert.equal(hash(path.join(repository,source)),before);
+ }finally{fs.rmSync(folder,{recursive:true,force:true});}
 });
 test('native preset mounts only official bundles and no external hooks or role modules',()=>{
  const plan=renderPlan(path.join(os.tmpdir(),'native-preset-home'),settings,{}, {clean:true});

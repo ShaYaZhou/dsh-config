@@ -47,7 +47,8 @@ test('global, project and rule files are loaded while memory is only a pointer',
   assert.match(output, /rule a/);
   assert.match(output, /rule b/);
   assert.match(output, /MEMORY\.md/);
-  assert.doesNotMatch(output, /secret memory body/);
+  assert.doesNotMatch(output, /secret memory body|use the claude-context skill/);
+  assert.match(output,/use the read tool only when relevant/);
   fs.rmSync(base, {recursive: true, force: true});
 });
 

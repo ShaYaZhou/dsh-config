@@ -1,6 +1,6 @@
 {
   "name": "dsh-rewind-plugin",
-  "version": "0.17.1-local.2",
+  "version": "0.17.1-local.3",
   "description": "In-window conversation rewind with workspace file restore · 同窗口内对话回退并可还原工作区文件",
   "icon": "./assets/icon.svg",
   "keywords": [
@@ -200,7 +200,8 @@
     "date": "2026-10-20",
     "changes": [
       "Code-only restore through the original snapshot journal under native maintenance lock.",
-      "Restore an always-visible desktop rewind control and accept slash-command arguments."
+      "Restore an always-visible desktop rewind control and accept slash-command arguments.",
+      "Report missing, unsupported or partial file restoration honestly; preserve the native maintenance and cancellation paths."
     ]
   }
 }

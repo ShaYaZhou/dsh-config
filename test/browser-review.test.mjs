@@ -20,7 +20,7 @@ test("native fixture executables break prior hardlink identity without changing 
     "utf8",
   );
   const start = script.indexOf("fs.mkdirSync(runtime, { recursive: true });");
-  const end = script.indexOf('fs.mkdirSync(path.join(runtime, "locales")');
+  const end = script.indexOf("if(process.platform==='win32')fs.mkdirSync(path.join(runtime, \"locales\")");
   assert(start >= 0 && end > start);
   try {
     vm.runInNewContext(script.slice(start, end), {
@@ -29,6 +29,7 @@ test("native fixture executables break prior hardlink identity without changing 
       source,
       runtime,
       repository: base,
+      process: {platform:"win32"},
       assert,
     });
     assert.equal(
@@ -49,6 +50,7 @@ test("native fixture executables break prior hardlink identity without changing 
           source: runtime,
           runtime,
           repository: base,
+      process: {platform:"win32"},
           assert,
         }),
       /source must differ/,

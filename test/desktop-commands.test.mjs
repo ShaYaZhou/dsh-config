@@ -161,3 +161,12 @@ test("rewind advertises argument support without replacing the original command 
   assert(client.includes("dsh-rewind-header"));
   assert(client.includes("createRewindBridge"));
 });
+
+test('Rewind distinguishes actual restoration from absent or partial checkpoints',()=>{
+ const source=fs.readFileSync(new URL('../plugins/rewind/lib/index.js',import.meta.url),'utf8');
+ const code=source.slice(source.indexOf('export function completeFileRestore'),source.indexOf('async function restoreFiles')).replace('export ','');
+ const scope={};vm.runInNewContext(code+'\nthis.check=completeFileRestore;',scope);
+ assert.equal(scope.check({supported:true,restored:1,deleted:0,failed:0,skipped:0}),true);
+ assert.equal(scope.check({supported:true,restored:0,deleted:1,failed:0,skipped:0}),true);
+ for(const outcome of [{},{supported:true,restored:0,deleted:0,failed:0,skipped:0},{supported:true,restored:1,deleted:0,failed:1,skipped:0},{supported:true,restored:1,deleted:0,failed:0,skipped:1}])assert.equal(scope.check(outcome),false);
+});

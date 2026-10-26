@@ -56,7 +56,7 @@ rtk proxy node scripts/harness.mjs install
 
 ## 日常默认：精简 PTC
 
-常规安装现在把桌面入口设为**原生 PTC＋每个执行者独立的浏览器工具＋按需嵌套会话与内联动态卡片**，保留插件市场与「设置 → Harness增强」管理入口。管理页默认开启 Git worktree、会话总线、Claude 上下文、用量报告，团队协作和浏览器与桌面指引默认关闭；未安装的 Ultracode 策略仍禁用开关；上文的完整协作、记忆、Ultracode 等能力在 `enhanced` profile 中提供，显式运行 `dsh --profile enhanced` 时才加载。旧工作流恢复、停止保护和日志不会删除，安装器仍先备份并支持回滚。详见 [日常精简 PTC](docs/DAILY-PTC.md)。
+常规安装现在把桌面入口设为**原生 PTC＋每个执行者独立的浏览器工具＋按需嵌套会话与内联动态卡片**，保留插件市场与「设置 → Harness增强」管理入口，以及截图/批注、路径预览、Rewind、桌面快捷命令和可恢复会话删除。管理页默认开启 Git worktree、会话总线、Claude 上下文、用量报告，团队协作和浏览器与桌面指引默认关闭；未安装的 Ultracode 策略仍禁用开关；上文的完整协作、记忆、Ultracode 等能力在 `enhanced` profile 中提供，显式运行 `dsh --profile enhanced` 时才加载。旧工作流恢复、停止保护和日志不会删除，安装器仍先备份并支持回滚。详见 [日常精简 PTC](docs/DAILY-PTC.md)。
 
 ## 新电脑使用
 
@@ -152,3 +152,5 @@ rtk proxy node scripts/harness.mjs rollback
 默认 desktop 的功能补齐与一次性 headless 的既有 proxy/记忆配置一并管理；这不扩大 headless 的功能范围。上轮的 13 组 agent 功能验收不等于 Claude 模型质量或全部云端功能相同。升级 Harness 后须重新校验本地 API 补丁；不要只改版本号绕过检查。
 
 远程仓库为 `https://github.com/ShaYaZhou/dsh-config.git`。首次按原生基线、增强版本顺序分别推送；原来的本地历史保留在未推送的 archive 分支。
+
+精简的逐项影响、原生替代边界和遗漏修复清单见 [日常能力审计](docs/DAILY-CAPABILITY-AUDIT.md)。部署会保留本机相对生成基线的插件与配置变更；冲突会在写入前停止，status同时检查未应用的源码。

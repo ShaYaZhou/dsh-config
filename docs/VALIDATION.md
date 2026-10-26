@@ -719,3 +719,16 @@ rc.3 相对 rc.2 的实际内容差异（逐包哈希比对，排除 `package.js
 - 隔离rc.3宿主检查Standard/PTC：四项条目active，对应create_worktree/message_session/list_authorized_sessions/usage_report工具可见；合成Claude规则实际注入。Team工具和浏览器指引提示不加载，嵌套会话auto及render_widget保留。该检查没有模型请求。
 - portable及daily定向20通过；全仓196通过、0失败、58环境相关跳过。部署预览135个受管文件，保留安装器备份。
 - 真机重开后六个开关与用户截图逐项一致：off/on/off/on/on/on；模型仍为原有Economy，部署status无漂移。
+
+## 精简遗漏完整修复（2026-10-26/27）
+
+- 完整追溯4a00fa0：23个bundle降到2个，21项一同移出；后续恢复4项后仍缺17项。详细清单见DAILY-CAPABILITY-AUDIT.md。候选恢复browser-review、file-links、Rewind、desktop-commands、delete-session，增加管理页功能清单；保持用户指定四开两关。
+- 修复Claude索引对缺失skill的指示，改用已有read。部署保存带完整性哈希的生成基线，三方合并本机插件/模型/开关，冲突或未捕获源码变更在写入前拒绝；source/settings未应用也由status报告。基线参与备份回滚，配置值不输出、不导回Git。
+- 实际隔离安装与再部署/回滚：模拟市场包实际加载，本机额外模型和停用开关保留，两个压缩原生会话日志和记忆校验文件哈希不变。首次验证器只筛选.jsonl导致遗漏原生.jsonl.zstd，改为实际格式后重新执行部署/回滚验证；没有把先前缺证据算通过。
+- Mac原生安全载体通过截图、区域截图、CSS元素吸附、批注编辑/删除/可选附图、附件归属、窄屏与草稿检查；sandbox=true、contextIsolation=true、nodeIntegration=false，安装版未替换。Windows独立exe复制回归仍通过。
+- Standard/PTC真实模型write后Rewind code恢复原字节且对话不变，chat回退保留原历史，错误目标拒绝；额外真实无文件变更回合确认无快照不会误报文件已恢复。卸载Rewind后的原生冷读通过且零激活。
+- 新发现并复现原生/本地Team同时开启导致重复team:identity而无法新建会话；候选管理页阻止混用，本地工具在非本地服务或原生Team已启用时不重复注册，保持原生预设可用。
+- 初次生产UI验收被macOS锁屏阻止；用户解锁后完成实际桌面验收，部署前确认进行中0。预览135个受管文件，保留安装器备份；重开后的Rewind、删除菜单、桌面命令联想、功能清单及四开两关/Economy/嵌套auto均正确。
+- 实际内置浏览器截图预览与CSS按钮吸附成功，批注草稿关闭重开保留，测试草稿已清理。已有文件的Markdown行内路径实际点击打开原生HTML侧栏预览；纯文本不是自动链接。未对用户历史执行回退/删除，图片发送管线由隔离安全载体覆盖。
+- Team冲突补充复验：两种启用顺序都在隔离宿主记录了被拒绝的重复服务，修复后Standard/PTC均可新建并正常读取文件；没有把“两套Team可同时协作”作为结论。首次PTC探针漏传run_code的必需description，修正调用参数后复验通过，未修改工具拼写或权限。
+- 当前完整单测206通过、0失败、58环境相关跳过；安全扫描0 high。

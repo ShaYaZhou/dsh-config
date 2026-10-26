@@ -2582,7 +2582,10 @@ function dropPendingSteering(agent) {
     agent.inbox.remove(message.id);
   }
 }
-async function restoreFiles(ctx, store, fs, agent, plan, checkpointingEnabled) {
+export function completeFileRestore(outcome) {
+  return outcome?.supported === true && outcome.restored + outcome.deleted > 0 && outcome.failed === 0 && outcome.skipped === 0;
+}
+async function restoreFiles(ctx, store, fs, agent, plan, checkpointingEnabled, details = {}) {
     let restore = "";
     {
       let outcome;
@@ -2594,6 +2597,7 @@ async function restoreFiles(ctx, store, fs, agent, plan, checkpointingEnabled) {
         restore = `${t("sep.clause")}${t("storeUnsupported", { version: version ?? error.version })}`;
       }
       if (outcome !== void 0) {
+        Object.assign(details, {supported:true,restored:outcome.restored.length,deleted:outcome.deleted.length,failed:outcome.failed.length,skipped:outcome.skipped.length});
         await syncRestoreObservations(ctx, fs, agent, outcome);
         const parts = [];
         if (outcome.restored.length > 0) parts.push(t("restore.count", { count: outcome.restored.length }));
@@ -2635,8 +2639,11 @@ async function executeRewind(ctx, store, fs, invocation, rawTarget, mode, inflig
           let plan;
           try { plan = resolveOrError(agent.session.snapshotEvents(), agent.session.surface.nodes, rawTarget); }
           catch (error) { return rewindErrorResult(error); }
-          const restore = await restoreFiles(ctx, store, fs, agent, plan, checkpointingEnabled);
-          return {kind:"success",text:"Files restored; conversation retained. " + restore};
+          const outcome = {};
+          const restore = await restoreFiles(ctx, store, fs, agent, plan, checkpointingEnabled, outcome);
+          return completeFileRestore(outcome)
+            ? {kind:"success",text:"Files restored; conversation retained. " + restore}
+            : {kind:"error",text:"文件还原未完整完成，或没有记录可用快照；对话保持不变。" + restore};
         });
       } catch (error) { return {kind:"error",text:"Cannot restore while queued work is pending: " + error.message}; }
       return await maintenance;
@@ -2664,7 +2671,11 @@ async function executeRewind(ctx, store, fs, invocation, rawTarget, mode, inflig
         text: t("failed", { error: error instanceof Error ? error.message : String(error) })
       };
     }
-    const restore = mode === "both" ? await restoreFiles(ctx, store, fs, agent, plan, checkpointingEnabled) : "";
+    const outcome = {};
+    const restore = mode === "both" ? await restoreFiles(ctx, store, fs, agent, plan, checkpointingEnabled, outcome) : "";
+    if (mode === "both" && !completeFileRestore(outcome)) return {
+      kind:"error",text:"对话已回退，但文件还原未完整完成，或没有记录可用快照。" + restore,sourceEventSeq:event.seq
+    };
     return {
       kind: "success",
       text: t("success", { targetSeq: plan.targetSeq, restore }),

@@ -7,7 +7,12 @@
     "@local/dsh-shared": "@artifact/shared",
     "dshmarket": "1.66.44",
     "@local/dsh-enhancement-settings": "@artifact/enhancement-settings",
-    "@local/dsh-dynamic-ui-view": "@artifact/dynamic-ui-view"
+    "@local/dsh-dynamic-ui-view": "@artifact/dynamic-ui-view",
+    "@local/dsh-browser-review": "@artifact/browser-review",
+    "@local/dsh-file-links": "@artifact/file-links",
+    "dsh-rewind-plugin": "@artifact/rewind",
+    "@local/dsh-desktop-commands": "@artifact/desktop-commands",
+    "@local/dsh-delete-session": "@artifact/delete-session"
   },
   "dsh": {
     "profile": {
@@ -17,7 +22,12 @@
         "@local/dsh-nested-sessions",
         "dshmarket",
         "@local/dsh-enhancement-settings",
-        "@local/dsh-dynamic-ui-view"
+        "@local/dsh-dynamic-ui-view",
+        "@local/dsh-browser-review",
+        "@local/dsh-file-links",
+        "dsh-rewind-plugin",
+        "@local/dsh-desktop-commands",
+        "@local/dsh-delete-session"
       ]
     }
   }

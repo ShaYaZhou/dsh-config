@@ -48,7 +48,7 @@
     {
       "id": "enhancement-settings",
       "package": "@local/dsh-enhancement-settings",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
@@ -57,7 +57,8 @@
           "Hosts the feature switches for Team, worktree, browser guidance, session bus, Claude context and usage report, plus the ultracode default, through the public enhancementSettings service; modules fall back to enabled when the plugin is absent.",
           "Ultracode has its own page tab with three atomic switches, all default off: forced workflow orchestration, coordinator read-only lock (tool allowlist and literal-JSON transport), and the linked-worker default.",
           "The coordinator lock is independent of forced orchestration, and execution boundaries (server-side browser code, unbounded browser_evaluate, post-admission sandbox drift) stay enforced regardless of these switches.",
-          "Keep management UI available in daily profile; absent features stay disabled and missing Ultracode policy never exposes active-looking switches."
+          "Keep management UI available in daily profile; absent features stay disabled and missing Ultracode policy never exposes active-looking switches.",
+          "Expose the full capability inventory with current load status and real entry points; optional enhanced features no longer disappear without explanation."
         ]
       }
     },
@@ -128,7 +129,7 @@
     {
       "id": "rewind",
       "package": "dsh-rewind-plugin",
-      "version": "0.17.1-local.2",
+      "version": "0.17.1-local.3",
       "license": "MIT",
       "upstream": {
         "type": "git",
@@ -139,7 +140,8 @@
         "baseVersion": "0.17.1",
         "date": "2026-10-20",
         "changes": [
-          "Code-only restore through the original snapshot journal under native maintenance lock."
+          "Code-only restore through the original snapshot journal under native maintenance lock.",
+          "Do not report complete file restoration when no checkpoint was restored or restoration was partial."
         ]
       }
     },
@@ -348,8 +350,19 @@
       "activation": "native pluginManager entries",
       "notes": [
         "Selected daily defaults load their tools and context; opening the management page does not activate the disabled Team or browser guidance entries.",
-        "Browser guidance does not install desktop providers; native skill discovery remains conditional on enabling its module."
+        "Browser guidance does not install desktop providers; native skill discovery remains conditional on enabling its module.",
+        "Local Team tools validate the extended service and public native plugin ownership before registering; conflicting native Team entries cannot duplicate prompt contexts."
       ]
+    },
+    "dailyInteraction": {
+      "packages": [
+        "browser-review",
+        "file-links",
+        "rewind",
+        "desktop-commands",
+        "delete-session"
+      ],
+      "policy": "Restore user-facing controls without enabling Team, browser guidance, automatic memory or Ultracode by default."
     }
   }
 }

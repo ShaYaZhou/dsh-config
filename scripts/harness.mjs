@@ -5,7 +5,9 @@ import assert from 'node:assert/strict';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
+import {createRequire} from 'node:module';
 import testHome from './test-home.cjs';
+import {reconcileDeployment, deploymentInputs, baselinePath, preservedConfig, assertNoUncapturedCode} from './deployment-state.mjs';
 
 export const repository=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const readJson=file=>JSON.parse(fs.readFileSync(file,'utf8'));
@@ -15,6 +17,7 @@ const digest=file=>fs.existsSync(file)?createHash('sha256').update(fs.readFileSy
 const configuration=name=>readJson(path.join(repository,'config',name));
 const provenance=readJson(path.join(repository,'provenance.json'));
 const stamp=()=>new Date().toISOString().replaceAll(':','-').replaceAll('.','-');
+const dailyArtifactIds=new Set(Object.values(readJson(path.join(repository,'presets/daily/desktop.package.json')).dependencies).filter(spec=>spec.startsWith('@artifact/')).map(spec=>spec.slice(10)));
 
 export function emitYaml(value){
  // JSON is YAML flow syntax; only explicit $js nodes become Harness expression tags.
@@ -184,7 +187,7 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
  const lock=path.join(repository,'presets/daily/desktop.lock.yaml');
  if(fs.existsSync(lock)){
   let text=fs.readFileSync(lock,'utf8');
-  for(const id of ['nested-sessions','shared','enhancement-settings','dynamic-ui-view']){
+  for(const id of dailyArtifactIds){
    text=text.replaceAll('${'+id.toUpperCase()+'_TGZ}',artifacts[id]?.filename??id+'-preview.tgz');
    text=text.replaceAll('${'+id.toUpperCase()+'_INTEGRITY}',artifacts[id]?.integrity??'sha512-preview');
   }
@@ -285,9 +288,29 @@ export function staleModulePaths(previous,next){
   return ((rest.length===1&&rest[0].endsWith('.mjs'))||(rest.length>=3&&['skills','inline-skills'].includes(rest[0])))&&!next.has(relative);
  });
 }
-export function install(home,settings,{dryRun=false,refreshLock=false,clean=false}={}){
+export function install(home,settings,{dryRun=false,refreshLock=false,clean=false,settings:settingsFile}={}){
  const plan = records => clean ? renderPlan(home,settings,records,{clean:true}) : renderDailyPlan(home,settings,records);
- const preview=plan({});
+ const stateFile=path.join(home,'.portable-harness/state.json');
+ const previous=fs.existsSync(stateFile)?readJson(stateFile):undefined;
+ assert(!previous?.pending,'Previous installation is incomplete; rollback before installing again');
+ const parseYaml=text=>{
+  try{return JSON.parse(text);}catch{}
+  const yaml=createRequire(path.join(globalRuntime(),'..','package.json'))('yaml');
+  const document=yaml.parseDocument(text,{logLevel:'silent',customTags:[{tag:'tag:yaml.org,2002:js',resolve:value=>({$js:value})}]});
+  assert(!document.errors.length&&!document.warnings.some(w=>w.code==='TAG_RESOLVE_FAILED'),'Unsupported configuration syntax');
+  return document.toJS({maxAliasCount:100});
+ };
+ const prepare=files=>{
+  if(clean)return {
+   baselines:new Map([...files].filter(([file])=>preservedConfig(file)).map(([file,text])=>[baselinePath(file),text])),
+   customProfiles:new Set(),
+  };
+  return reconcileDeployment(home,files,previous,{parseYaml,emitYaml});
+ };
+ const existingArtifacts=path.join(repository,'build/artifacts.json');
+ const preview=plan(fs.existsSync(existingArtifacts)?readJson(existingArtifacts):{});
+ if(!clean)assertNoUncapturedCode(home,previous,repository,preview);
+ prepare(preview);
  if(dryRun){console.log('Would manage '+preview.size+' files in the selected DSH_HOME; source templates remain unchanged.');return preview;}
  assert(new URL(settings.proxyBaseUrl).hostname!=='proxy.example.invalid','Configure .local/settings.json or OPENAI_BASE_URL before deploying');
  const runtime=globalRuntime();const command=runner();
@@ -295,14 +318,12 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
  assert(version.includes(provenance.runtime),'Desktop runtime differs from the pinned source');
  assert.equal(migrateLiangshen(home,{dryRun:true}).count,0,'Legacy sessions remain; quit Harness and run: node scripts/harness.mjs migrate-liangshen');
  const records=build({clean});const files=plan(records);
+ const {baselines,customProfiles}=prepare(files);
  const profiles=plannedProfiles(files);
  if(refreshLock)for(const profile of profiles)files.delete('profiles/'+profile+'/pnpm-lock.yaml');
  const extra=[...profiles.flatMap(profile=>['profiles/'+profile+'/pnpm-lock.yaml','profiles/'+profile+'/pnpm-workspace.yaml']),'.portable-harness/state.json'];
- const stateFile=path.join(home,'.portable-harness/state.json');
- const previous=fs.existsSync(stateFile)?readJson(stateFile):undefined;
- assert(!previous?.pending,'Previous installation is incomplete; rollback before installing again');
  const stale=staleModulePaths(previous,files);
- const saved=backup(home,[...new Set([...files.keys(),...stale,...extra])]);
+ const saved=backup(home,[...new Set([...files.keys(),...baselines.keys(),...stale,...extra])]);
  write(path.join(home,'.portable-harness/state.json'),json({backup:path.relative(home,saved).split(path.sep).join('/'),files:{},sources:{},sourceHashes:{},pending:true}));
  try{
   fs.mkdirSync(path.join(home,'local-plugins'),{recursive:true});
@@ -310,8 +331,10 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
   for(const [relative,content]of files)write(path.join(home,relative),content);
   for(const relative of stale){const target=path.join(home,relative);const info=fs.lstatSync(target,{throwIfNoEntry:false});if(info){assert(info.isFile()||info.isSymbolicLink(),'Old module must be a file');fs.unlinkSync(target);}}
   linkRuntime(home,runtime);
-  for(const profile of profiles)native(command,home,profile,['install',...(!refreshLock&&files.has('profiles/'+profile+'/pnpm-lock.yaml')?['--frozen-lockfile']:[])]);
+  for(const profile of profiles)native(command,home,profile,['install',...(!refreshLock&&!customProfiles.has(profile)&&files.has('profiles/'+profile+'/pnpm-lock.yaml')?['--frozen-lockfile']:[])]);
+  for(const [relative,content]of baselines)write(path.join(home,relative),content);
   const tracked={};for(const relative of files.keys())tracked[relative]=digest(path.join(home,relative));
+  for(const profile of profiles)tracked['profiles/'+profile+'/pnpm-lock.yaml']=digest(path.join(home,'profiles',profile,'pnpm-lock.yaml'));
   const sources={};
   if(!clean)Object.assign(sources,desktopSkillSources());
   if(!clean&&fs.existsSync(path.join(repository,'modules')))for(const name of fs.readdirSync(path.join(repository,'modules')).filter(x=>x.endsWith('.mjs')))sources['profiles/desktop/agent-capabilities/'+name]='modules/'+name;
@@ -324,15 +347,26 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
     sources[key.replace('profiles/desktop/','profiles/enhanced/')]=sources[key];
     delete sources[key];
    }
-   sources['profiles/desktop/agent-capabilities/isolated-browser.mjs']='modules/isolated-browser.mjs';
+   for(const name of fs.readdirSync(path.join(repository,'modules')).filter(name=>name.endsWith('.mjs'))){
+    const target='profiles/desktop/agent-capabilities/'+name;
+    if(files.has(target))sources[target]='modules/'+name;
+   }
+   for(const [target,source]of Object.entries(desktopSkillSources()))if(files.has(target))sources[target]=source;
    for(const file of ['SKILL.md',...skillResources(path.join(repository,'skills/dynamic-ui'))])
     sources['profiles/desktop/agent-capabilities/inline-skills/dynamic-ui/'+file]='skills/dynamic-ui/'+file;
    for(const [target,source]of Object.entries(sources))
-    if(target.startsWith('profiles/enhanced/node_modules/')&&['plugins/nested-sessions/','plugins/shared/','plugins/enhancement-settings/','plugins/dynamic-ui-view/'].some(prefix=>source.startsWith(prefix)))
+    if(target.startsWith('profiles/enhanced/node_modules/')&&[...dailyArtifactIds].some(id=>source.startsWith('plugins/'+id+'/')))
      sources[target.replace('profiles/enhanced/','profiles/desktop/')]=source;
   }
   for(const relative of Object.keys(sources))tracked[relative]=digest(path.join(home,relative));
-  write(path.join(home,'.portable-harness/state.json'),json({at:new Date().toISOString(),flavor:clean?'native':'daily',runtime:provenance.runtime,backup:path.relative(home,saved).split(path.sep).join('/'),files:tracked,sources,sourceHashes:Object.fromEntries(Object.values(sources).map(p=>[p,digest(path.join(repository,p))]))}));
+  write(path.join(home,'.portable-harness/state.json'),json({
+   at:new Date().toISOString(),flavor:clean?'native':'daily',runtime:provenance.runtime,
+   backup:path.relative(home,saved).split(path.sep).join('/'),files:tracked,sources,
+   generatedHashes:Object.fromEntries([...baselines].map(([file,text])=>[file,createHash('sha256').update(text).digest('hex')])),
+   inputHashes:deploymentInputs(repository),
+   ...(settingsFile?{settingsFile,settingsHash:createHash('sha256').update(json(settings)).digest('hex')}:{}),
+   sourceHashes:Object.fromEntries(Object.values(sources).map(p=>[p,digest(path.join(repository,p))])),
+  }));
   console.log('Installed portable configuration. Backup: '+path.relative(home,saved));
  }catch(error){console.error('Installation failed. Pre-install backup retained: '+path.relative(home,saved));throw error;}
  return files;
@@ -342,16 +376,30 @@ export function status(home){
  const state=readJson(file);const changed=[];
  assert(!state.pending,'Previous installation is incomplete; run rollback');
  for(const [relative,hash]of Object.entries(state.files))if(digest(path.join(home,relative))!==hash)changed.push(relative);
- console.log(changed.length?'Local deployment drift:\n'+changed.join('\n'):'Managed deployment has no local drift.');return changed;
+ if(state.inputHashes){
+  const current=deploymentInputs(repository);
+  for(const file of new Set([...Object.keys(state.inputHashes),...Object.keys(current)]))if(current[file]!==state.inputHashes[file])changed.push('source:'+file);
+ }else changed.push('source-baseline:unrecorded');
+ if(state.settingsFile){
+  try{if(createHash('sha256').update(json(settingsFrom(state.settingsFile))).digest('hex')!==state.settingsHash)changed.push('machine-settings:unapplied');}
+  catch{changed.push('machine-settings:unreadable-or-invalid');}
+ }
+ console.log(changed.length?'Local deployment drift or unapplied source changes:\n'+changed.join('\n'):'Managed deployment has no local drift.');
+ if(!state.inputHashes)console.log('Legacy deployment has no complete source baseline; latest-source status is unverified.');
+ console.log('File/source consistency does not replace host and UI acceptance.');
+ return changed;
 }
 export function capture(home){
  const state=readJson(path.join(home,'.portable-harness/state.json'));
  const changes=[];
+ const bySource=new Map();
  for(const [target,source]of Object.entries(state.sources)){
   const live=path.join(home,target),file=path.join(repository,source);
   if(digest(live)===state.files[target]||digest(live)===digest(file))continue;
   assert(fs.existsSync(live),'Cannot capture a missing runtime source: '+target);
   assert.equal(digest(file),state.sourceHashes[source],'Both repository and deployed source changed; resolve manually: '+source);
+  assert(!bySource.has(source)||bySource.get(source)===digest(live),'Different deployed copies changed the same source; resolve manually: '+source);
+  bySource.set(source,digest(live));
   changes.push([live,file,source]);
  }
  for(const [live,file]of changes)fs.copyFileSync(live,file);
@@ -380,7 +428,7 @@ export function saveLocks(home){
  for(const profile of daily?['desktop','headless','enhanced']:['desktop','headless']){
   if(daily&&profile==='headless')continue; // unchanged official native profile
   let text=fs.readFileSync(path.join(home,'profiles',profile,'pnpm-lock.yaml'),'utf8');
-  for(const plugin of provenance.plugins.filter(p=>profile===(daily?'enhanced':'desktop')||(daily&&profile==='desktop'&&['nested-sessions','shared','enhancement-settings','dynamic-ui-view'].includes(p.id)))){
+  for(const plugin of provenance.plugins.filter(p=>profile===(daily?'enhanced':'desktop')||(daily&&profile==='desktop'&&dailyArtifactIds.has(p.id)))){
    const packed=artifacts[plugin.id];assert(text.includes(packed.filename),'Lock does not match the current built sources: '+plugin.id);
    assert(typeof packed.integrity==='string'&&text.includes(packed.integrity),'Lock integrity does not match the built package: '+plugin.id);
    text=text.replaceAll(packed.filename,'${'+plugin.id.toUpperCase()+'_TGZ}').replaceAll(packed.integrity,'${'+plugin.id.toUpperCase()+'_INTEGRITY}');

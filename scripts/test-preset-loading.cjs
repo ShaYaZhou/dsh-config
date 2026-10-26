@@ -19,13 +19,21 @@ async function main() {
   ]));
   const {runProfile} = await import(pathToFileURL(path.join(native, 'dsh/lib/profile-boot.js')));
   const {loadLayeredEnv} = await import(pathToFileURL(path.join(native, 'dsh-app-boot/lib/index.js')));
-  const {ctx, shutdown} = await runProfile({environment: loadLayeredEnv('dsh'), profile: process.env.DSH_TEST_PROFILE || 'enhanced',
+  const profile=process.env.DSH_TEST_PROFILE || 'desktop';
+  const {ctx, shutdown} = await runProfile({environment: loadLayeredEnv('dsh'), profile,
     patchFiles: [patch], args: ['--port', '0', '--no-open']});
   try {
     const report = [];
-    for (const service of ['nestedSessions', 'memoryWritePolicy', 'localEnvironments', 'followUps'])
+    for (const service of profile==='enhanced'?['nestedSessions', 'memoryWritePolicy', 'localEnvironments', 'followUps']:['nestedSessions'])
       assert(ctx.get(service), service + ' failed to load');
-    for (const preset of ['standard', 'ptc', 'explore', 'planner', 'reviewer']) {
+    if(profile==='desktop'){
+      const plugins=await ctx.pluginManager.listPlugins();
+      for(const id of ['browser-review','file-links','desktop-commands','delete-session','dsh-rewind-plugin','dynamic-ui-view','enhancement-settings']){
+        const row=plugins.find(row=>row.patchId===id);
+        assert(row?.enabled&&row.fiberPhase==='active',id+' is missing or inactive');
+      }
+    }
+    for (const preset of profile==='enhanced'?['standard', 'ptc', 'explore', 'planner', 'reviewer']:['standard','ptc']) {
       const made = await ctx.sessionController.create({cwd: output, agentPreset: preset});
       const resolved = await ctx.sessionController.resolveAgent(made.sessionId);
       assert(!resolved.error && resolved.agent, preset + ': ' + JSON.stringify(resolved.error));
@@ -33,12 +41,18 @@ async function main() {
       const tools = agent.ctx.tools;
       assert(tools.get('read', agent), preset + ' missing read');
       if (['standard', 'ptc'].includes(preset)) {
-        const degraded = process.env.DSH_TEST_OPTIONAL_MISSING === '1';
-        assert.equal(Boolean(tools.get('workflow', agent)), !degraded, preset + ' workflow availability');
         assert(tools.get('start_session', agent), preset + ' missing linked sessions');
         assert.equal(tools.modeFor(agent), preset === 'ptc' ? 'ptc' : 'native');
-        const result = await ctx.commands.execute(agent, '/workflow', [], AbortSignal.timeout(10000));
-        assert.equal(result.result.kind, degraded ? 'error' : 'success', JSON.stringify(result));
+        if(profile==='enhanced'){
+          const degraded = process.env.DSH_TEST_OPTIONAL_MISSING === '1';
+          assert.equal(Boolean(tools.get('workflow', agent)), !degraded, preset + ' workflow availability');
+          const result = await ctx.commands.execute(agent, '/workflow', [], AbortSignal.timeout(10000));
+          assert.equal(result.result.kind, degraded ? 'error' : 'success', JSON.stringify(result));
+        }else{
+          for(const name of ['render_widget','create_worktree','message_session','usage_report'])assert(tools.get(name,agent),preset+' missing '+name);
+          const rewind=await ctx.commands.execute(agent,'/rewind __candidates',[],AbortSignal.timeout(10000));
+          assert.equal(rewind.result.kind,'success','Rewind command missing');
+        }
       }
       report.push({preset, loaded: true, tools: tools.schemas(agent).length});
     }

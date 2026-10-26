@@ -142,6 +142,7 @@ function setup({ plugins = [], writes = [], toggles = [] } = {}) {
     remote: {
       pluginManager: {
         listPlugins: async () => ({ ok: true, value: plugins }),
+        listBundles: async () => ({ok:true,value:[]}),
         setPluginEnabled: async (entryId, enabled) => {
           toggles.push([entryId, enabled]);
           const row = plugins.find((entry) => entry.entryId === entryId);
@@ -209,7 +210,7 @@ test("the section exposes its child pages as ordered tabs", () => {
   const tabs = find(draw(), "button").filter((node) => node.props.role === "tab");
   assert.deepEqual(
     tabs.map((node) => node.children[0]),
-    ["Harness增强", "Ultracode", "上下文压缩", "本地环境", "后续建议"],
+    ["Harness增强", "Ultracode", "功能清单", "上下文压缩", "本地环境", "后续建议"],
   );
   assert.equal(tabs[0].props["aria-selected"], true);
   assert.equal(find(draw(), "panel-slot").length, 0);
@@ -217,6 +218,9 @@ test("the section exposes its child pages as ordered tabs", () => {
   tabs[1].props.onClick();
   assert.equal(find(draw(), "panel-slot").length, 0, "Ultracode is a built-in page, not a slot");
   tabs[2].props.onClick();
+  assert(JSON.stringify(draw()).includes('回退与文件还原'));
+  assert(JSON.stringify(draw()).includes('完整增强入口'));
+  tabs[3].props.onClick();
   draw();
   const slot = find(draw(), "panel-slot");
   assert.equal(slot.length, 1);
@@ -272,4 +276,11 @@ test("feature switches drive native plugin entries and ultracode owns atomic swi
   assert.equal(atomic[2].props.disabled, true);
   await atomic[0].props.onChange(true);
   assert.deepEqual(writes, [["ultracodeDefault", true]]);
+});
+
+test('native Team ownership refuses local enable before any writes',async()=>{
+ const plugins=[{entryId:'include:agent-team-local',enabled:false},{entryId:'include:tool-agent-team-local',enabled:false},{entryId:'native:agent-team',enabled:true}];
+ const f=setup({plugins});f.draw();await settle();
+ const row=find(f.draw(),'native-switch')[0];await row.props.onChange(true);await settle();
+ assert.equal(f.toggles.length,0);assert(JSON.stringify(f.draw()).includes('两套实现不能同时启用'));
 });
