@@ -712,3 +712,10 @@ rc.3 相对 rc.2 的实际内容差异（逐包哈希比对，排除 `package.js
 - 真机日常PTC/Economy：/dynamic-ui自动联想出现；实际render_widget在会话中显示计数器卡片，完成后仍可见，连续点击0→1→2成功，未生成网页文件。测试会话保留供用户查看。
 - 部署中发现设置页新增的其他提供商不在模板中，旧会话一度显示请选择模型。已从安装备份只恢复提供商定义和apiKeyEnv引用到忽略的本机settings参数，新增additionalProviders/defaultProvider便携支持，拒绝apiKey字面字段与含凭据URL；reasoningEffort=null保留原生默认。真机原有Economy选择及该模型实际请求均恢复，未把凭据或本机接入详情写入仓库。
 - 部署预览135文件，保留安装器备份；最终status无漂移。
+
+## 日常默认开关按用户截图对齐（2026-10-26）
+
+- 模板默认开启Git worktree、会话总线、Claude上下文、用量报告；默认关闭团队协作和浏览器与桌面指引。配置由renderDailyPlan生成，重新部署继续保持此组合。
+- 隔离rc.3宿主检查Standard/PTC：四项条目active，对应create_worktree/message_session/list_authorized_sessions/usage_report工具可见；合成Claude规则实际注入。Team工具和浏览器指引提示不加载，嵌套会话auto及render_widget保留。该检查没有模型请求。
+- portable及daily定向20通过；全仓196通过、0失败、58环境相关跳过。部署预览135个受管文件，保留安装器备份。
+- 真机重开后六个开关与用户截图逐项一致：off/on/off/on/on/on；模型仍为原有Economy，部署status无漂移。

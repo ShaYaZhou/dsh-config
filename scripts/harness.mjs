@@ -160,18 +160,18 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
  patch.push({insert:[{id:'isolated-browser',name:pathToFileURL(path.join(oldPath,'agent-capabilities','isolated-browser.mjs')).href,config:{
   command:process.execPath,cli:path.join(oldPath,'node_modules','@playwright','mcp','cli.js'),browser:settings.browser,outputRoot:path.join(home,'browser-output','isolated')
  }}]});
- // Install optional entries disabled, so native pluginManager can enable them
- // without loading their tools or prompts into the everyday default.
+ // Daily defaults follow the selected management switches; native
+ // pluginManager still controls each entry after deployment.
  const optionalModules = {
   'agent-team-local':'team.mjs', 'tool-agent-team-local':'team-tools.mjs',
   'tool-worktree':'worktree-tools.mjs', 'browser-guidance':'browser-guidance.mjs',
   'session-bus':'session-bus.mjs', 'claude-context':'claude-context.mjs', 'usage-report':'usage-report.mjs',
  };
- // Team depends on the passive native worktree service; exposing its model
- // tool remains a separate opt-in switch.
+ // Team and the independently switchable worktree tool share this service.
  patch.push({insert:[{id:'worktree',name:pathToFileURL(path.join(oldPath,'agent-capabilities','worktree.mjs')).href}]});
  patch.push({insert:Object.entries(optionalModules).map(([id,file])=>({id,
-  name:pathToFileURL(path.join(oldPath,'agent-capabilities',file)).href,disabled:true}))});
+  name:pathToFileURL(path.join(oldPath,'agent-capabilities',file)).href,
+  disabled:['agent-team-local','tool-agent-team-local','browser-guidance'].includes(id)}))});
  for(const file of Object.values(optionalModules))
   files.set('profiles/desktop/agent-capabilities/'+file,fs.readFileSync(path.join(repository,'modules',file),'utf8'));
  files.set('profiles/desktop/agent-capabilities/worktree.mjs',fs.readFileSync(path.join(repository,'modules/worktree.mjs'),'utf8'));

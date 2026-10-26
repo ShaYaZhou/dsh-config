@@ -344,10 +344,10 @@
         "claude-context.mjs",
         "usage-report.mjs"
       ],
-      "default": "disabled except passive worktree service",
+      "default": "worktree tool, session bus, Claude context and usage report enabled; Team and browser guidance disabled",
       "activation": "native pluginManager entries",
       "notes": [
-        "No Team, bus, context, usage or guidance tools/prompts are activated by opening the settings page.",
+        "Selected daily defaults load their tools and context; opening the management page does not activate the disabled Team or browser guidance entries.",
         "Browser guidance does not install desktop providers; native skill discovery remains conditional on enabling its module."
       ]
     }

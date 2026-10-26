@@ -24,7 +24,7 @@ test('machine-local provider definitions survive rendering without embedding cre
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-test('daily profile uses native PTC and private browsers while enhanced capabilities remain opt-in', () => {
+test('daily profile uses native PTC, private browsers and the requested enhancement defaults', () => {
  const home=path.join(os.tmpdir(),'daily profile with spaces');
  const plan=renderDailyPlan(home,settingsFrom(path.join(repository,'config/local.example.json'),{}));
  const daily=JSON.parse(plan.get('profiles/desktop/package.json'));
@@ -41,8 +41,9 @@ test('daily profile uses native PTC and private browsers while enhanced capabili
  assert(plan.has('profiles/desktop/agent-capabilities/inline-skills/dynamic-ui/patterns/manifest.json'));
  assert.deepEqual([...plan.keys()].filter(p=>p.startsWith('profiles/desktop/agent-capabilities/skills/')),
   ['profiles/desktop/agent-capabilities/skills/computer-use/SKILL.md']);
- const optional=patch.flatMap(p=>p.insert??[]).filter(p=>p.disabled===true);
- assert.deepEqual(optional.map(p=>p.id),['agent-team-local','tool-agent-team-local','tool-worktree','browser-guidance','session-bus','claude-context','usage-report']);
+ const optional=patch.flatMap(p=>p.insert??[]).filter(p=>typeof p.disabled==='boolean');
+ assert.deepEqual(optional.filter(p=>p.disabled).map(p=>p.id),['agent-team-local','tool-agent-team-local','browser-guidance']);
+ assert.deepEqual(optional.filter(p=>!p.disabled).map(p=>p.id),['tool-worktree','session-bus','claude-context','usage-report']);
  for(const row of optional) assert(plan.has('profiles/desktop/agent-capabilities/'+path.basename(new URL(row.name).pathname)));
  assert(plan.has('profiles/enhanced/agent-capabilities/ultracode.mjs'));
  assert(plan.has('profiles/enhanced/agent-capabilities/skills/ponytail/SKILL.md'));
