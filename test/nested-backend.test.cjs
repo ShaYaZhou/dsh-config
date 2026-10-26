@@ -687,7 +687,9 @@ nativeTest(
     const f = fixture(),
       agent = f.agents.get("root"),
       tools = new Map();
+    let routingGuard;
     agent.ctx.tools = {
+      guard: callback => {routingGuard=callback;return()=>{};},
       register: (definition) => {
         tools.set(definition.name, definition);
         return () => tools.delete(definition.name);
@@ -697,6 +699,7 @@ nativeTest(
     f.installTools(agent, f.service);
     assert.equal(f.service.automatic("root"), true);
     assert.equal(f.service.explicitlyRequested("root"), false);
+    assert.equal(routingGuard({agent,name:'spawn_teammate'}),undefined);
     await f.service.policy({ sessionId: "root", enabled: false });
     await assert.rejects(
       async () =>
@@ -712,6 +715,9 @@ nativeTest(
     assert.equal(f.records.size, 2);
     await f.service.policy({ sessionId: "root", enabled: true });
     assert.equal(f.service.explicitlyRequested("root"), true);
+    assert.match(routingGuard({agent,name:'spawn_teammate'}),/start_session/);
+    assert.match(routingGuard({agent,name:'subagent'}),/start_session/);
+    assert.equal(routingGuard({agent,name:'send_message'}),undefined);
     const child = await tools.get("start_session").execute({
       title: "Yes",
       prompt: "Independent work",

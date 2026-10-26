@@ -279,16 +279,21 @@ function install(agent, ctx, config) {
 		disposers.push(disposer);
 	};
 	try {
-		register(scoped.systemPrompt.section({
+		register(scoped.systemPrompt.context({
 			name: "team:policy",
 			order: scoped.systemPrompt.getSectionOrder("TEAM_POLICY"),
-			text: teamPolicy(config.interrupt)
+			text: () => ['linked','worker'].includes(scoped.get('nestedSessions')?.delegationMode(agent.id))
+                ? 'Team is available only for existing-task communication and collection here. Collaborate owns new delegation; do not create a second Team or duplicate assignments.'
+                : teamPolicy(config.interrupt)
 		}));
 		register(scoped.systemPrompt.context({
 			name: "team:identity",
 			order: scoped.systemPrompt.getContextOrder("TEAM_IDENTITY"),
 			required: true,
 			text: () => {
+				const mode = scoped.get('nestedSessions')?.delegationMode(agent.id);
+				if (mode === 'linked') return 'You coordinate linked sessions. Team names and tools apply only to existing Team communication; new delegation follows collaborate.';
+				if (mode === 'worker') return 'You execute an assigned linked-session task. Its existing coordinator owns delegation; do not establish another Team or Workflow.';
 				const { role, name } = ctx.agentTeams.membership(agent);
 				return `${role === "lead" ? "You are the Team Lead named \"lead\"." : `You are teammate "${name}".\nYour Team Lead is named "lead".\nTo message your Team Lead, use send_message({ target: "lead", message: "..." }).`}
 Use list_agents({}) to find your teammates and their names.

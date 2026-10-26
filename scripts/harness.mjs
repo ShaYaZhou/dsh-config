@@ -128,6 +128,9 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
    .replaceAll(oldPath,newPath));
  }
  const daily = readJson(path.join(repository,'presets/daily/desktop.package.json'));
+ for(const [pkg,spec]of Object.entries(daily.dependencies))if(spec.startsWith('@artifact/')){
+  const id=spec.slice(10);daily.dependencies[pkg]='file:../../local-plugins/'+(artifacts[id]?.filename??id+'-preview.tgz');
+ }
  files.set('profiles/desktop/package.json',json(daily));
  const patch = JSON.parse(files.get('profiles/desktop/cordis.patch.yml'));
  // Preserve the configured API-key setup and native appearance; removing these
@@ -144,7 +147,14 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
  files.set('profiles/desktop/agent-capabilities/manifest.json',json({managedBy:'deepseek-harness-config',flavor:'daily',runtime:provenance.runtime,
   modules:{'isolated-browser.mjs':digest(path.join(repository,'modules/isolated-browser.mjs'))},artifacts:{}}));
  const lock=path.join(repository,'presets/daily/desktop.lock.yaml');
- if(fs.existsSync(lock))files.set('profiles/desktop/pnpm-lock.yaml',fs.readFileSync(lock,'utf8'));
+ if(fs.existsSync(lock)){
+  let text=fs.readFileSync(lock,'utf8');
+  for(const id of ['nested-sessions','shared']){
+   text=text.replaceAll('${'+id.toUpperCase()+'_TGZ}',artifacts[id]?.filename??id+'-preview.tgz');
+   text=text.replaceAll('${'+id.toUpperCase()+'_INTEGRITY}',artifacts[id]?.integrity??'sha512-preview');
+  }
+  files.set('profiles/desktop/pnpm-lock.yaml',text);
+ }
  else files.delete('profiles/desktop/pnpm-lock.yaml');
  files.set('AGENTS.md',fs.readFileSync(path.join(repository,'presets/daily/AGENTS.md'),'utf8'));
  return files;
@@ -280,6 +290,9 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
     delete sources[key];
    }
    sources['profiles/desktop/agent-capabilities/isolated-browser.mjs']='modules/isolated-browser.mjs';
+   for(const [target,source]of Object.entries(sources))
+    if(target.startsWith('profiles/enhanced/node_modules/')&&['plugins/nested-sessions/','plugins/shared/'].some(prefix=>source.startsWith(prefix)))
+     sources[target.replace('profiles/enhanced/','profiles/desktop/')]=source;
   }
   for(const relative of Object.keys(sources))tracked[relative]=digest(path.join(home,relative));
   write(path.join(home,'.portable-harness/state.json'),json({at:new Date().toISOString(),flavor:clean?'native':'daily',runtime:provenance.runtime,backup:path.relative(home,saved).split(path.sep).join('/'),files:tracked,sources,sourceHashes:Object.fromEntries(Object.values(sources).map(p=>[p,digest(path.join(repository,p))]))}));
@@ -330,7 +343,7 @@ export function saveLocks(home){
  for(const profile of daily?['desktop','headless','enhanced']:['desktop','headless']){
   if(daily&&profile==='headless')continue; // unchanged official native profile
   let text=fs.readFileSync(path.join(home,'profiles',profile,'pnpm-lock.yaml'),'utf8');
-  if(profile===(daily?'enhanced':'desktop'))for(const plugin of provenance.plugins){
+  for(const plugin of provenance.plugins.filter(p=>profile===(daily?'enhanced':'desktop')||(daily&&profile==='desktop'&&['nested-sessions','shared'].includes(p.id)))){
    const packed=artifacts[plugin.id];assert(text.includes(packed.filename),'Lock does not match the current built sources: '+plugin.id);
    assert(typeof packed.integrity==='string'&&text.includes(packed.integrity),'Lock integrity does not match the built package: '+plugin.id);
    text=text.replaceAll(packed.filename,'${'+plugin.id.toUpperCase()+'_TGZ}').replaceAll(packed.integrity,'${'+plugin.id.toUpperCase()+'_INTEGRITY}');

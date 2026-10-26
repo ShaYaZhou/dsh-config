@@ -1010,6 +1010,13 @@ for (const method of Object.keys(schemas)) {
   });
 }
 
+export function delegationRefusal(mode, name) {
+  const createsWorker = ['spawn_teammate','subagent','subagent_fork'].includes(name);
+  if(mode==='worker'&&(createsWorker||name==='workflow'))return 'This linked worker must request additional delegation from its existing coordinator; do not create a second Team, Workflow or grandchildren.';
+  if(!createsWorker)return;
+  if(mode==='linked')return 'Collaborate on routes new independent assignments through start_session (or the active Workflow). Do not create parallel Team/subagent assignments. Existing Team messaging and result collection remain available; simple work may stay local.';
+}
+
 function installTools(agent, service) {
   const target = {
     type: "string",
@@ -1178,6 +1185,10 @@ function installTools(agent, service) {
         }),
       ),
   );
+  disposers.push(agent.ctx.tools.guard(exec => {
+    if (exec.agent?.id !== agent.id) return;
+    return delegationRefusal(service.delegationMode(agent.id), exec.name);
+  }));
   disposers.push(
     agent.ctx.on(
       "agent/pre-step",
@@ -1204,7 +1215,7 @@ function installTools(agent, service) {
         const state = service.domain.global.get(),
           link = state.links[agent.id];
         if (link)
-          return `You are a worker for "${link.title}". Focus on this brief. The single coordinator is root session ${familyRoot(state, agent.id)}. Do not call start_session or create grandchildren, even if the task family has collaboration enabled. If more independent work is needed, send_session_message to that root with the proposed work and wait for its decision. Report your result to the assigning parent ${link.parentId}; completion is relayed automatically. You may read or message existing family sessions for coordination. A user /collaborate task from any worker is routed to the root.`;
+          return `You are a worker for "${link.title}". Focus on this brief. The single coordinator is root session ${familyRoot(state, agent.id)}. Do not call start_session, spawn_teammate, subagent, subagent_fork or workflow to create another coordinator or grandchildren, even if the task family has collaboration enabled. If more independent work is needed, send_session_message to that root with the proposed work and wait for its decision. Report your result to the assigning parent ${link.parentId}; completion is relayed automatically. You may read or message existing family sessions for coordination. A user /collaborate task from any worker is routed to the root.`;
         if (agent.ctx.get?.("ultracodeState")?.requiresWorkflow(agent)) {
           return "Ultracode owns orchestration: substantive work MUST enter workflow. /collaborate on prefers linked workers inside that workflow; temporary stages may select session:subagent; auto uses linked for persistent follow-up or an actually isolated cwd; off disables linked workers. Do not call start_session directly or create a second dispatch path. Linked workflow workers are retained for later human follow-up, return text, and must omit structured schema options. Only the workflow collects their results; do not send duplicate completion notifications.";
         }
@@ -1302,10 +1313,10 @@ export async function apply(ctx) {
           text: task
             ? "任务已交给主会话，分工数量与模型由它选择。子会话只执行分配的任务，需要更多分工时向主会话请求。可在协作进度查看。"
             : value === "on"
-              ? "关联协作已开启（尚未提交新任务）。Ultracode 开启时由 Workflow 编排持久会话；关闭时按原关联分工执行。"
+              ? "嵌套会话已开启（尚未提交新任务）：新增独立分工走关联会话；已有 Workflow 继续编排，已有 Team 的通信、收尾和复验保留。"
               : value === "auto"
                 ? "已恢复按需模式：简单任务直接处理，可独立推进的工作由 Agent 判断是否分工。"
-                : "已暂停新增关联子会话；普通 subagent 和 workflow 不受此开关影响。已有关联任务可在协作进度中单独停止或全部停止。",
+                : "已暂停新增关联子会话；普通 subagent、Team 和 workflow 不受此开关影响。已有关联任务可在协作进度中单独停止或全部停止。",
         };
       },
     }),

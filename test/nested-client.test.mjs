@@ -830,6 +830,7 @@ test("nested tree preserves sibling ordering, descendants and orphan history wit
   assert.deepEqual(
     registrations.map((row) => row.name),
     [
+      "conversation.input.right",
       "tool.call.toolview",
       "tool.call.toolview",
       "sidebar.footer.action",

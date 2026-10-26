@@ -1870,7 +1870,97 @@ window.__ModuleLoader__.load({
       );
     }
 
+    function CollaborateControl({ readMode, setMode }) {
+      const [mode, setValue] = React.useState('auto');
+      const [ready, setReady] = React.useState(false);
+      const [busy, setBusy] = React.useState(false);
+      const [error, setError] = React.useState('');
+      const generation = React.useRef(0);
+      const revision = React.useRef(0);
+      React.useEffect(() => {
+        const owner = ++generation.current;
+        const controller = new AbortController();
+        let pending = false;
+        setReady(false);
+        setBusy(false);
+        setError('');
+        const refresh = async () => {
+          if (pending) return;
+          pending = true;
+          const version = revision.current;
+          try {
+            const value = await readMode(controller.signal);
+            if (owner === generation.current && version === revision.current) {
+              setValue(value);
+              setReady(true);
+            }
+          } catch (failure) {
+            if (owner === generation.current && version === revision.current)
+              setError(failure.message);
+          } finally {
+            pending = false;
+          }
+        };
+        void refresh();
+        const timer = setInterval(refresh, 5000);
+        return () => {
+          generation.current++;
+          controller.abort();
+          clearInterval(timer);
+        };
+      }, [readMode]);
+      const change = async (event) => {
+        const next = event.target.value;
+        const owner = generation.current;
+        if (busy || !ready || !['auto', 'on', 'off'].includes(next)) return;
+        revision.current++;
+        setBusy(true);
+        setError('');
+        try {
+          await setMode(next);
+          if (owner === generation.current) setValue(next);
+        } catch (failure) {
+          if (owner === generation.current) setError(failure.message);
+        } finally {
+          if (owner === generation.current) {
+            revision.current++;
+            setBusy(false);
+          }
+        }
+      };
+      return h('span', {style: {display: 'inline-flex', alignItems: 'center', gap: 6}},
+        h('label', {style: {fontSize: 12}}, '嵌套会话 ',
+          h('select', {
+            'aria-label': '嵌套会话模式',
+            value: mode,
+            disabled: !ready || busy,
+            onChange: change,
+            title: 'auto：按需选择；on：新增分工走关联会话；off：禁止新增关联会话。切换不会停止已有任务。',
+            style: {borderRadius: 12, padding: '4px 8px', background: 'transparent', color: 'inherit', border: '1px solid #8886'},
+          }, ...['auto', 'on', 'off'].map(value => h('option', {key: value, value}, value)))),
+        error ? h('span', {role: 'alert', style: {color: '#c44', fontSize: 12}}, error) : null,
+      );
+    }
+
     function apply(ctx) {
+      ctx.slots.inject('conversation.input.right', () => ctx.slots.register({
+        name: 'conversation.input.right',
+        id: 'collaborate-control',
+        order: 10,
+        inject: (sessionId) => ({
+          readMode: async (signal) => {
+            const value = await call(ctx, 'list', {sessionId}, signal);
+            return value.automatic === false ? 'off' : value.requested ? 'on' : 'auto';
+          },
+          setMode: async (mode) => {
+            const live = ctx.sessions.binding(sessionId)?.session;
+            if (!live) throw new Error('当前会话尚未就绪');
+            const result = await live.command('/collaborate '+mode);
+            if (result?.result?.kind === 'error')
+              throw new Error(result.result.text || '切换失败');
+          },
+        }),
+      }, CollaborateControl));
       for (const key of subagentToolNames)
         ctx.slots.inject("tool.call.toolview", () =>
           ctx.slots.register(

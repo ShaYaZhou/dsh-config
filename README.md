@@ -56,9 +56,11 @@ rtk proxy node scripts/harness.mjs install
 
 ## 日常默认：精简 PTC
 
-常规安装现在把桌面入口设为**原生 PTC＋每个执行者独立的浏览器工具**；完整增强保留在 `enhanced` profile，显式运行 `dsh --profile enhanced` 时才加载。上文的协作、记忆、Ultracode 和增强界面说明适用于该按需 profile。旧工作流恢复、停止保护和日志不会删除，安装器仍先备份并支持回滚。详见 [日常精简 PTC](docs/DAILY-PTC.md)。
+常规安装现在把桌面入口设为**原生 PTC＋每个执行者独立的浏览器工具＋按需嵌套会话**；完整增强保留在 `enhanced` profile，显式运行 `dsh --profile enhanced` 时才加载。上文的协作、记忆、Ultracode 和增强界面说明适用于该按需 profile。旧工作流恢复、停止保护和日志不会删除，安装器仍先备份并支持回滚。详见 [日常精简 PTC](docs/DAILY-PTC.md)。
 
 ## 新电脑使用
+
+本文命令使用 RTK；新机器先按 [RTK 工具与参考技能安装](docs/SKILLS-ALIGNMENT.md#222-rtk-工具与参考技能安装) 检查或安装官方 [rtk-ai/rtk](https://github.com/rtk-ai/rtk)。安装 RTK CLI 与部署 `rtk-reference` 技能是两件事。
 
 先安装匹配版本的 DeepSeek Harness 桌面程序、Node.js 22.19+（22 系列）或 24+，以及所选浏览器。全局 CLI 的原生依赖闭包必须与桌面版本一致：
 
@@ -86,6 +88,8 @@ rtk proxy node scripts/harness.mjs status
 ## 如何维护
 
 Ponytail 已随仓库部署为 DSH 技能，用于减少过度设计并优先复用原生能力；官方仓库是 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)。安装路径、使用方式和更新边界见 [Ponytail 安装与使用](docs/SKILLS-ALIGNMENT.md#221-ponytail-安装与使用)。
+
+Ponytail 与 `rtk-reference` 均由 `enhanced` profile 按需加载，日常精简入口不自动加载这份额外技能库。
 
 | 内容 | 版本控制位置 |
 |---|---|

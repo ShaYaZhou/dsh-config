@@ -36,7 +36,7 @@
 | `dynamic-ui` | [`skills/dynamic-ui`](../skills/dynamic-ui/) | `agent-capabilities/skills/dynamic-ui` | `preview.py` + `patterns/` 20 个 |
 | `think` | [`skills/think`](../skills/think/) | 同上 | `references/` 3 个 |
 | `pua` | [`skills/pua`](../skills/pua/) | 同上 | 无 |
-| `rtk-reference` | [`skills/rtk-reference`](../skills/rtk-reference/)（自上游 [`rtk-ai/rtk`](https://github.com/rtk-ai/rtk) 下载） | 同上 | 无；`disable-model-invocation: true`，仅供用户按需查看 |
+| RTK：`rtk-reference` | [`skills/rtk-reference`](../skills/rtk-reference/)；官方来源 [`rtk-ai/rtk`](https://github.com/rtk-ai/rtk) | 同上 | 仅命令参考；RTK CLI 另装，见 2.2.2。`disable-model-invocation: true`，用户按需调用 |
 | `ponytail` | [`skills/ponytail`](../skills/ponytail/)；官方来源 [`DietrichGebert/ponytail`](https://github.com/DietrichGebert/ponytail)，上游路径 `skills/ponytail/SKILL.md` | 同上 | MIT；部署仓库内已审阅副本，不自动追随上游最新版 |
 | `check`、`handoff`、`implement`、`grill-me`、`grill-with-docs`、`grilling`、`domain-modeling` | [`skills/`](../skills/)（自本机 `~/.claude/skills`、`~/.agents/skills` 入仓） | 同上 | 见各自目录；`grill-me` 依赖 `grilling`，`grill-with-docs` 依赖 `grilling` + `domain-modeling`，四项必须同时部署 |
 | 其余 DSH 专用技能 | [`skills/`](../skills/) | 同上 | 见各自目录 |
@@ -45,11 +45,40 @@
 
 ### 2.2.1 Ponytail 安装与使用
 
-Ponytail 用于约束过度设计：先理解调用链，再优先复用已有代码、标准库和原生能力；不能省略输入验证、安全边界及必要验收。官方仓库与安装说明分别是 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) 和 [INSTALL.md](https://github.com/DietrichGebert/ponytail/blob/main/INSTALL.md)（2026-10-25 核对）。
+Ponytail 用于约束过度设计：先理解调用链，再优先复用已有代码、标准库和原生能力；不能省略输入验证、安全边界及必要验收。官方仓库与安装说明分别是 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) 和 [INSTALL.md](https://github.com/DietrichGebert/ponytail/blob/main/INSTALL.md)（2026-10-26 核对）。
 
-本仓库已包含此技能，无需再安装一份第三方插件：按第三节运行部署预览、安装和状态检查，即会复制到 `DSH_HOME/profiles/enhanced/agent-capabilities/skills/ponytail/SKILL.md`。完全重开 Harness 后，在新会话中通过技能菜单选择 `ponytail`，或明确要求加载该技能；确认实际解析的是上述受管路径。若加载到全局同名副本，先报告来源差异，不自动覆盖全局目录。
+本仓库已包含此技能，无需再安装一份第三方插件：按第三节运行部署预览、安装和状态检查，即会复制到 `DSH_HOME/profiles/enhanced/agent-capabilities/skills/ponytail/SKILL.md`。使用 `dsh --profile enhanced`，在新会话中通过技能菜单选择 `ponytail`，或明确要求加载该技能；确认实际解析的是上述受管路径。日常精简 desktop 不加载这份额外技能库。若加载到全局同名副本，先报告来源差异，不自动覆盖全局目录。
 
 上游还提供 Claude Code / Codex 插件安装方式，但其插件命令和生命周期 hooks 不等同于 DSH 技能安装；不要把这些命令直接用于 DSH。需要更新本仓库副本时，先审阅上游技能与许可证差异，再更新 `skills/ponytail/`、运行技能对齐检查和部署验证。本次仅补安装文档，不替换现有技能版本，也不把上游宣传的性能数字当作本仓库的实测结果。
+
+### 2.2.2 RTK 工具与参考技能安装
+
+官方仓库是 [rtk-ai/rtk](https://github.com/rtk-ai/rtk)，安装方法见上游 [INSTALL.md](https://github.com/rtk-ai/rtk/blob/develop/INSTALL.md)（2026-10-26 核对）。这里的 RTK 是 Rust Token Killer，不能与其他同名项目混淆。
+
+先检查工具是否已安装；以下检查不改配置：
+
+```sh
+rtk --version
+rtk gain
+```
+
+若能显示版本和用量统计，直接复用，不重复安装。若未安装，Windows 可使用上游列出的 WinGet 包：
+
+```powershell
+winget install rtk-ai.rtk
+```
+
+macOS/Linux 及已有 Rust 工具链的机器，可使用上游提供的 Git 安装方式；其他预编译安装方式见上游文档：
+
+```sh
+cargo install --git https://github.com/rtk-ai/rtk rtk
+```
+
+这些是首次安装命令，RTK 尚不存在时不要给安装命令加 `rtk` 前缀。安装后重新运行 `rtk --version` 和 `rtk gain`，再执行本仓库部署步骤。不要仅执行 `cargo install rtk` 并假定取得的是同一个项目。
+
+**工具本体与技能分开验证：** 本仓库安装器不安装 RTK 可执行文件，只部署 `skills/rtk-reference/` 到 `DSH_HOME/profiles/enhanced/agent-capabilities/skills/rtk-reference/`。在 `dsh --profile enhanced` 的技能菜单中选择 `rtk-reference` 查看命令参考；它不自动调用模型，也不会仅凭安装就自动改写 DSH 的终端命令。RTK CLI 若在 PATH 中，日常精简模式也可显式使用，例如 `rtk git status`。
+
+只部署 DSH 时，不执行面向其他宿主的 `rtk init -g` 或全局 hook 安装步骤；那些操作会改变对应宿主的配置，不是本仓库的技能安装流程。本节仅补说明，不更新技能副本、不改日常加载策略，也不影响已冻结的对照测试。
 
 ### 2.3 不纳入
 
