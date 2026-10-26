@@ -157,7 +157,7 @@
     {
       "id": "nested-sessions",
       "package": "@local/dsh-nested-sessions",
-      "version": "1.3.6",
+      "version": "1.3.7",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
@@ -180,7 +180,8 @@
           "Expose a workflow-owned linked-session activation with retained history, caller-owned result delivery, cancellation joining and no duplicate parent wakeups.",
           "Workflow-owned fresh sessions accept a prepared cwd and pre-prompt capability validation without changing inherited permissions.",
           "Honor reasoning-only overrides on the inherited model, including Workflow-owned linked sessions, without changing parent selections.",
-          "Session composer exposes 嵌套会话 auto/on/off through existing collaborate policy; on routes new delegation consistently while retaining existing Team communication."
+          "Session composer exposes 嵌套会话 auto/on/off through existing collaborate policy; on routes new delegation consistently while retaining existing Team communication.",
+          "Animated nested-session composer capsule uses CSS-only gradient/sheen states with native accessible mode selection and reduced-motion support."
         ]
       }
     },

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 
 test('嵌套会话 control defaults auto, writes selected mode, and reports rejected changes', async () => {
  const source=fs.readFileSync(new URL('../plugins/nested-sessions/lib/client.js',import.meta.url),'utf8');
- const code=source.slice(source.indexOf('    function CollaborateControl'),source.indexOf('    function apply(ctx)'));
+ const code=source.slice(source.indexOf('    const NESTED_CONTROL_STYLE'),source.indexOf('    function apply(ctx)'));
  const values=[],effects=[];let cursor=0,poll,resolvePoll,defer=false;
  const React={
   useState:init=>{const i=cursor++;if(!(i in values))values[i]=init;return[values[i],next=>{values[i]=typeof next==='function'?next(values[i]):next;}];},

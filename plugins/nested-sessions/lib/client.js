@@ -1870,6 +1870,198 @@ window.__ModuleLoader__.load({
       );
     }
 
+    const NESTED_CONTROL_STYLE = `
+.ns-pill {
+  position:relative;
+  isolation:isolate;
+  display:inline-flex;
+  padding:1px;
+  border-radius:999px;
+  background:linear-gradient(110deg,#a78bfa88,#60a5fa66,#c4b5fd88);
+  cursor:pointer;
+  transition:filter .2s,opacity .2s,transform .2s
+}
+
+.ns-pill:hover {
+  filter:brightness(1.08);
+  transform:translateY(-1px)
+}
+
+.ns-pill:focus-within {
+  outline:2px solid #8b5cf6;
+  outline-offset:3px
+}
+
+.ns-pill::before {
+  content:"";
+  position:absolute;
+  inset:-3px;
+  border-radius:inherit;
+  background:linear-gradient(100deg,#8b5cf6,#38bdf8);
+  filter:blur(8px);
+  opacity:.12;
+  z-index:-1;
+  transition:opacity .25s
+}
+
+.ns-face {
+  position:relative;
+  overflow:hidden;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:6px 10px;
+  border-radius:inherit;
+  background:Canvas;
+  color:CanvasText;
+  font-size:12px;
+  line-height:1;
+  white-space:nowrap
+}
+
+.ns-face::after {
+  content:"";
+  position:absolute;
+  inset:-50% -70%;
+  pointer-events:none;
+  background:linear-gradient(110deg,transparent 43%,#a78bfa30 49%,#ffffff60 50%,transparent 57%);
+  transform:translateX(-65%);
+  animation:ns-sweep 7s ease-in-out infinite
+}
+
+.ns-icon {
+  display:inline-flex;
+  width:15px;
+  height:15px;
+  flex:none;
+  filter:drop-shadow(0 0 3px #a78bfa55);
+  animation:ns-breathe 4s ease-in-out infinite
+}
+
+.ns-icon svg { width: 15px; height: 15px; display: block; }
+.ns-pill[data-mode=auto] .ns-icon { color: #9d70f5; }
+.ns-pill select:disabled { cursor: wait; }
+.ns-mode {
+  font-size:10px;
+  min-width:24px;
+  text-align:center;
+  letter-spacing:.04em;
+  opacity:.85;
+  padding-left:7px;
+  border-left:1px solid currentColor
+}
+
+.ns-chevron {
+  width:9px;
+  height:9px;
+  opacity:.65
+}
+
+.ns-pill select {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  opacity:0;
+  cursor:pointer;
+  z-index:1
+}
+
+.ns-pill select option {
+  color:CanvasText;
+  background:Canvas
+}
+
+.ns-pill[data-mode=on] {
+  background:linear-gradient(110deg,#7c3aed,#9333ea,#2563eb,#7c3aed);
+  background-size:220% 100%;
+  animation:ns-flow 5s linear infinite
+}
+
+.ns-pill[data-mode=on]::before {
+  opacity:.38
+}
+
+.ns-pill[data-mode=on] .ns-face {
+  background:transparent;
+  color:#fff
+}
+
+.ns-pill[data-mode=on] .ns-icon {
+  filter:drop-shadow(0 0 4px #fff8)
+}
+
+.ns-pill[data-mode=on] .ns-mode {
+  opacity:1
+}
+
+.ns-pill[data-mode=off] {
+  background:#8885
+}
+
+.ns-pill[data-mode=off]::before,.ns-pill[data-mode=off] .ns-face::after {
+  display:none
+}
+
+.ns-pill[data-mode=off] .ns-face {
+  color:inherit;
+  opacity:.6
+}
+
+.ns-pill[data-mode=off] .ns-icon {
+  animation:none;
+  filter:none
+}
+
+.ns-pill[data-disabled=true] {
+  opacity:.45;
+  cursor:wait;
+  transform:none
+}
+
+@keyframes ns-flow {
+  to {
+  background-position:220% 50%
+}
+
+}
+
+@keyframes ns-sweep {
+  0%,35% {
+  transform:translateX(-65%)
+}
+70%,100% {
+  transform:translateX(65%)
+}
+
+}
+
+@keyframes ns-breathe {
+  0%,100% {
+  opacity:.7;
+  transform:scale(.94)
+}
+50% {
+  opacity:1;
+  transform:scale(1.06)
+}
+
+}
+
+@media(prefers-reduced-motion:reduce) {
+  .ns-pill,.ns-icon,.ns-face::after {
+  animation:none!important;
+  transition:none!important;
+  transform:none!important
+}
+.ns-face::after {
+  display:none
+}
+
+}
+
+`;
+
     function CollaborateControl({ readMode, setMode }) {
       const [mode, setValue] = React.useState('auto');
       const [ready, setReady] = React.useState(false);
@@ -1929,14 +2121,22 @@ window.__ModuleLoader__.load({
         }
       };
       return h('span', {style: {display: 'inline-flex', alignItems: 'center', gap: 6}},
-        h('label', {style: {fontSize: 12}}, '嵌套会话 ',
+        h('style', null, NESTED_CONTROL_STYLE),
+        h('label', {className: 'ns-pill', 'data-mode': mode, 'data-disabled': !ready || busy},
+          h('span', {className: 'ns-face', 'aria-hidden': true},
+            h('span', {className: 'ns-icon'}, h('svg', {viewBox: '0 0 20 20', fill: 'none'},
+              h('path', {d: 'M9 2.5 10.9 7.1 15.5 9 10.9 10.9 9 15.5 7.1 10.9 2.5 9 7.1 7.1Z', fill: 'currentColor'}),
+              h('path', {d: 'M16 12 16.9 14.1 19 15 16.9 15.9 16 18 15.1 15.9 13 15 15.1 14.1Z', fill: 'currentColor', opacity: '.65'}))),
+            h('span', null, '嵌套会话'),
+            h('span', {className: 'ns-mode'}, mode),
+            h('svg', {className: 'ns-chevron', viewBox: '0 0 10 10', fill: 'none'},
+              h('path', {d: 'm2 3.5 3 3 3-3', stroke: 'currentColor', strokeWidth: '1.4', strokeLinecap: 'round', strokeLinejoin: 'round'}))),
           h('select', {
             'aria-label': '嵌套会话模式',
             value: mode,
             disabled: !ready || busy,
             onChange: change,
-            title: 'auto：按需选择；on：新增分工走关联会话；off：禁止新增关联会话。切换不会停止已有任务。',
-            style: {borderRadius: 12, padding: '4px 8px', background: 'transparent', color: 'inherit', border: '1px solid #8886'},
+            title: 'auto：按需选择；on：新增分工走关联会话；off：禁止新增关联会话。此处显示偏好，不代表任务正在运行。',
           }, ...['auto', 'on', 'off'].map(value => h('option', {key: value, value}, value)))),
         error ? h('span', {role: 'alert', style: {color: '#c44', fontSize: 12}}, error) : null,
       );
