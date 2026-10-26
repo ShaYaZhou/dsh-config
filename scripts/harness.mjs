@@ -113,6 +113,41 @@ function skillResources(directory,prefix=''){
  }
  return found;
 }
+
+// Keep the complete profile available without loading it into everyday sessions.
+export function renderDailyPlan(home, settings, artifacts = {}) {
+ const enhanced = renderPlan(home, settings, artifacts);
+ const files = renderPlan(home, settings, {}, {clean:true});
+ const oldPath = path.join(path.resolve(home),'profiles','desktop');
+ const newPath = path.join(path.resolve(home),'profiles','enhanced');
+ for (const [file, content] of enhanced) {
+  if (!file.startsWith('profiles/desktop/')) continue;
+  files.set(file.replace('profiles/desktop/','profiles/enhanced/'), content
+   .replaceAll(pathToFileURL(oldPath).href,pathToFileURL(newPath).href)
+   .replaceAll(JSON.stringify(oldPath).slice(1,-1),JSON.stringify(newPath).slice(1,-1))
+   .replaceAll(oldPath,newPath));
+ }
+ const daily = readJson(path.join(repository,'presets/daily/desktop.package.json'));
+ files.set('profiles/desktop/package.json',json(daily));
+ const patch = JSON.parse(files.get('profiles/desktop/cordis.patch.yml'));
+ patch.push({id:'agent-preset-registry',config:{default:'ptc',selectedDefault:'ptc'}});
+ patch.push(substitute(configuration('desktop.patch.json').find(row=>row.id==='permission'),{'${PERMISSION_PRESET}':settings.permissionPreset}));
+ patch.push({insert:[{id:'isolated-browser',name:pathToFileURL(path.join(oldPath,'agent-capabilities','isolated-browser.mjs')).href,config:{
+  command:process.execPath,cli:path.join(oldPath,'node_modules','@playwright','mcp','cli.js'),browser:settings.browser,outputRoot:path.join(home,'browser-output','isolated')
+ }}]});
+ files.set('profiles/desktop/cordis.patch.yml',emitYaml(patch));
+ files.set('profiles/desktop/agent-capabilities/isolated-browser.mjs',fs.readFileSync(path.join(repository,'modules/isolated-browser.mjs'),'utf8'));
+ files.set('profiles/desktop/agent-capabilities/manifest.json',json({managedBy:'deepseek-harness-config',flavor:'daily',runtime:provenance.runtime,
+  modules:{'isolated-browser.mjs':digest(path.join(repository,'modules/isolated-browser.mjs'))},artifacts:{}}));
+ const lock=path.join(repository,'presets/daily/desktop.lock.yaml');
+ if(fs.existsSync(lock))files.set('profiles/desktop/pnpm-lock.yaml',fs.readFileSync(lock,'utf8'));
+ else files.delete('profiles/desktop/pnpm-lock.yaml');
+ files.set('AGENTS.md',fs.readFileSync(path.join(repository,'presets/daily/AGENTS.md'),'utf8'));
+ return files;
+}
+function plannedProfiles(files) {
+ return [...files.keys()].flatMap(file=>file.match(/^profiles\/([^/]+)\/package\.json$/)?.[1]??[]);
+}
 function desktopSkillSources(){
  const base='profiles/desktop/agent-capabilities/skills/';
  const sources={};
@@ -198,20 +233,22 @@ export function staleModulePaths(previous,next){
  return Object.keys(previous?.sources??{}).filter(relative=>{
   if(!relative.startsWith(base))return false;
   const rest=relative.slice(base.length).split('/');
-  return ((rest.length===1&&rest[0].endsWith('.mjs'))||(rest.length===3&&rest[0]==='skills'))&&!next.has(relative);
+  return ((rest.length===1&&rest[0].endsWith('.mjs'))||(rest.length>=3&&rest[0]==='skills'))&&!next.has(relative);
  });
 }
 export function install(home,settings,{dryRun=false,refreshLock=false,clean=false}={}){
- const preview=renderPlan(home,settings,{}, {clean});
+ const plan = records => clean ? renderPlan(home,settings,records,{clean:true}) : renderDailyPlan(home,settings,records);
+ const preview=plan({});
  if(dryRun){console.log('Would manage '+preview.size+' files in the selected DSH_HOME; source templates remain unchanged.');return preview;}
  assert(new URL(settings.proxyBaseUrl).hostname!=='proxy.example.invalid','Configure .local/settings.json or OPENAI_BASE_URL before deploying');
  const runtime=globalRuntime();const command=runner();
  const version=execute(command.executable,['--expose-internals',command.cli,'--version'],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1'}});
  assert(version.includes(provenance.runtime),'Desktop runtime differs from the pinned source');
  assert.equal(migrateLiangshen(home,{dryRun:true}).count,0,'Legacy sessions remain; quit Harness and run: node scripts/harness.mjs migrate-liangshen');
- const records=build({clean});const files=renderPlan(home,settings,records,{clean});
- if(refreshLock)for(const profile of ['desktop','headless'])files.delete('profiles/'+profile+'/pnpm-lock.yaml');
- const extra=['profiles/desktop/pnpm-lock.yaml','profiles/desktop/pnpm-workspace.yaml','profiles/headless/pnpm-lock.yaml','profiles/headless/pnpm-workspace.yaml','.portable-harness/state.json'];
+ const records=build({clean});const files=plan(records);
+ const profiles=plannedProfiles(files);
+ if(refreshLock)for(const profile of profiles)files.delete('profiles/'+profile+'/pnpm-lock.yaml');
+ const extra=[...profiles.flatMap(profile=>['profiles/'+profile+'/pnpm-lock.yaml','profiles/'+profile+'/pnpm-workspace.yaml']),'.portable-harness/state.json'];
  const stateFile=path.join(home,'.portable-harness/state.json');
  const previous=fs.existsSync(stateFile)?readJson(stateFile):undefined;
  assert(!previous?.pending,'Previous installation is incomplete; rollback before installing again');
@@ -224,7 +261,7 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
   for(const [relative,content]of files)write(path.join(home,relative),content);
   for(const relative of stale){const target=path.join(home,relative);const info=fs.lstatSync(target,{throwIfNoEntry:false});if(info){assert(info.isFile()||info.isSymbolicLink(),'Old module must be a file');fs.unlinkSync(target);}}
   linkRuntime(home,runtime);
-  for(const profile of ['desktop','headless'])native(command,home,profile,['install',...(!refreshLock&&files.has('profiles/'+profile+'/pnpm-lock.yaml')?['--frozen-lockfile']:[])]);
+  for(const profile of profiles)native(command,home,profile,['install',...(!refreshLock&&files.has('profiles/'+profile+'/pnpm-lock.yaml')?['--frozen-lockfile']:[])]);
   const tracked={};for(const relative of files.keys())tracked[relative]=digest(path.join(home,relative));
   const sources={};
   if(!clean)Object.assign(sources,desktopSkillSources());
@@ -233,8 +270,15 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
    const library=path.join(repository,'plugins',plugin.id,'lib');
    for(const entry of fs.readdirSync(library,{withFileTypes:true}))if(entry.isFile()&&/\.m?js$/.test(entry.name))sources['profiles/desktop/node_modules/'+plugin.package+'/lib/'+entry.name]='plugins/'+plugin.id+'/lib/'+entry.name;
   }
+  if(!clean){
+   for(const key of Object.keys(sources)){
+    sources[key.replace('profiles/desktop/','profiles/enhanced/')]=sources[key];
+    delete sources[key];
+   }
+   sources['profiles/desktop/agent-capabilities/isolated-browser.mjs']='modules/isolated-browser.mjs';
+  }
   for(const relative of Object.keys(sources))tracked[relative]=digest(path.join(home,relative));
-  write(path.join(home,'.portable-harness/state.json'),json({at:new Date().toISOString(),flavor:clean?'native':provenance.flavor,runtime:provenance.runtime,backup:path.relative(home,saved).split(path.sep).join('/'),files:tracked,sources,sourceHashes:Object.fromEntries(Object.values(sources).map(p=>[p,digest(path.join(repository,p))]))}));
+  write(path.join(home,'.portable-harness/state.json'),json({at:new Date().toISOString(),flavor:clean?'native':'daily',runtime:provenance.runtime,backup:path.relative(home,saved).split(path.sep).join('/'),files:tracked,sources,sourceHashes:Object.fromEntries(Object.values(sources).map(p=>[p,digest(path.join(repository,p))]))}));
   console.log('Installed portable configuration. Backup: '+path.relative(home,saved));
  }catch(error){console.error('Installation failed. Pre-install backup retained: '+path.relative(home,saved));throw error;}
  return files;
@@ -273,20 +317,23 @@ export function rollback(home){
    if(info){assert(info.isFile()||info.isSymbolicLink(),'Refusing to remove a directory during file rollback');fs.unlinkSync(target);}
   }
  }
- const command=runner();for(const profile of ['desktop','headless'])if(fs.existsSync(path.join(home,'profiles',profile,'package.json')))native(command,home,profile,['install','--frozen-lockfile']);
+ const command=runner();for(const profile of ['desktop','headless','enhanced'])if(fs.existsSync(path.join(home,'profiles',profile,'package.json')))native(command,home,profile,['install','--frozen-lockfile']);
  console.log('Previous files restored; session/memory stores and added unmounted modules retained.');
 }
 export function saveLocks(home){
  const artifacts=readJson(path.join(repository,'build/artifacts.json'));
- for(const profile of ['desktop','headless']){
+ const daily=fs.existsSync(path.join(home,'profiles/enhanced/package.json'));
+ for(const profile of daily?['desktop','headless','enhanced']:['desktop','headless']){
+  if(daily&&profile==='headless')continue; // unchanged official native profile
   let text=fs.readFileSync(path.join(home,'profiles',profile,'pnpm-lock.yaml'),'utf8');
-  if(profile==='desktop')for(const plugin of provenance.plugins){
+  if(profile===(daily?'enhanced':'desktop'))for(const plugin of provenance.plugins){
    const packed=artifacts[plugin.id];assert(text.includes(packed.filename),'Lock does not match the current built sources: '+plugin.id);
    assert(typeof packed.integrity==='string'&&text.includes(packed.integrity),'Lock integrity does not match the built package: '+plugin.id);
    text=text.replaceAll(packed.filename,'${'+plugin.id.toUpperCase()+'_TGZ}').replaceAll(packed.integrity,'${'+plugin.id.toUpperCase()+'_INTEGRITY}');
   }
   assert(!/(?<![A-Za-z])[A-Za-z]:[\\/]/.test(text),'Lock contains a drive-absolute path');
-  write(path.join(repository,'config',profile+'.lock.yaml'),text);
+  const target=daily&&profile==='desktop'?'presets/daily/desktop.lock.yaml':'config/'+(profile==='enhanced'?'desktop':profile)+'.lock.yaml';
+  write(path.join(repository,target),text);
  }
  console.log('Saved portable lock templates for desktop and headless.');
 }

@@ -19,7 +19,7 @@ async function main() {
   ]));
   const {runProfile} = await import(pathToFileURL(path.join(native, 'dsh/lib/profile-boot.js')));
   const {loadLayeredEnv} = await import(pathToFileURL(path.join(native, 'dsh-app-boot/lib/index.js')));
-  const {ctx, shutdown} = await runProfile({environment: loadLayeredEnv('dsh'), profile: 'desktop',
+  const {ctx, shutdown} = await runProfile({environment: loadLayeredEnv('dsh'), profile: process.env.DSH_TEST_PROFILE || 'enhanced',
     patchFiles: [patch], args: ['--port', '0', '--no-open']});
   try {
     const report = [];

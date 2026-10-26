@@ -71,7 +71,7 @@ test('official OpenSpec skills deploy portably and native cleanup removes only m
  assert.deepEqual(staleModulePaths({sources:{[delivery]:'old'}},new Map()),[delivery]);
 });
 
-test('enhanced modules and skills deploy with bounded workflow and both browser servers',()=>{
+test('enhanced modules retain recovery and disable legacy shared browser servers',()=>{
  const home=path.join(os.tmpdir(),'enhanced portable home');
  const plan=renderPlan(home,settings),base='profiles/desktop/agent-capabilities/skills/';
  for(const name of ['workflow-orchestration','dsh-code-review','security-review','claude-context','usage-report','dynamic-ui'])
@@ -98,13 +98,14 @@ test('enhanced modules and skills deploy with bounded workflow and both browser 
 
  const browsers=config.flatMap(row=>row.insert??[]).filter(row=>row.id?.startsWith('mcp-playwright'));
  assert.equal(browsers.length,2);
- for(const row of browsers)assert(row.config.args.includes('${BROWSER}'));
+ for(const row of browsers){assert(row.config.args.includes('${BROWSER}'));assert.equal(row.disabled,true);}
+ assert(config.flatMap(row=>row.insert??[]).some(row=>row.id==='isolated-browser'&&!row.disabled));
  const session=browsers.find(row=>row.id==='mcp-playwright-session');
  assert(session.config.args.includes('--user-data-dir'));
  assert(session.config.args.some(arg=>arg.includes('browser-profiles/playwright-session')));
 
  const rendered=renderPlan(home,{...settings,browser:'msedge'}).get('profiles/desktop/cordis.patch.yml');
- assert.equal((rendered.match(/msedge/g)??[]).length,2);
+ assert.equal((rendered.match(/msedge/g)??[]).length,3);
  assert(!rendered.includes('${'));
 
  const stale=base+'security-review/scan.mjs';

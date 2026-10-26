@@ -18,7 +18,9 @@ async function main(){
   const controller=ctx.get('sessionController');assert(controller);
   const created=await controller.create({cwd:skillWorkspace});const resolved=await controller.resolveAgent(created.sessionId);assert(!resolved.error);const agent=resolved.agent;
   const tools=agent.ctx.tools.schemas(agent);
-  const tuned=process.env.DSH_SMOKE_FLAVOR!=='native';
+  const daily=process.env.DSH_SMOKE_FLAVOR==='daily';
+  const tuned=!daily&&process.env.DSH_SMOKE_FLAVOR!=='native';
+  if(daily){assert.equal(agent.ctx.tools.modeFor(agent),'ptc');assert(tools.some(t=>t.name==='mcp__playwright__browser_navigate'));}
   assert(tools.some(t=>t.name==='read'));assert(tools.some(t=>t.name==='write'));assert(tools.some(t=>['pwsh','bash'].includes(t.name)));
   const presets=await ctx.get('agentPresets').list();assert(presets.some(p=>p.id==='standard'));
   if(tuned){assert(tools.find(t=>t.name==='spawn_teammate').parameters.properties.isolation);assert(tools.some(t=>t.name==='create_worktree'));assert(tools.some(t=>t.name==='job_output'));for(const id of ['explore','planner','reviewer'])assert(presets.some(p=>p.id===id));assert(ctx.get('commands').find(agent,'rewind').input);assert(ctx.get('clientModules').graph().entries.some(row=>row.id==='@local/dsh-desktop-commands'));

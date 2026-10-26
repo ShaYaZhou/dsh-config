@@ -54,6 +54,10 @@ rtk proxy node scripts/harness.mjs install
 
 迁移器使用原生存储接口取得全部目标会话的独占写入锁，先完整备份到本机 `DSH_HOME/backups/preset-migration-*`，再为每个会话追加一条 `agent-preset/selected` 记录指向 `standard`。会话 ID、创建信息和原有历史事件保持不变，迁移后逐项校验历史一致；重复运行不会重复追加。旧创建信息中的名称作为历史事实保留，不再需要注册同名 preset。备份和迁移清单不会上传 Git。
 
+## 日常默认：精简 PTC
+
+常规安装现在把桌面入口设为**原生 PTC＋每个执行者独立的浏览器工具**；完整增强保留在 `enhanced` profile，显式运行 `dsh --profile enhanced` 时才加载。上文的协作、记忆、Ultracode 和增强界面说明适用于该按需 profile。旧工作流恢复、停止保护和日志不会删除，安装器仍先备份并支持回滚。详见 [日常精简 PTC](docs/DAILY-PTC.md)。
+
 ## 新电脑使用
 
 先安装匹配版本的 DeepSeek Harness 桌面程序、Node.js 22.19+（22 系列）或 24+，以及所选浏览器。全局 CLI 的原生依赖闭包必须与桌面版本一致：

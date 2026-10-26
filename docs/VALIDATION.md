@@ -659,3 +659,13 @@ rc.3 相对 rc.2 的实际内容差异（逐包哈希比对，排除 `package.js
 - 未豁免发布时间保护。候选 code-review 1.0.3 / skills-manager 1.2.19 被 minimumReleaseAge 拒绝，改用明确兼容 rc.3 且满足门槛的 1.0.2 / 1.2.16，重新生成锁文件。
 - 可复用无模型请求验收脚本：scripts/test-preset-loading.cjs，要求隔离 DSH_HOME 和 DSH_NATIVE_ROOT；不将加载通过当成真实模型长任务通过。
 - 最终回归：npm test 187通过、0失败、58项依赖特定环境而跳过；portable 14/14；安全扫描0 high。日常部署完成并保留安装器备份，重开后插件页无此前兼容异常，Standard新建和PTC切换正常。此次不包含真实模型长任务性能验收。
+
+## 日常精简 PTC 与浏览器隔离（2026-10-26）
+
+- desktop 默认原生 PTC＋Playwright MCP；完整增强单独部署为 enhanced，保留旧日志、停止锁、恢复命令与插件。未新增调度系统。
+- 原生 MCP 代理作用域承载独立连接和浏览器上下文，默认输出目录按代理标识隔离；拒绝 unsafe、提权与自定义导出路径。停止/错误先封闭该 owner 的入口，再等待原生连接清理；未知清理结果不自动重启。
+- Flash/Medium 真实模型：Standard＋两个 PTC 并发打开不同页面后快照各自不串页；实际原生子代理导航后父会话页面不变；截图自定义路径被拒绝；等待工具执行中取消 PTC 后其浏览器工具移除，其他 owner 保持可用。全部经正常会话回合执行。
+- 早期程序化夹具在回合外直接调用 PTC，产生原生格式校验失败；该失败仅在隔离目录保留，未作为通过证据。改成真实模型回合后，历史冷读无代理激活、回合均闭合。
+- enhanced 原生装配：Standard/PTC/explore/planner/reviewer 全部加载，关联会话、记忆写策略、本地环境、follow-ups 与 Workflow 命令可用。
+- 隔离演练：完整配置→精简配置→rollback，原 profile manifest 恢复，27 个历史/记忆文件哈希不变，status 无漂移，恢复后的历史可冷读。
+- npm test：190通过、0失败、58项因特定环境跳过；portable＋daily 定向17通过。安全扫描0 high。未用本次短验证声称网页长任务有确定百分比提速。

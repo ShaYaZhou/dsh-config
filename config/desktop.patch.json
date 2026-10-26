@@ -206,7 +206,8 @@
           ],
           "failOnStartupError": false,
           "toolCallTimeoutMs": 600000
-        }
+        },
+        "disabled": true
       },
       {
         "id": "mcp-playwright-session",
@@ -229,7 +230,8 @@
           ],
           "failOnStartupError": false,
           "toolCallTimeoutMs": 600000
-        }
+        },
+        "disabled": true
       }
     ]
   },
@@ -786,5 +788,19 @@
     "config": {
       "thresholdPercent": 70
     }
+  },
+  {
+    "insert": [
+      {
+        "id": "isolated-browser",
+        "name": "${MODULE_URL}/isolated-browser.mjs",
+        "config": {
+          "command": "${NODE_EXECUTABLE}",
+          "cli": "${DESKTOP_DIR}/node_modules/@playwright/mcp/cli.js",
+          "browser": "${BROWSER}",
+          "outputRoot": "${DSH_HOME}/browser-output/isolated"
+        }
+      }
+    ]
   }
 ]

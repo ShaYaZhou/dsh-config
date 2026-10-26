@@ -1,5 +1,7 @@
 # 技能与部署环境对齐
 
+> 日常精简配置：额外技能仅由 enhanced profile 按需加载，日常 desktop 不列出该技能库。详见 [日常精简 PTC](DAILY-PTC.md)。
+
 这份文档是给 AI agent 执行的对齐手册：读完即可把一台机器上的 Harness 部署、插件和技能副本对齐到本仓库状态。仓库是唯一来源，本机不保留第二份可编辑副本，也不再使用目录联接。技能只落 DSH 的 `agent-capabilities/skills/`，不写入 `~/.claude/skills`、`~/.agents/skills`、`~/.codex/skills` 等 agent 全局目录，避免被其他 agent 发现。
 
 ## 一、执行须知
@@ -7,7 +9,7 @@
 - 只按本文和仓库文件操作；发现本机有仓库没有的文件时停下报告，不要删除或覆盖。
 - 不建立软链接或目录联接；技能一律复制成真实文件。
 - 不提交 `.local/`、会话、记忆、凭据和展开后的本机路径。
-- 技能只进 DSH：`scripts/harness.mjs install` 把 `skills/<名称>/` 整棵复制到 `DSH_HOME/profiles/desktop/agent-capabilities/skills/`。
+- 技能只进 DSH：`scripts/harness.mjs install` 把 `skills/<名称>/` 整棵复制到 `DSH_HOME/profiles/enhanced/agent-capabilities/skills/`。
 - 不把技能复制到 `~/.claude/skills`、`~/.agents/skills`、`~/.codex/skills`：这些是各 agent 的全局目录，会被其他 agent 发现；DSH 的外部技能 provider 优先级还高于桌面 `customSkillDirs`，同名会互相覆盖。
 - `scripts/align-skills.mjs` 只维护文档附录；本机确实需要额外副本时，才显式传 `--target`。
 
@@ -39,13 +41,13 @@
 | `check`、`handoff`、`implement`、`grill-me`、`grill-with-docs`、`grilling`、`domain-modeling` | [`skills/`](../skills/)（自本机 `~/.claude/skills`、`~/.agents/skills` 入仓） | 同上 | 见各自目录；`grill-me` 依赖 `grilling`，`grill-with-docs` 依赖 `grilling` + `domain-modeling`，四项必须同时部署 |
 | 其余 DSH 专用技能 | [`skills/`](../skills/) | 同上 | 见各自目录 |
 
-目标均在 `DSH_HOME/profiles/desktop/agent-capabilities/skills/<名称>/`，由安装器整棵复制，不需要单独登记。技能不再复制到 agent 全局目录。目标机若在 `~/.claude/skills`、`~/.agents/skills`、`~/.codex/skills` 已有同名技能，DSH 的外部 provider 可能优先加载那些副本；本仓库不写入也不删除这些目录，需要时由机器所有者自行处理。附录只内联自维护的 `dynamic-ui` 全文；`think`、`pua` 及其余下载技能只写仓库链接。
+目标均在 `DSH_HOME/profiles/enhanced/agent-capabilities/skills/<名称>/`，由安装器整棵复制，不需要单独登记。技能不再复制到 agent 全局目录。目标机若在 `~/.claude/skills`、`~/.agents/skills`、`~/.codex/skills` 已有同名技能，DSH 的外部 provider 可能优先加载那些副本；本仓库不写入也不删除这些目录，需要时由机器所有者自行处理。附录只内联自维护的 `dynamic-ui` 全文；`think`、`pua` 及其余下载技能只写仓库链接。
 
 ### 2.2.1 Ponytail 安装与使用
 
 Ponytail 用于约束过度设计：先理解调用链，再优先复用已有代码、标准库和原生能力；不能省略输入验证、安全边界及必要验收。官方仓库与安装说明分别是 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) 和 [INSTALL.md](https://github.com/DietrichGebert/ponytail/blob/main/INSTALL.md)（2026-10-25 核对）。
 
-本仓库已包含此技能，无需再安装一份第三方插件：按第三节运行部署预览、安装和状态检查，即会复制到 `DSH_HOME/profiles/desktop/agent-capabilities/skills/ponytail/SKILL.md`。完全重开 Harness 后，在新会话中通过技能菜单选择 `ponytail`，或明确要求加载该技能；确认实际解析的是上述受管路径。若加载到全局同名副本，先报告来源差异，不自动覆盖全局目录。
+本仓库已包含此技能，无需再安装一份第三方插件：按第三节运行部署预览、安装和状态检查，即会复制到 `DSH_HOME/profiles/enhanced/agent-capabilities/skills/ponytail/SKILL.md`。完全重开 Harness 后，在新会话中通过技能菜单选择 `ponytail`，或明确要求加载该技能；确认实际解析的是上述受管路径。若加载到全局同名副本，先报告来源差异，不自动覆盖全局目录。
 
 上游还提供 Claude Code / Codex 插件安装方式，但其插件命令和生命周期 hooks 不等同于 DSH 技能安装；不要把这些命令直接用于 DSH。需要更新本仓库副本时，先审阅上游技能与许可证差异，再更新 `skills/ponytail/`、运行技能对齐检查和部署验证。本次仅补安装文档，不替换现有技能版本，也不把上游宣传的性能数字当作本仓库的实测结果。
 
@@ -86,7 +88,7 @@ rtk proxy node scripts/harness.mjs status
 
 ## 四、不能运行脚本时
 
-WorkBuddy 等只能读写的 agent 按此逐项核对；目标一律是 `DSH_HOME/profiles/desktop/agent-capabilities/skills/`，不要写 agent 全局目录：
+WorkBuddy 等只能读写的 agent 按此逐项核对；目标一律是 `DSH_HOME/profiles/enhanced/agent-capabilities/skills/`，不要写 agent 全局目录：
 
 1. 打开 `skills/<名称>/`，记录相对路径清单。
 2. 在目标目录按相同相对路径逐个比较内容；内容相同即视为已对齐。

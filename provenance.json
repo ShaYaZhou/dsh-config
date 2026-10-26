@@ -316,6 +316,17 @@
       "localChanges": false,
       "deliverySkill": "dsh-spec-delivery",
       "localWorkflowSource": "skills/dsh-spec-delivery/SKILL.md"
+    },
+    "dailyBrowser": {
+      "source": "modules/isolated-browser.mjs",
+      "runtime": "0.2.1-rc.3",
+      "nativeCapability": "@deepseek-ai/dsh-mcp-client agent-scoped registration and lifecycle",
+      "browserPackage": "@playwright/mcp",
+      "version": "0.0.83",
+      "changes": [
+        "A separate MCP connection and isolated browser per executor; no shared-page scheduler.",
+        "Refuse privileged server code and custom exports; dispose stopped owners without replay."
+      ]
     }
   }
 }
