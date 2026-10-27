@@ -84,6 +84,24 @@ cargo install --git https://github.com/rtk-ai/rtk rtk
 
 只部署 DSH 时，不执行 `rtk init -g` 或其他宿主的 hook 安装；“No hook installed”提醒不代表显式RTK命令未生效，不应为消除提示擅自修改Claude/Codex配置。
 
+### 2.2.3 Windows 拉取后自检
+
+首次安装RTK按上游使用 `winget install --id rtk-ai.rtk --exact`。安装后关闭并重开PowerShell和Harness，避免旧进程继续使用旧PATH；不要仅把RTK设为PowerShell profile中的alias/function。DSH需要PATH可发现的真实`rtk.exe`，Windows Shell还需要PowerShell 7（`pwsh.exe`）。本仓库不自动改全局PATH或安装其他宿主hook。
+
+在仓库根目录执行（若RTK尚不能运行，直接用Node检查，才能得到诊断）：
+
+```powershell
+node scripts/check-rtk.mjs
+```
+
+该命令检查真实RTK可执行文件、proxy子命令、无profile的PowerShell调用，并在名称带空格的临时Git仓库中实际执行`rtk.exe git status`，最后清理自己的临时目录。不调用模型，不改生产配置或用户仓库。也可运行 `npm run check:rtk`。
+
+看到`RTK_CHECK_PASS`后再按安装章节执行dry-run与install。安装器在Windows也会执行RTK与PowerShell预检；失败在修改配置前停止，并给出对应原因。不要把`rtk gain`因统计库访问被拒绝误判成RTK版本错误。
+
+**验证层次：**此自检证明普通终端能够运行，不证明Windows的DSH文件沙箱已经验收。`scripts/test-rtk.cjs`是下一层隔离宿主真实模型验证，覆盖Standard/PTC、实际叶子pwsh/bash命令、退出码与完整保护状态，结果包含运行平台；按原生运行时测试环境设置DSH_HOME/DSH_NATIVE_ROOT及模型凭据后执行，不在生产会话试写。Windows原生工具说明指出，受限环境中的子进程捕获可能遇到命名管道EPERM；若RTK在此处失败，保留错误，不切到无保护模式或以原生命令的成功冒充RTK成功。
+
+本轮在Mac通过实际自检，并通过模拟Windows参数/失败分支的自动回归；**尚无Windows实机结果**。PC用户应先运行上面的自检，不能将本节视为Windows宿主已验证通过。
+
 ### 2.3 不纳入
 
 - `~/.claude/skills` 下的 Lark、视频、抓取类技能：体积可达数十 MB，且与本仓库能力无关，只在需要的机器上单独安装。

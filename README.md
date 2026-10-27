@@ -60,7 +60,7 @@ rtk proxy node scripts/harness.mjs install
 
 ## 新电脑使用
 
-本文命令使用 RTK；新机器先按 [RTK 工具与参考技能安装](docs/SKILLS-ALIGNMENT.md#222-rtk-工具与参考技能安装) 检查或安装官方 [rtk-ai/rtk](https://github.com/rtk-ai/rtk)。安装 RTK CLI 与部署 `rtk-reference` 技能是两件事。
+本文命令使用 RTK；新机器先按 [RTK 工具与参考技能安装](docs/SKILLS-ALIGNMENT.md#222-rtk-工具与参考技能安装) 检查或安装官方 [rtk-ai/rtk](https://github.com/rtk-ai/rtk)。安装 RTK CLI 与部署 `rtk-reference` 技能是两件事。Windows 用户拉取后先运行 `node scripts/check-rtk.mjs`，检查真实exe、PowerShell及带空格路径；步骤和实机验证边界见[Windows RTK 自检](docs/SKILLS-ALIGNMENT.md#223-windows-拉取后自检)。
 
 先安装匹配版本的 DeepSeek Harness 桌面程序、Node.js 22.19+（22 系列）或 24+，以及所选浏览器。全局 CLI 的原生依赖闭包必须与桌面版本一致：
 

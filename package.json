@@ -19,6 +19,7 @@
     "capture": "node scripts/harness.mjs capture",
     "rollback": "node scripts/harness.mjs rollback",
     "smoke": "node scripts/harness.mjs smoke",
-    "clean": "node scripts/harness.mjs clean"
+    "clean": "node scripts/harness.mjs clean",
+    "check:rtk": "node scripts/check-rtk.mjs"
   }
 }

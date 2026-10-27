@@ -7,7 +7,7 @@ const {withAgentTestHomeLock}=require('./test-home.cjs');
 async function main(){
  const home=process.env.DSH_HOME,native=process.env.DSH_NATIVE_ROOT;
  const output=path.join(home,'rtk-validation');fs.mkdirSync(output,{recursive:true});
- const cwd=fs.mkdtempSync(path.join(os.tmpdir(),'dsh-rtk-'));
+ const cwd=fs.mkdtempSync(path.join(os.tmpdir(),'dsh RTK '));
  assert.equal(spawnSync('git',['init','--quiet',cwd]).status,0);
  assert.equal(spawnSync('git',['-C',cwd,'-c','user.name=RTK Fixture','-c','user.email=rtk@example.invalid','-c','commit.gpgsign=false','commit','--allow-empty','-m','fixture']).status,0);
  fs.writeFileSync(path.join(cwd,'rtk-fixture.txt'),'fixture');
@@ -28,12 +28,12 @@ async function main(){
    await Promise.race([agent.whenIdle(),new Promise((_,reject)=>{const timer=setTimeout(()=>reject(Error('RTK model timeout')),120000);timer.unref();})]);
    const shell=calls.filter(c=>c.agent===agent.id&&['bash','pwsh'].includes(c.name));
    fs.writeFileSync(path.join(output,preset+'.json'),JSON.stringify(shell,null,2));
-   assert(shell.some(c=>/rtk\s+git\s+status/.test(JSON.stringify(c.args))&&c.result.value?.exitCode===0),preset+' did not successfully use RTK');
-   assert(shell.filter(c=>/rtk\s+git/.test(JSON.stringify(c.args))).every(c=>c.result.value?.sandbox?.enforcement==='full'));
+   assert(shell.some(c=>/rtk(?:\.exe)?\s+git\s+status/.test(JSON.stringify(c.args))&&c.result.value?.exitCode===0),preset+' did not successfully use RTK');
+   assert(shell.filter(c=>/rtk(?:\.exe)?\s+git/.test(JSON.stringify(c.args))).every(c=>c.result.value?.sandbox?.enforcement==='full'));
    assert(!shell.some(c=>/command not found|rtk: not found/.test(JSON.stringify(c.result))),preset+' RTK unavailable');
    assert.equal(ctx.permissionPresets.current(agent.session),'workspace-write');
    assert.equal(fs.readFileSync(path.join(cwd,'rtk-fixture.txt'),'utf8'),'fixture');
-   reports.push({preset,rtkUsed:true,shellCalls:shell.length,elapsedSeconds:(Date.now()-started)/1000});
+   reports.push({platform:process.platform,preset,rtkUsed:true,shellCalls:shell.length,elapsedSeconds:(Date.now()-started)/1000});
   }
   fs.writeFileSync(path.join(output,'result.json'),JSON.stringify(reports,null,2));
   console.log('RTK_MODEL_PASS '+JSON.stringify(reports));

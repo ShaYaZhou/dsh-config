@@ -794,3 +794,10 @@ rc.3 相对 rc.2 的实际内容差异（逐包哈希比对，排除 `package.js
 - 首轮空仓库使Git log正常返回128，PTC进行了额外核查；保留该证据后补有效提交复验，不将其算成功日志查询。两轮测试工作区都是独立临时目录，无生产文件改动。
 - 全仓214通过、0失败、58跳过；portable17通过。安装文档同步macOS/Windows步骤，技能正文纠正“不支持的命令自动透传”的误导。
 - RTK规则最终加入日志压缩示例与统计库受限边界；生产预览185文件，备份portable-harness-2026-10-27T13-56-38-654Z，部署status无漂移。等待用户原任务自然结束后退出重开，没有安装全局hook或改其他宿主配置。
+
+## Windows RTK部署预检与自检（2026-10-27）
+
+- 将RTK预检收敛到scripts/check-rtk.mjs，安装器复用。Windows显式运行rtk.exe及pwsh.exe（NoProfile/NonInteractive），通过参数数组调用、不经shell拼接；验证proxy能力，缺少CLI/错误程序/PowerShell不可见时在配置写入前失败。未修改用户PATH、hook或权限。
+- 一条node scripts/check-rtk.mjs完成普通终端自检：创建带空格路径的临时Git仓库，经过RTK（Windows经PowerShell）读取状态并核对夹具文件，finally清理自己的目录。Mac实际执行通过；Windows的exe选取、NoProfile参数、错误分支为注入执行器的模拟回归，不冒称Windows实机运行。
+- 修正“无PATH”部署回归，删除所有大小写变体的PATH环境键，避免Windows Path键意外泄漏。真实模型验收脚本接受rtk.exe命令、使用带空格路径并记录平台，依旧要求成功退出及full保护，不允许失败后通过裸命令冒充RTK通过。
+- portable18通过；完整215通过、0失败、58环境跳过。隔离安装预览185文件并实际成功。用户确认暂时没有Windows测试机，因此Windows Standard/PTC受限执行仍待PC实测，尤其需关注原生命名管道限制；不放宽保护作为兼容方案。
