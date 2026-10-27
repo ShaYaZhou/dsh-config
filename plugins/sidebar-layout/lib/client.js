@@ -3,12 +3,13 @@ window.__ModuleLoader__.load({
   factory: (require) => {
     const React = require("react");
     const h = React.createElement;
-    // rc.3 has no footer container API. Keep structural CSS in this adapter;
-    // controls use the public slot, without moving nodes or reading plugin state.
-    const footer = '.kB3qhq_root:not(.kB3qhq_collapsed) [data-slot="sidebar.footer.action"]';
+    // The public slot supplies wide; CSS module hashes differ between host builds.
+    const slot = '[data-slot="sidebar.footer.action"]';
+    const footer = `${slot}:has(>.dsh-footer-heading[data-wide="true"])`;
+    const rail = `${slot}:has(>.dsh-footer-heading[data-wide="false"])`;
     const billing = ':is([data-testid="billing-trigger"],[data-testid="billing-rail-button"],:has([data-testid="billing-trigger"]))';
     const tools = `:not(dialog):not(.dsh-footer-heading):not(${billing})`;
-    function Heading({ section, label }) {
+    function Heading({ section, label, wide }) {
       const key = `dsh-sidebar-layout:${section}:collapsed`;
       const [collapsed, setCollapsed] = React.useState(() => {
         try { return localStorage.getItem(key) === "true"; } catch { return false; }
@@ -16,6 +17,7 @@ window.__ModuleLoader__.load({
       return h("button", {
         type: "button", className: "dsh-footer-heading",
         "data-section": section, "data-collapsed": String(collapsed),
+        "data-wide": String(wide !== false),
         "aria-expanded": !collapsed, "aria-label": `${collapsed ? "展开" : "收起"}${label}`,
         onClick: () => {
           const next = !collapsed;
@@ -61,11 +63,11 @@ window.__ModuleLoader__.load({
       ${footer}:has(>.dsh-footer-heading[data-section="tools"][data-collapsed="true"])>${tools}{display:none!important}
       ${footer}:has(>.dsh-footer-heading[data-section="billing"][data-collapsed="true"])>${billing}{display:none!important}
       ${footer} button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary,#6754e8);outline-offset:2px}
-      .kB3qhq_collapsed .dsh-footer-heading{display:none}
-      .kB3qhq_collapsed [data-slot="sidebar.footer.action"]{
+      ${rail}>.dsh-footer-heading{display:none}
+      ${rail}{
         display:flex!important;flex-direction:column;align-items:center;gap:4px;width:100%;
       }
-      .kB3qhq_collapsed [data-slot="sidebar.footer.action"]>*{min-width:0;max-width:100%}
+      ${rail}>*{min-width:0;max-width:100%}
     `;
     function apply(ctx) {
       ctx.effect(() => {
@@ -78,7 +80,7 @@ window.__ModuleLoader__.load({
       for (const [section, label, order] of [["tools", "快捷工具", -100], ["billing", "今日用量", 100]]) {
         ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
           name: "sidebar.footer.action", id: `sidebar-layout-${section}`, order,
-        }, () => h(Heading, { section, label })));
+        }, (props) => h(Heading, { ...props, section, label })));
       }
     }
     return { inject: ["slots"], apply };

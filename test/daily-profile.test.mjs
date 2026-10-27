@@ -150,7 +150,9 @@ test('sidebar sections persist independently and tolerate unavailable preference
  const storage={getItem:key=>saved.get(key),setItem:(key,value)=>saved.set(key,value)};
  vm.runInNewContext(source,{window:{__ModuleLoader__:{load:def=>{plugin=def.factory(()=>react);}}},localStorage:storage});
  plugin.apply({effect(){},slots:{inject:(_name,fn)=>fn(),register:(meta,render)=>components.set(meta.id,render)}});
- const render=section=>{const view=components.get('sidebar-layout-'+section)();return view.type(view.props);};
+ const render=(section,wide=true)=>{const view=components.get('sidebar-layout-'+section)({wide});return view.type(view.props);};
+ assert.equal(render('tools').props['data-wide'],'true');
+ assert.equal(render('tools',false).props['data-wide'],'false');
  assert.equal(render('tools').props['aria-expanded'],true);
  render('tools').props.onClick();
  assert.equal(render('tools').props['aria-expanded'],false);

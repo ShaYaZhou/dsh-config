@@ -627,7 +627,7 @@ window.__ModuleLoader__.load({
       ctx.effect(() => {
         const style = document.createElement("style");
         style.textContent = `
-          .${prefix}{font:inherit;color:inherit;padding:24px;line-height:1.6;min-width:0}
+          .${prefix}{font:inherit;color:inherit;padding:24px;line-height:1.6;min-width:0;container-type:inline-size}
           .${prefix} h2{font-size:22px;margin:0 0 6px}.${prefix} h3{font-size:16px}
           .${prefix}-intro p,.${prefix}-muted{font-size:13px;opacity:.72;margin:6px 0 14px}
           .${prefix}-toolbar,.${prefix}-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
@@ -647,7 +647,7 @@ window.__ModuleLoader__.load({
           .${prefix}-dialog{box-sizing:border-box;width:min(1000px,94vw);max-height:88vh;border:1px solid #8885;border-radius:14px;padding:0;background:Canvas;color:CanvasText;box-shadow:0 20px 70px #0003;overflow:auto}
           .${prefix}-dialog::backdrop{background:#0005}.${prefix}-close{float:right;margin:14px 18px 0}
           .${prefix}-launcher{font:inherit;color:inherit;background:transparent;border:0;padding:6px 8px;cursor:pointer;border-radius:6px}
-          @media(max-width:700px){.${prefix}-columns:has(.${prefix}-editor){grid-template-columns:minmax(0,1fr)}.${prefix}-editor{border-left:0;padding-left:0;border-top:1px solid #8883}}
+          @container(max-width:700px){.${prefix}-columns:has(.${prefix}-editor){grid-template-columns:minmax(0,1fr)}.${prefix}-editor{border-left:0;padding-left:0;border-top:1px solid #8883}}
         `;
         document.head.append(style);
         return () => style.remove();

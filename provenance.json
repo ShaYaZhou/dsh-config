@@ -319,7 +319,7 @@
       "localChanges": {
         "unpublishedLocalBuild": true,
         "changes": [
-          "Presentation-only footer utility grid; exact native rc.3 SidebarRoot CSS structure adapter. No cross-plugin DOM mutation, tools, prompts or storage.",
+          "Presentation-only footer utility grid using the native rc.3 footer slot and public wide property, independent of platform CSS module hashes. No cross-plugin DOM mutation, tools, prompts or storage.",
           "Use the native footer slot container as the grid; the wide billing control spans a full row and compact controls use two columns."
         ]
       }
