@@ -18,21 +18,21 @@
 | archify-dsh | Archify架构图技能不再由daily提供 | 2026-10-27补回日常，提供/archify按需技能；dynamic-ui不是同一技能 |
 | dsh-btw | /btw、旁问气泡及快捷键退出daily | 2026-10-27补回日常，恢复/btw与旁问快捷键 |
 | dsh-rewind-plugin | Rewind按钮、/rewind、文件快照回退入口丢失 | 本轮恢复；实际文件还原、聊天回退、错误目标及卸载后冷读验收 |
-| dsh-better-sidebar | 该插件的文件树、编辑器、变更和侧聊面板退出daily | enhanced按需；原生侧栏/文件预览不等于这个扩展工作台 |
-| dsh-code-review | 专用代码审查入口退出daily | enhanced按需；普通子代理审查仍在，但不宣称体验等价 |
+| dsh-better-sidebar | 该插件的文件树、编辑器、变更和侧聊面板退出daily | 已恢复；搜索与编辑保存实测，修复探针timer异常；侧聊没有本轮完整模型验收 |
+| dsh-code-review | 专用代码审查入口退出daily | 已恢复；真实模型发现预埋错误且输入不变，报告持久化 |
 | 原生experimental-agent-team-profile | 原生实验性Team整套profile不再默认激活 | 有意按需；本地Team服务/工具已安装但按用户选择默认关闭 |
-| dsh-subagent-workspace-ui | 可搜索的工作区子代理管理界面退出daily | enhanced按需；当前原生子代理、嵌套会话入口保留，不能称所有管理细节等价 |
-| dsh-skills-manager | 扩展技能管理、统一发现/管理界面退出daily | enhanced按需；原生skill-filesystem和skill仍在 |
+| dsh-subagent-workspace-ui | 可搜索的工作区子代理管理界面退出daily | 已恢复；跨工作区读取22个历史子代理并筛选，不在用户历史上测试继续或永久删除 |
+| dsh-skills-manager | 扩展技能管理、统一发现/管理界面退出daily | 已恢复；技能检索实测；仓库便携技能另做无外部来源的登记验证 |
 | dsh-memory | 自动记忆捕获/总结/注入及工具退出daily | 有意按需；旧记忆文件保留，Claude上下文模块不是该记忆系统 |
 | desktop-commands | /agents、/resume、/fork、/clear、/help等桌面快捷入口退出daily | 本轮恢复，复用原生会话/命令接口 |
 | nested-sessions | 关联会话、并排查看、状态面板、协作入口退出daily | 已在此前修复恢复，现名“嵌套会话”，命令仍/collaborate |
 | browser-review | 内置浏览器工具栏的截图、区域截图、CSS元素批注退出daily | 本轮恢复；与Playwright Dashboard批注严格区分 |
 | idle-settings | 自定义压缩阈值/空闲维护设置页退出daily | enhanced按需；原生上下文压缩和/compact仍在 |
 | enhancement-settings | Harness增强管理页退出daily | 已恢复；本轮新增完整功能清单，区分已启用/停用/未加载 |
-| local-environments | 环境目录/变量/工作树准备及管理页退出daily | enhanced按需；原生工作目录不等同环境管理 |
-| follow-ups | 后续建议确认卡片、设置及工作区准备退出daily | enhanced按需；不恢复成自动后台派工 |
+| local-environments | 环境目录/变量/工作树准备及管理页退出daily | 已恢复；修复Mac Bash注入遗漏，真实Standard/PTC读值与拒写验证 |
+| follow-ups | 后续建议确认卡片、设置及工作区准备退出daily | 已恢复；确认前不执行、重复确认保护及独立worktree真实验收 |
 | file-links | 普通代码路径及行号的侧栏预览增强退出daily | 本轮恢复；原生主要识别本轮产出/交付文件的逻辑仍优先 |
-| team-view | 本地Team成员/计划面板退出daily | enhanced按需，执行开关与管理视图分开说明 |
+| team-view | 本地Team成员/计划面板退出daily | 已恢复管理面板；执行开关继续关闭 |
 | delete-session | 会话菜单中的可恢复删除入口退出daily | 本轮恢复；保留先停止归档、再移入恢复目录的边界 |
 | dynamic-ui-view | render_widget工具和会话内交互卡片退出daily | 已恢复，受管dynamic-ui技能按需加载；不强制完整网页走卡片 |
 
@@ -40,7 +40,7 @@
 
 完整配置的16个本地模块中，daily只部署9个，且其中Team及browser-guidance默认关闭。其余7个是：compaction-basic本地改造、idle-compaction-agent、idle-compaction、range-commands、role-policy、ultracode、workflow-command。原生对应基础能力不能因此被说成消失：原生压缩、权限、取消、历史、普通子代理仍由base提供；自定义范围压缩、空闲维护、角色治理、Workflow恢复命令不在daily。
 
-完整受管技能25项：check、claude-context、computer-use、domain-modeling、dsh-code-review、dsh-spec-delivery、dynamic-ui、grill-me、grill-with-docs、grilling、handoff、implement、ponytail、pua、rtk-reference、security-review、think、usage-report、workflow-orchestration，以及6项OpenSpec技能。daily只主动注册dynamic-ui；computer-use资源仅供可选指引模块使用。用户全局技能可能另外被原生发现，因此“这台机器能调用”不能证明全新Mac安装也具备全部技能。
+完整受管技能25项：check、claude-context、computer-use、domain-modeling、dsh-code-review、dsh-spec-delivery、dynamic-ui、grill-me、grill-with-docs、grilling、handoff、implement、ponytail、pua、rtk-reference、security-review、think、usage-report、workflow-orchestration，以及6项OpenSpec技能。此前daily只主动注册dynamic-ui；本轮恢复21项通用/OpenSpec技能的独立按需目录，dynamic-ui仍用专用provider，computer-use资源仍由指引开关控制，两个编排相关技能仍排除。验证时关闭技能管理器的外部来源，并将工作区移出仓库，避免本机全局技能与仓库自身.dsh/skills掩盖便携资源缺失。
 
 headless也改为原生：原有Claude hooks桥接、记忆等增强不再挂载。当前Mac的两份被配置检查引用的hooks文件均不存在，没有证据证明此机正在使用的hook被剥夺；此差异仍明确列入清单，不能默认为全平台行为等价。
 
@@ -74,3 +74,47 @@ headless也改为原生：原有Claude hooks桥接、记忆等增强不再挂载
 - 实际内置浏览器打开本地合成页面，截图预览正确；批注吸附`button#counter`，意见关闭再开保留，测试批注随后清理。附件发送归属由隔离安全载体覆盖，此轮没有向用户原会话发送测试图片。
 - 新建验收会话仅要求模型重复已存在路径：纯文本不自动变链接，Markdown行内代码路径成功变为按钮，点击在原生侧栏预览正确文件。该文件不是模型本轮产物；没有额外文件生成或工具调用。
 - 限制：停用Rewind期间未生成的文件快照无法补造；原生与本地Team仍应二选一；按需插件仅确认清单与配置边界，不宣称全部第三方功能逐项端到端通过。
+
+## 全量复核与历史安装补查（2026-10-27）
+
+本节更新上表的“enhanced按需”状态。扩展工作台、代码审查、技能管理、工作区子代理管理、本地环境、后续建议及Team视图均已纳入日常恢复；Team执行默认仍关闭。自动记忆与空闲压缩没有各自的单变量收益消融，不应被判定为负优化；本轮不自动启用。Ultracode按用户明确要求保持关闭。
+
+额外检查了30份生产安装备份的desktop依赖清单，仅提取包名和版本，没有导出配置、凭据或会话。以下项目早于4a00fa0就已移出，上一份仅比较仓库的清单漏掉了它们：
+
+| 历史安装项 | 当前处置与边界 |
+|---|---|
+| archive-manager 1.1.2 | 旧版peer未声明rc.3；固定1.1.14，验证归档、预览、恢复、收藏后恢复入口 |
+| simplify 1.0.1 | 旧版peer未声明rc.3；固定1.0.4恢复/simplify，验证非法范围不启动模型 |
+| dsh-init 0.1.2 | 恢复/init及原有初始化工作流；工具返回指引，不私自写指令文件 |
+| feng0531代码审查0.84.0 | 已换成michengai代码审查1.0.2；真实预埋缺陷验证，不并装两套审查 |
+| furongjun1999记忆0.8.1 | 已换成本地dsh-memory；日常自动记忆不启用，旧数据不迁移、不删除 |
+| dsh-builtin-browser0.4.13 | 不恢复旧共享浏览器体系；保留原生内置浏览器与按执行者隔离的Playwright，不宣称旧登录功能全部等价 |
+| dsh-annotate | 早期因Windows静态URL问题弃用；当前CSS批注替代，原因已有文档记录 |
+| dsh-pua1.0.1 | 旧插件不声明rc.3，包含持续推进策略；只恢复按需pua技能，不自动恢复插件循环。技能不等于完整插件 |
+| clearai-dsh0.5.6 | 独立本体研究预设；未恢复、未做本轮宿主验收，不宣称存在等价替代 |
+
+### 仍关闭或未恢复
+
+- Ultracode/Workflow：不注入强制编排，不重新开启调度。
+- 自动记忆、空闲压缩：未做单变量收益消融；已有的是整体比较和功能/权限验证。压缩设置依赖自定义实现，不能只放回无效开关。
+- 原生实验Team：与本地Team互斥；本地执行默认仍关闭，管理视图不等于执行开关。
+- 原生桌面控制、Claude hooks、角色治理、自定义范围压缩：仍在增强配置，缺少本轮完整Mac实际验收，不宣称恢复。
+- 通用受管技能和OpenSpec资源恢复到daily原生filesystem provider，正文按需读取。dynamic-ui使用专用provider；computer-use由指引控制。workflow-orchestration和dsh-spec-delivery因依赖专用编排/角色组合，仍不进入daily。
+
+### 新复现的功能缺陷
+
+1. 本地环境仅接通PowerShell与PTY，Mac Bash漏接。复用原生SandboxBashExecutor补齐，保持权限、取消和后台作业生命周期。Standard/PTC真实读值成功，只读写文件失败，无关调用不继承变量。
+2. better-sidebar搜索及打包探针在spawn同步被拒时读取未初始化的timer。用原生pnpm patchedDependencies承载小补丁，保持拒绝并使用原有文件遍历后备路径；不扩大权限，不复制整份第三方产物。
+3. 通用受管技能被移出后，新机器依赖偶然存在的全局技能。恢复便携资源并校验登记来源，不只看本机菜单。
+4. 只比较当前仓库会漏掉更早的市场安装项。本次将历史来源、替代、未恢复及未验收范围逐项列明。
+
+### 实际功能证据
+
+- BTW真实模型：上下文继承、无工具旁问、不打断主任务、旁问不混入主请求、持久历史和重启追问通过，耗时13秒。
+- 后续建议真实模型：未确认不执行、独立原生worktree、重复确认不重复派发、权限继承、源目录/忽略文件保留、冷读不激活通过，耗时32秒。
+- 代码审查：真实Standard独立审查发现math.js预埋加减号错误；输入不变，/review-status可读回报告。
+- Archify：真实PTC读取技能并生成自包含HTML和inline SVG；此用例验证生成链路，不是架构语义质量基准。
+- 本地环境：真实Standard/PTC Bash注入、只读拒写、无关调用无泄漏通过。
+- 归档管理：仅在隔离合成历史上完成归档→预览→恢复与收藏/取消收藏；不对用户历史测试永久删除。
+- 真机：Team面板、跨工作区22条子代理目录、技能检索、环境表单和建议开关；不主动继续、暂停或删除用户任务。
+- 新回归约束要求每个enhanced bundle必须在daily或明确排除。入口、后端、模型、UI证据分别记录，不能互相替代。

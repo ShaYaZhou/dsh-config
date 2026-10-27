@@ -11,7 +11,7 @@
 
 ## 日常使用
 
-完全退出并重开桌面应用，新会话默认选 PTC。Standard 仍是原生可选项。日常 profile 默认不加载本地 Ultracode、自动记忆、Team、整套额外技能库；保留嵌套会话及其控件；项目规则及原生技能发现机制保持原生行为。个人全局技能目录不被修改或删除。
+完全退出并重开桌面应用，新会话默认选 PTC。Standard 仍是原生可选项。日常不自动开启 Ultracode、自动记忆、空闲压缩或Team执行。通用技能和OpenSpec资源按需发现、按需读取正文；个人全局技能目录不被修改或删除。
 
 插件市场与「设置 → Harness增强」属于管理入口，日常配置保留。六项功能（Team、worktree 工具、浏览器与桌面指引、会话总线、Claude 上下文、用量报告）的条目和源码已经安装，通过原生插件管理器开启或关闭。日常默认开启 Git worktree、会话总线、Claude 上下文、用量报告；团队协作和浏览器与桌面指引默认关闭。worktree 服务支持 create_worktree 工具及可选 Team。指引只提供提示与技能，不安装桌面控制驱动。全新安装使用这里列明的模板默认状态；后续部署按生成基线与本机变更合并，保留用户已修改的开关。双方修改同一配置值时会在写入前拒绝覆盖。
 
@@ -27,7 +27,7 @@ dsh --profile enhanced
 
 这是同一 DSH_HOME 下的独立 profile。不要同时在两个入口执行同一历史会话。旧 Workflow 的 `/workflow resume`、停止锁和日志继续由 enhanced 中的原有实现解释；不要在日常模式把失败/停止的任务重新描述为“继续执行”以绕过恢复判断。默认入口没有伪造同名增强命令。
 
-仓库 `config/desktop.*` 保留完整增强来源；`presets/daily/` 与安装器的 `renderDailyPlan` 负责精简入口。受管技能只部署到 `profiles/enhanced/agent-capabilities/skills/`，不会在日常模型上下文列出整套额外技能。
+仓库 `config/desktop.*` 保留完整增强来源；`presets/daily/` 与安装器的 `renderDailyPlan` 负责日常入口。通用受管技能部署到日常的 `agent-capabilities/inline-skills/catalog/`，通过原生filesystem provider发现；会列出元数据，但正文只在调用时读取。依赖Workflow和专用角色组合的两个技能仍仅在enhanced提供。恢复功能不等于已证明零额外token开销，本轮没有重做网页性能消融。
 
 ## 浏览器隔离与停止
 
@@ -76,3 +76,7 @@ dsh --profile enhanced
 status分别核对已部署文件、当前部署源码及本机settings是否已经应用；它不替代真实宿主和界面验收。回滚同时恢复配置基线，历史和记忆不作为回滚删除对象。
 
 Archify 与 BTW 也在日常配置中提供：输入 `/archify` 调用架构图技能，输入 `/btw` 使用旁问。它们复用已有插件，不需要切换 enhanced。
+
+扩展文件工作台、代码审查(`/review`)、技能管理、子代理管理、本地环境、后续建议和Team管理视图也已恢复。更早安装的归档管理、`/simplify`、`/init` 一并补查并恢复；老浏览器/审查/记忆包不重复安装，ClearAI和旧PUA插件没有被冒称为已恢复。逐项验证及明确排除项见能力审计。
+
+第三方依赖的少量修复放在 `config/patches/`，由原生pnpm的patchedDependencies应用，补丁及哈希进入受管配置和锁文件；不在安装后偷偷改node_modules，也不放宽安装器的发布时间保护。

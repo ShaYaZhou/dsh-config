@@ -20,14 +20,14 @@
     {
       "id": "local-environments",
       "package": "@local/dsh-local-environments",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
         "changes": [
           "Owner-only saved local environments with portable definitions, machine-scoped folder bindings and write-only credential-backed variables.",
           "Public workspace preparation helpers share native preflight, permission inheritance and reserved setup identities with confirmed follow-ups.",
-          "Session-scoped native PowerShell/PTY overlays, native worktree preparation and fresh conversations with independent repository sandbox roots.",
+          "Session-scoped native Bash/PowerShell/PTY overlays, native worktree preparation and fresh conversations with independent repository sandbox roots.",
           "Recent folders and environment management in native settings and a sidebar footer dialog; preserves existing drafts and histories."
         ]
       }
@@ -183,7 +183,7 @@
           "Expose a workflow-owned linked-session activation with retained history, caller-owned result delivery, cancellation joining and no duplicate parent wakeups.",
           "Workflow-owned fresh sessions accept a prepared cwd and pre-prompt capability validation without changing inherited permissions.",
           "Honor reasoning-only overrides on the inherited model, including Workflow-owned linked sessions, without changing parent selections.",
-          "Session composer exposes 嵌套会话 auto/on/off through existing collaborate policy; on routes new delegation consistently while retaining existing Team communication.",
+          "Session composer exposes \u5d4c\u5957\u4f1a\u8bdd auto/on/off through existing collaborate policy; on routes new delegation consistently while retaining existing Team communication.",
           "Animated nested-session composer capsule uses CSS-only gradient/sheen states with native accessible mode selection and reduced-motion support."
         ]
       }
@@ -360,9 +360,37 @@
         "file-links",
         "rewind",
         "desktop-commands",
-        "delete-session"
+        "delete-session",
+        "better-sidebar",
+        "code-review",
+        "skills-manager",
+        "subagent-workspace-ui",
+        "local-environments",
+        "follow-ups",
+        "team-view",
+        "archive-manager",
+        "simplify",
+        "init"
       ],
       "policy": "Restore user-facing controls without enabling Team, browser guidance, automatic memory or Ultracode by default."
+    },
+    "dependencyPatches": {
+      "dsh-better-sidebar@0.28.0": {
+        "source": "https://github.com/omdsh-dev/DSH-better-sidebar",
+        "patch": "config/patches/dsh-better-sidebar.patch",
+        "reason": "Fix synchronous denied-spawn timer initialization in search/archive probes; retain existing fallback and permission limits.",
+        "mechanism": "native pnpm-workspace patchedDependencies"
+      }
+    },
+    "dailySkills": {
+      "source": "skills and .dsh/skills",
+      "mode": "native filesystem provider, on-demand content",
+      "excluded": [
+        "workflow-orchestration",
+        "dsh-spec-delivery",
+        "computer-use"
+      ],
+      "notes": "dynamic-ui uses its own dedicated provider; computer-use remains controlled by browser guidance"
     }
   }
 }

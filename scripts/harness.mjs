@@ -19,6 +19,10 @@ const provenance=readJson(path.join(repository,'provenance.json'));
 const stamp=()=>new Date().toISOString().replaceAll(':','-').replaceAll('.','-');
 const dailyArtifactIds=new Set(Object.values(readJson(path.join(repository,'presets/daily/desktop.package.json')).dependencies).filter(spec=>spec.startsWith('@artifact/')).map(spec=>spec.slice(10)));
 
+function dependencyPatches(manifest){
+ return Object.fromEntries(Object.entries(configuration('dependency-patches.json')).filter(([key])=>Object.entries(manifest.dependencies??{}).some(([name,version])=>key===name+'@'+version)));
+}
+
 export function emitYaml(value){
  // JSON is YAML flow syntax; only explicit $js nodes become Harness expression tags.
  return json(value).replace(/\{\s*"\$js":\s*("(?:[^"\\]|\\.)*")\s*\}/g,'!!js $1');
@@ -77,7 +81,11 @@ export function renderPlan(home,settings,artifacts={}, {clean=false}={}){
    const id=spec.slice('@artifact/'.length);manifest.dependencies[pkg]='file:../../local-plugins/'+(artifacts[id]?.filename??id+'-preview.tgz');
   }
   files.set('profiles/'+profile+'/package.json',json(manifest));
-  files.set('profiles/'+profile+'/pnpm-workspace.yaml',json(config('pnpm-workspace.json')));
+  for(const relative of Object.values(dependencyPatches(manifest))){
+   assert(/^patches\/[a-z0-9-]+\.patch$/.test(relative),'Unsupported dependency patch path');
+   files.set('profiles/'+profile+'/'+relative,fs.readFileSync(path.join(repository,'config',relative),'utf8'));
+  }
+  files.set('profiles/'+profile+'/pnpm-workspace.yaml',json({...config('pnpm-workspace.json'),...(!clean?{patchedDependencies:dependencyPatches(manifest)}:{})}));
   const patch=substitute(config(profile+'.patch.json'),tokens);
   const modelAdapter=patch.find(row=>row.id==='llm-pi-ai');
   if(modelAdapter)Object.assign(modelAdapter.config.providers,settings.additionalProviders);
@@ -148,6 +156,11 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
   const id=spec.slice(10);daily.dependencies[pkg]='file:../../local-plugins/'+(artifacts[id]?.filename??id+'-preview.tgz');
  }
  files.set('profiles/desktop/package.json',json(daily));
+ files.set('profiles/desktop/pnpm-workspace.yaml',json({...JSON.parse(files.get('profiles/desktop/pnpm-workspace.yaml')),patchedDependencies:dependencyPatches(daily)}));
+ for(const relative of Object.values(dependencyPatches(daily))){
+  assert(/^patches\/[a-z0-9-]+\.patch$/.test(relative),'Unsupported dependency patch path');
+  files.set('profiles/desktop/'+relative,fs.readFileSync(path.join(repository,'config',relative),'utf8'));
+ }
  const patch = JSON.parse(files.get('profiles/desktop/cordis.patch.yml'));
  // Preserve the configured API-key setup and native appearance; removing these
  // UI preferences would send an already configured desktop back into onboarding.
@@ -180,6 +193,18 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
  files.set('profiles/desktop/agent-capabilities/worktree.mjs',fs.readFileSync(path.join(repository,'modules/worktree.mjs'),'utf8'));
  files.set('profiles/desktop/agent-capabilities/skills/computer-use/SKILL.md',
   fs.readFileSync(path.join(repository,'skills/computer-use/SKILL.md'),'utf8'));
+ // Restore on-demand skills without the removed automatic orchestration policy.
+ // Dynamic UI has its own provider; desktop control and spec orchestration need
+ // capabilities that remain explicitly outside the daily composition.
+ const enhancedOnlySkills = new Set(['dynamic-ui','computer-use','workflow-orchestration','dsh-spec-delivery']);
+ for(const [file,source] of Object.entries(desktopSkillSources())) {
+  const skill=file.split('/')[4];
+  if(!enhancedOnlySkills.has(skill))files.set(file.replace('/skills/','/inline-skills/catalog/'),fs.readFileSync(path.join(repository,source),'utf8'));
+ }
+ patch.push({insert:[{id:'daily-managed-skills',name:'@deepseek-ai/dsh-skill-filesystem',config:{
+  providerName:'daily-managed',includeDefaultRoots:false,
+  bundledSkillDir:path.join(oldPath,'agent-capabilities','inline-skills','catalog'),
+ }}]});
  files.set('profiles/desktop/cordis.patch.yml',emitYaml(patch));
  files.set('profiles/desktop/agent-capabilities/isolated-browser.mjs',fs.readFileSync(path.join(repository,'modules/isolated-browser.mjs'),'utf8'));
  files.set('profiles/desktop/agent-capabilities/manifest.json',json({managedBy:'deepseek-harness-config',flavor:'daily',runtime:provenance.runtime,
@@ -352,6 +377,10 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
     if(files.has(target))sources[target]='modules/'+name;
    }
    for(const [target,source]of Object.entries(desktopSkillSources()))if(files.has(target))sources[target]=source;
+   for(const [target,source]of Object.entries(desktopSkillSources())){
+    const dailyTarget=target.replace('/skills/','/inline-skills/catalog/');
+    if(files.has(dailyTarget))sources[dailyTarget]=source;
+   }
    for(const file of ['SKILL.md',...skillResources(path.join(repository,'skills/dynamic-ui'))])
     sources['profiles/desktop/agent-capabilities/inline-skills/dynamic-ui/'+file]='skills/dynamic-ui/'+file;
    for(const [target,source]of Object.entries(sources))

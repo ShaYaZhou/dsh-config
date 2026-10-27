@@ -1,3 +1,5 @@
 * text=auto eol=lf
 *.png binary
 *.woff2 binary
+# Unified diffs preserve upstream whitespace after their context marker.
+config/patches/*.patch -whitespace

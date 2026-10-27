@@ -738,3 +738,16 @@ rc.3 相对 rc.2 的实际内容差异（逐包哈希比对，排除 `package.js
 - 用户反馈部署后斜杠入口仍缺失：上一轮仅在功能清单标为enhanced，没有恢复daily依赖及bundle。现复用原有Archify 1.0.0和本地BTW包，加入daily模板及锁文件；功能清单更新入口说明。
 - 干净隔离rc.3宿主Standard/PTC加载通过，两个插件active；完整测试206通过、0失败、58环境跳过。旧隔离目录因此前Team探针在非open turn写入PTC dispatch记录而拒绝冷读，保留其失败记录，改用干净目录验收，未改生产历史。
 - 生产部署前进行中0，预览135文件并保留备份`portable-harness-2026-10-26T23-57-30-853Z`。完整重开后，实机输入`/archify`出现架构图技能候选，输入`/btw`出现旁问命令候选；原会话`/btw`草稿仍保留。未为入口修复重新运行完整架构图生成或旁问模型测试，不将联想可见等同于全功能模型验收。
+
+## 全量入口与实际功能复核（2026-10-27）
+
+- 对照精简前23个bundle、当前两种配置与30份生产安装备份，补查早于精简的市场安装记录。完整分类见DAILY-CAPABILITY-AUDIT.md。恢复7个管理/交互组件、21项通用与OpenSpec按需技能，以及归档管理、Simplify、Init；不自动开启Ultracode、记忆、空闲压缩或Team执行。
+- 新发现Mac环境变量未进入Bash：本地包0.1.2复用原生SandboxBashExecutor补齐。真实Standard/PTC读到各自所选值，原生只读写文件失败，无关调用没有变量泄漏。原生权限与取消路径未改。
+- 实机发现better-sidebar搜索报timer初始化错误。对固定0.28.0使用pnpm原生补丁，仅修搜索/归档可执行探针的同步拒绝路径；不改拒绝结果、不扩大权限。实际重开后搜索命中测试文件，编辑保存AFTER换行且磁盘字节相同。原生宿主提取真实安装函数，强制spawn同步拒绝后返回false，不再抛ReferenceError。
+- BTW实际模型13秒通过上下文继承、无工具旁问、主任务不中断、重启追问；follow-ups实际模型32秒通过确认前不执行、独立worktree、重复确认不重复、权限继承与卸载冷读。不是只验菜单。
+- 代码审查Standard真实发现预埋加减号回归，输入文件不变，持久报告能查询。Archify PTC真实读取skill并交付自包含HTML/inline SVG；不将该小样本当架构语义质量或性能消融。
+- Standard/PTC真实/init与/simplify：生成CLAUDE.md及相对AGENTS.md符号链接，简化后sum(2,3)仍为5。归档→预览→恢复、收藏/取消收藏只在隔离合成历史验证，没有对用户历史做永久删除。
+- 归档管理1.1.17在生产被minimumReleaseAge拦截；保留失败备份并回滚，没有放宽策略。改固定更早发布且声明rc.3兼容的1.1.14，重新通过隔离归档/预览/恢复后部署。最终备份`portable-harness-2026-10-27T01-57-26-585Z`；预览183文件、status无漂移。
+- 技能管理器会优先选同名全局技能；测试先误将这种正常覆盖当成资源缺失。改为两种独立条件：默认装配仍可覆盖；关闭外部技能发现并使用仓库外临时cwd后，Standard/PTC仍从受管目录读到think、ponytail、rtk-reference、openspec-explore。未改变用户全局技能优先级。
+- 测试夹具修正记录：非法/simplify会记录command事件但不得启动turn；CommonJS样本需自己的package.json防止继承仓库type=module；桌面/resume是客户端命令不属于服务端命令注册表；skills服务通过公开get读取。上述早期失败未算通过。
+- 全仓207通过、0失败、58环境跳过；portable16通过；扫描0 high。真机已验Team面板、跨工作区22条子代理、技能搜索、环境表单、后续建议开关、文件搜索及保存。最后一轮曾被Mac锁屏阻止；用户解锁后，归档设置页实际读取未归档目录，/review、/simplify、/init、/btw、/archify联想均可见。四开两关、嵌套auto、Economy保持原样，Ultracode三项仍关闭且不可用；测试输入及专用文件已清理，未归档/删除/继续任何用户会话。

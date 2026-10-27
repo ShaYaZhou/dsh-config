@@ -28,8 +28,8 @@ test('daily profile uses native PTC, private browsers and the requested enhancem
  const home=path.join(os.tmpdir(),'daily profile with spaces');
  const plan=renderDailyPlan(home,settingsFrom(path.join(repository,'config/local.example.json'),{}));
  const daily=JSON.parse(plan.get('profiles/desktop/package.json'));
- assert.deepEqual(Object.keys(daily.dependencies),['@playwright/mcp','@local/dsh-nested-sessions','@local/dsh-shared','dshmarket','@local/dsh-enhancement-settings','@local/dsh-dynamic-ui-view','@local/dsh-browser-review','@local/dsh-file-links','dsh-rewind-plugin','@local/dsh-desktop-commands','@local/dsh-delete-session','@michengai/dsh-btw','@tt-a1i/archify-dsh']);
- assert.deepEqual(daily.dsh.profile.bundles,['@deepseek-ai/dsh-base','@deepseek-ai/dsh-web-app','@local/dsh-nested-sessions','dshmarket','@local/dsh-enhancement-settings','@local/dsh-dynamic-ui-view','@local/dsh-browser-review','@local/dsh-file-links','dsh-rewind-plugin','@local/dsh-desktop-commands','@local/dsh-delete-session','@michengai/dsh-btw','@tt-a1i/archify-dsh']);
+ assert.deepEqual(Object.keys(daily.dependencies),['@playwright/mcp','@local/dsh-nested-sessions','@local/dsh-shared','dshmarket','@local/dsh-enhancement-settings','@local/dsh-dynamic-ui-view','@local/dsh-browser-review','@local/dsh-file-links','dsh-rewind-plugin','@local/dsh-desktop-commands','@local/dsh-delete-session','@michengai/dsh-btw','@tt-a1i/archify-dsh','dsh-better-sidebar','@michengai/dsh-code-review','dsh-subagent-workspace-ui','@michengai/dsh-skills-manager','@local/dsh-local-environments','@local/dsh-follow-ups','@local/dsh-team-view','@michengai/dsh-archive-manager','@michengai/dsh-simplify','dsh-init']);
+ assert.deepEqual(daily.dsh.profile.bundles,['@deepseek-ai/dsh-base','@deepseek-ai/dsh-web-app','@local/dsh-nested-sessions','dshmarket','@local/dsh-enhancement-settings','@local/dsh-dynamic-ui-view','@local/dsh-browser-review','@local/dsh-file-links','dsh-rewind-plugin','@local/dsh-desktop-commands','@local/dsh-delete-session','@michengai/dsh-btw','@tt-a1i/archify-dsh','dsh-better-sidebar','@michengai/dsh-code-review','dsh-subagent-workspace-ui','@michengai/dsh-skills-manager','@local/dsh-local-environments','@local/dsh-follow-ups','@local/dsh-team-view','@michengai/dsh-archive-manager','@michengai/dsh-simplify','dsh-init']);
  const patch=JSON.parse(plan.get('profiles/desktop/cordis.patch.yml'));
  assert.equal(patch.find(p=>p.id==='agent-preset-registry').config.default,'ptc');
  assert.equal(patch.find(p=>p.id==='ui-settings-account').config.step,'done');
@@ -39,6 +39,10 @@ test('daily profile uses native PTC, private browsers and the requested enhancem
  assert.equal(patch.find(p=>p.id==='dynamic-ui-view').config.skillDirectory,path.join(home,'profiles/desktop/agent-capabilities/inline-skills/dynamic-ui'));
  assert(plan.has('profiles/desktop/agent-capabilities/inline-skills/dynamic-ui/SKILL.md'));
  assert(plan.has('profiles/desktop/agent-capabilities/inline-skills/dynamic-ui/patterns/manifest.json'));
+ for(const name of ['think','ponytail','rtk-reference','check','openspec-explore'])
+  assert(plan.has('profiles/desktop/agent-capabilities/inline-skills/catalog/'+name+'/SKILL.md'),name+' must be portable without global skills');
+ for(const name of ['workflow-orchestration','dsh-spec-delivery','computer-use'])
+  assert(!plan.has('profiles/desktop/agent-capabilities/inline-skills/catalog/'+name+'/SKILL.md'));
  assert.deepEqual([...plan.keys()].filter(p=>p.startsWith('profiles/desktop/agent-capabilities/skills/')),
   ['profiles/desktop/agent-capabilities/skills/computer-use/SKILL.md']);
  const optional=patch.flatMap(p=>p.insert??[]).filter(p=>typeof p.disabled==='boolean');
@@ -51,6 +55,16 @@ test('daily profile uses native PTC, private browsers and the requested enhancem
  assert(!enhanced.includes('/profiles/desktop/'));
  assert(enhanced.includes('workflow-command.mjs'));
  assert.equal(plan.get('cordis.patch.yml').trim(),'[]');
+});
+
+test('every enhanced bundle is daily or has an explicit execution-policy exclusion',()=>{
+ const enhanced=JSON.parse(fs.readFileSync(path.join(repository,'config/desktop.package.json')));
+ const daily=JSON.parse(fs.readFileSync(path.join(repository,'presets/daily/desktop.package.json')));
+ assert.deepEqual(enhanced.dsh.profile.bundles.filter(name=>!daily.dsh.profile.bundles.includes(name)),[
+  '@deepseek-ai/dsh-experimental-agent-team-profile', // mutually exclusive with local Team
+  '@dsh-external/dsh-memory', // automatic behavior has no isolated cost/quality ablation
+  '@local/dsh-idle-settings', // requires the optional custom compaction implementation
+ ]);
 });
 
 test('browser boundary rejects privileged code and custom export destinations', () => {

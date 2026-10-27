@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-local-environments",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
@@ -13,7 +13,8 @@
     "./catalog": "./lib/catalog.js",
     "./workspace": "./lib/workspace.js",
     "./client": "./lib/client.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./bash": "./lib/bash.js"
   },
   "files": [
     "lib",
@@ -28,7 +29,8 @@
     "@deepseek-ai/dsh-typert-protocol": "0.2.1-rc.2 || 0.2.1-rc.3",
     "@deepseek-ai/dsh-pwsh-sandbox": "0.2.1-rc.2 || 0.2.1-rc.3",
     "@deepseek-ai/dsh-subprocess-local": "0.2.1-rc.2 || 0.2.1-rc.3",
-    "zod": "^4.0.0"
+    "zod": "^4.0.0",
+    "@deepseek-ai/dsh-bash-sandbox": "0.2.1-rc.3"
   },
   "dsh": {
     "client": {

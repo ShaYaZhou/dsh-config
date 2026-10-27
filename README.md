@@ -42,7 +42,7 @@ rtk proxy node scripts/harness.mjs install
 
 侧栏底部 **本地环境** 或 **设置 → 本地环境** 可打开最近文件夹、保存多仓库配置，选择当前目录或独立 worktree，并配置本机变量。导出定义不带绝对路径和变量值，其他电脑导入后重新绑定目录即可。启动会打开新会话，**返回原会话** 可继续启动前的草稿。详见 [本地环境](docs/local-environment-execution.md)。
 
-长会话默认在空闲约 54 分钟、估算上下文达到 20 万 token 后使用原生引擎生成摘要，保留原始记录。**设置 → Harness增强** 集中了上下文压缩、本地环境、后续建议三个分页和各本地功能的启用开关；**上下文压缩** 页可即时关闭，也可修改触发百分比（默认 80%，可还原默认）。会话内 `/ultracode on|off` 切换动态编排：开启后实质性任务默认用原生 workflow 展开。**设置 → Harness增强 → Ultracode** 是三个默认关闭的原子开关：强制工作流编排、协调者只读与工具白名单、默认使用关联执行者；输入框的 ultracode 药丸已移除，设置页是唯一入口。模型画的交互 UI 以 `render_widget` 卡片内嵌在会话里，不再生成 `.html` 文件交付。停止与归档保护、代理缓存的费用边界和真实验收见 [空闲压缩](docs/IDLE-COMPACTION.md)。
+仅在完整 enhanced 配置中，长会话默认在空闲约 54 分钟、估算上下文达到 20 万 token 后使用原生引擎生成摘要，保留原始记录。**设置 → Harness增强** 集中了上下文压缩、本地环境、后续建议三个分页和各本地功能的启用开关；**上下文压缩** 页可即时关闭，也可修改触发百分比（默认 80%，可还原默认）。会话内 `/ultracode on|off` 切换动态编排：开启后实质性任务默认用原生 workflow 展开。**设置 → Harness增强 → Ultracode** 是三个默认关闭的原子开关：强制工作流编排、协调者只读与工具白名单、默认使用关联执行者；输入框的 ultracode 药丸已移除，设置页是唯一入口。模型画的交互 UI 以 `render_widget` 卡片内嵌在会话里，不再生成 `.html` 文件交付。停止与归档保护、代理缓存的费用边界和真实验收见 [空闲压缩](docs/IDLE-COMPACTION.md)。
 
 旧 `liangshen` preset 已移除。升级前先完全退出 Harness，再迁移旧会话；安装器发现仍有会话绑定旧 preset 时会拒绝覆盖配置：
 
@@ -89,7 +89,7 @@ rtk proxy node scripts/harness.mjs status
 
 Ponytail 已随仓库部署为 DSH 技能，用于减少过度设计并优先复用原生能力；官方仓库是 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)。安装路径、使用方式和更新边界见 [Ponytail 安装与使用](docs/SKILLS-ALIGNMENT.md#221-ponytail-安装与使用)。
 
-Ponytail 与 `rtk-reference` 均由 `enhanced` profile 按需加载，日常精简入口不自动加载这份额外技能库。
+Ponytail、`rtk-reference` 及通用/OpenSpec技能已恢复到日常入口的受管按需目录；正文不自动注入每轮。编排专用技能仍只在enhanced提供。
 
 | 内容 | 版本控制位置 |
 |---|---|

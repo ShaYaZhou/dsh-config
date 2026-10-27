@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: false
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  dsh-better-sidebar@0.28.0: 3e79f5efabdc9c5931c4772c00ca676174da85817d8317081ee3c9b6178ae1ce
+
 importers:
 
   .:
@@ -68,12 +71,18 @@ importers:
       '@local/dsh-workflow-ptc':
         specifier: file:../../local-plugins/${WORKFLOW-PTC_TGZ}
         version: file:../../local-plugins/${WORKFLOW-PTC_TGZ}(@deepseek-ai/dsh-util-values@0.2.1-rc.3)(@deepseek-ai/schemastery@3.18.5)
+      '@michengai/dsh-archive-manager':
+        specifier: 1.1.14
+        version: 1.1.14
       '@michengai/dsh-btw':
         specifier: file:../../local-plugins/${BTW_TGZ}
         version: file:../../local-plugins/${BTW_TGZ}
       '@michengai/dsh-code-review':
         specifier: 1.0.2
         version: 1.0.2
+      '@michengai/dsh-simplify':
+        specifier: 1.0.4
+        version: 1.0.4
       '@michengai/dsh-skills-manager':
         specifier: 1.2.16
         version: 1.2.16
@@ -85,7 +94,10 @@ importers:
         version: 1.0.0
       dsh-better-sidebar:
         specifier: 0.28.0
-        version: 0.28.0
+        version: 0.28.0(patch_hash=3e79f5efabdc9c5931c4772c00ca676174da85817d8317081ee3c9b6178ae1ce)
+      dsh-init:
+        specifier: 0.1.2
+        version: 0.1.2
       dsh-rewind-plugin:
         specifier: file:../../local-plugins/${REWIND_TGZ}
         version: file:../../local-plugins/${REWIND_TGZ}(@deepseek-ai/schemastery@3.18.5)
@@ -356,7 +368,7 @@ packages:
       '@deepseek-ai/dsh-storage-domain': 0.2.1-rc.2 || 0.2.1-rc.3
       '@deepseek-ai/dsh-tools': 0.2.1-rc.2 || 0.2.1-rc.3
       '@deepseek-ai/dsh-typert-protocol': 0.2.1-rc.2 || 0.2.1-rc.3
-      '@local/dsh-local-environments': 0.1.1
+      '@local/dsh-local-environments': 0.1.1 || 0.1.2
       '@local/dsh-shared': 0.1.0
       zod: ^4.0.0
 
@@ -369,9 +381,10 @@ packages:
 
   '@local/dsh-local-environments@file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}':
     resolution: {integrity: ${LOCAL-ENVIRONMENTS_INTEGRITY}, tarball: file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}}
-    version: 0.1.1
+    version: 0.1.2
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.5
+      '@deepseek-ai/dsh-bash-sandbox': 0.2.1-rc.3
       '@deepseek-ai/dsh-credentials': 0.2.1-rc.2 || 0.2.1-rc.3
       '@deepseek-ai/dsh-pwsh-sandbox': 0.2.1-rc.2 || 0.2.1-rc.3
       '@deepseek-ai/dsh-session': 0.2.1-rc.2 || 0.2.1-rc.3
@@ -446,6 +459,31 @@ packages:
   '@mermaid-js/parser@1.2.1':
     resolution: {integrity: sha512-n12NohV3mrUyUL2o93IgG/ifeW9FTyeJn3zDxkhwa8MJ9Fxg3HQMlA3RiGmD/3UnJvheztkjjQAjA2T4LmUcpw==}
 
+  '@michengai/dsh-archive-manager@1.1.14':
+    resolution: {integrity: sha512-3RwbERiiKYT/KBCUW7PAFn/v/IFghN7VyyYlMdoAs/PBdiLCWwvdx8AaAvjwpKZB0NAOKBt3HY0wa1AdRTO5/A==}
+    engines: {dsh: '>=0.2.0-rc.1 <0.3.0-0', node: ^22.19.0 || >=24.0.0}
+    peerDependencies:
+      '@deepseek-ai/cordis': '>=4.0.1 <5.0.0'
+      '@deepseek-ai/dsh-client-connection': '>=0.2.0-rc.1 <0.3.0-0'
+      '@deepseek-ai/dsh-client-locale': '>=0.2.0-rc.1 <0.3.0-0'
+      '@deepseek-ai/dsh-client-store': '>=0.2.0-rc.1 <0.3.0-0'
+      '@deepseek-ai/dsh-client-ui-conversation': '>=0.2.0-rc.1 <0.3.0-0'
+      '@deepseek-ai/dsh-client-ui-primitives': '>=0.2.0-rc.1 <0.3.0-0'
+      '@deepseek-ai/dsh-client-ui-sidebar': '>=0.2.0-rc.1 <0.3.0-0'
+      '@deepseek-ai/dsh-client-ui-workspace': '>=0.2.0-rc.1 <0.3.0-0'
+      '@deepseek-ai/dsh-host-webserver': '>=0.2.0-rc.1 <0.3.0-0'
+      '@deepseek-ai/dsh-session': '>=0.2.0-rc.1 <0.3.0-0'
+      '@deepseek-ai/dsh-session-format-catalog': '>=0.2.0-rc.1 <0.3.0-0'
+      '@deepseek-ai/dsh-session-projection-cache': '>=0.2.0-rc.1 <0.3.0-0'
+      '@deepseek-ai/dsh-spill-local': '>=0.2.0-rc.1 <0.3.0-0'
+      '@deepseek-ai/dsh-storage-domain': '>=0.2.0-rc.1 <0.3.0-0'
+      '@deepseek-ai/dsh-typert-protocol': '>=0.2.0-rc.1 <0.3.0-0'
+      '@deepseek-ai/dsh-typert-registry': '>=0.2.0-rc.1 <0.3.0-0'
+      '@deepseek-ai/dsh-workspace': '>=0.2.0-rc.1 <0.3.0-0'
+    peerDependenciesMeta:
+      '@deepseek-ai/dsh-session-format-catalog':
+        optional: true
+
   '@michengai/dsh-btw@file:../../local-plugins/${BTW_TGZ}':
     resolution: {integrity: ${BTW_INTEGRITY}, tarball: file:../../local-plugins/${BTW_TGZ}}
     version: 1.0.0-local.1
@@ -494,6 +532,22 @@ packages:
       '@deepseek-ai/dsh-user-approval':
         optional: true
       '@deepseek-ai/dsh-user-questions':
+        optional: true
+
+  '@michengai/dsh-simplify@1.0.4':
+    resolution: {integrity: sha512-eb//ZqfSEA/7MDlGtpGhnRRSHnDGlI50f19o36MmZBGNRZI9ySVACuEBF9xx8iPV2dY9h6+ScGuDnlHKU1/d7w==}
+    engines: {dsh: '>=0.2.0-rc.1 <0.3.0-0', node: '>=22.19.0'}
+    peerDependencies:
+      '@deepseek-ai/cordis': '>=4.0.4 <5'
+      '@deepseek-ai/dsh-client-ui-commands': '>=0.2.0-rc.1 <0.3.0-0'
+      '@deepseek-ai/dsh-client-ui-primitives': '>=0.2.0-rc.1 <0.3.0-0'
+      '@deepseek-ai/dsh-commands': '>=0.2.0-rc.1 <0.3.0-0'
+      '@deepseek-ai/dsh-llm': '>=0.2.0-rc.1 <0.3.0-0'
+      '@deepseek-ai/dsh-subprocess': '>=0.2.0-rc.1 <0.3.0-0'
+    peerDependenciesMeta:
+      '@deepseek-ai/dsh-client-ui-commands':
+        optional: true
+      '@deepseek-ai/dsh-client-ui-primitives':
         optional: true
 
   '@michengai/dsh-skills-manager@1.2.16':
@@ -944,6 +998,9 @@ packages:
         optional: true
       '@huanlin/dsh-plugin-better-locale':
         optional: true
+
+  dsh-init@0.1.2:
+    resolution: {integrity: sha512-VqN/wMP/2pDHvbbpFMyxTy12JtT2x9+K0EOe/YPe9iu31Yk3Ii7K815anHZTxSuwkiEI4HcjUdJbVXMjOiH/qw==}
 
   dsh-rewind-plugin@file:../../local-plugins/${REWIND_TGZ}:
     resolution: {integrity: ${REWIND_INTEGRITY}, tarball: file:../../local-plugins/${REWIND_TGZ}}
@@ -1591,9 +1648,13 @@ snapshots:
     dependencies:
       '@chevrotain/types': 11.1.2
 
+  '@michengai/dsh-archive-manager@1.1.14': {}
+
   '@michengai/dsh-btw@file:../../local-plugins/${BTW_TGZ}': {}
 
   '@michengai/dsh-code-review@1.0.2': {}
+
+  '@michengai/dsh-simplify@1.0.4': {}
 
   '@michengai/dsh-skills-manager@1.2.16':
     dependencies:
@@ -2038,7 +2099,7 @@ snapshots:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
 
-  dsh-better-sidebar@0.28.0:
+  dsh-better-sidebar@0.28.0(patch_hash=3e79f5efabdc9c5931c4772c00ca676174da85817d8317081ee3c9b6178ae1ce):
     dependencies:
       '@codemirror/commands': 6.11.1
       '@codemirror/lang-cpp': 6.0.3
@@ -2076,6 +2137,8 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
+
+  dsh-init@0.1.2: {}
 
   dsh-rewind-plugin@file:../../local-plugins/${REWIND_TGZ}(@deepseek-ai/schemastery@3.18.5):
     optionalDependencies:

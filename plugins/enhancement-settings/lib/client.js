@@ -17,16 +17,19 @@ window.__ModuleLoader__.load({
       ['桌面快捷命令','@local/dsh-desktop-commands','输入 /agents、/resume、/fork、/clear 或 /help。'],
       ['会话删除','@local/dsh-delete-session','会话菜单中的删除入口；先停止归档，再移入可恢复目录。'],
       ['旁问（BTW）','@michengai/dsh-btw','输入 /btw 提问，或使用旁问快捷键。'],
-      ['扩展文件侧栏','dsh-better-sidebar','完整增强中的文件树、编辑器、变更和侧聊面板。'],
-      ['代码审查','@michengai/dsh-code-review','完整增强中的代码审查入口；普通原生子代理仍可按任务审查。'],
-      ['技能管理','@michengai/dsh-skills-manager','完整增强中的技能浏览与管理；原生技能发现和 skill 工具始终可用。'],
+      ['扩展文件侧栏','dsh-better-sidebar','右侧扩展工作台：文件树、编辑器、变更和侧聊面板。'],
+      ['代码审查','@michengai/dsh-code-review','/review 发起独立审查；/review-status 查看报告，/review-cancel 取消。'],
+      ['技能管理','@michengai/dsh-skills-manager','侧栏或设置“技能”：查看、启停、创建和导入技能。'],
       ['架构图技能','@tt-a1i/archify-dsh','输入 /archify 使用架构图技能；紧凑图解也可使用 dynamic-ui。'],
+      ['归档管理','@michengai/dsh-archive-manager','侧栏归档入口：搜索、预览、恢复和收藏；永久删除需要单独确认。'],
+      ['范围简化','@michengai/dsh-simplify','输入 /simplify，对选定 Git 改动进行简化。'],
+      ['项目初始化','dsh-init','输入 /init，生成项目指令及 AGENTS.md 链接。'],
       ['自动记忆','@dsh-external/dsh-memory','完整增强中的记忆工具与设置；旧记忆文件保留。'],
-      ['本地环境','@local/dsh-local-environments','完整增强的“本地环境”设置页。'],
-      ['后续建议','@local/dsh-follow-ups','完整增强的“后续建议”设置页与确认卡片。'],
+      ['本地环境','@local/dsh-local-environments','Harness增强的“本地环境”设置页或侧栏入口。'],
+      ['后续建议','@local/dsh-follow-ups','Harness增强的“后续建议”设置页；建议卡片须经用户确认才执行。'],
       ['上下文维护设置','@local/dsh-idle-settings','完整增强的压缩阈值与空闲维护设置；日常仍保留原生上下文压缩。'],
-      ['Team 管理视图','@local/dsh-team-view','完整增强中的 Team 成员与计划面板；与团队执行开关分别管理。'],
-      ['工作区子代理管理','dsh-subagent-workspace-ui','完整增强的工作区子代理管理；日常嵌套会话与原生子代理入口保留。'],
+      ['Team 管理视图','@local/dsh-team-view','侧栏 Team 成员与计划面板；查看不自动打开团队执行开关。'],
+      ['工作区子代理管理','dsh-subagent-workspace-ui','会话顶部子代理管理：搜索、筛选、查看和并排打开。'],
       ['原生桌面控制驱动','@deepseek-ai/dsh-experimental-computer-use-cua-driver-native','完整增强中的桌面控制；浏览器与桌面“指引”开关不安装驱动。'],
     ];
     // 每个功能对应 profile 里真实的插件条目：开关走原生 pluginManager，
@@ -194,7 +197,7 @@ window.__ModuleLoader__.load({
               h('div',{style:{fontWeight:600}},label+' · '+status),
               h('div',{style:{fontSize:13,opacity:0.72}},entry));
           }),
-          h('p',{},'完整增强入口：dsh --profile enhanced。不要在两个入口同时执行同一会话。Ponytail、think、OpenSpec 等整套受管技能也在完整增强中提供。'));
+          h('p',{},'完整增强入口：dsh --profile enhanced。不要在两个入口同时执行同一会话。Ponytail、think、OpenSpec 等按需技能已在日常提供；依赖专用编排的技能仍需完整增强。'));
         return h('section', {style:{maxWidth:680,padding:24,lineHeight:1.7}},
           h('h2', {style:{margin:'0 0 6px'}}, 'Harness增强'),
           h('p', {style:{fontSize:13,opacity:0.72,margin:'0 0 14px'}}, '集中管理本地插件的功能开关与设置页。'),

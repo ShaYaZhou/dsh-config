@@ -1,0 +1,74 @@
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -2645,6 +2645,7 @@
+ function verify(binary) {
+ 	return new Promise((resolve) => {
+ 		let settled = false;
++		let timer;
+ 		const finish = (ok) => {
+ 			if (settled) return;
+ 			settled = true;
+@@ -2658,7 +2659,7 @@
+ 			finish(false);
+ 			return;
+ 		}
+-		const timer = setTimeout(() => {
++		timer = setTimeout(() => {
+ 			child.kill();
+ 			finish(false);
+ 		}, PROBE_TIMEOUT_MS$1);
+@@ -4065,6 +4066,7 @@
+ function probeTool(bin, spawner) {
+ 	return new Promise((resolve) => {
+ 		let settled = false;
++		let timer;
+ 		const finish = (ok) => {
+ 			if (settled) return;
+ 			settled = true;
+@@ -4081,7 +4083,7 @@
+ 			finish(false);
+ 			return;
+ 		}
+-		const timer = setTimeout(() => {
++		timer = setTimeout(() => {
+ 			child.kill();
+ 			finish(false);
+ 		}, PROBE_TIMEOUT_MS);
+--- a/src/search-engines.ts
++++ b/src/search-engines.ts
+@@ -179,6 +179,7 @@
+ function verify(binary: string): Promise<boolean> {
+   return new Promise((resolve) => {
+     let settled = false
++    let timer: ReturnType<typeof setTimeout> | undefined
+     const finish = (ok: boolean): void => {
+       if (settled) return
+       settled = true
+@@ -192,7 +193,7 @@
+       finish(false)
+       return
+     }
+-    const timer = setTimeout(() => {
++    timer = setTimeout(() => {
+       child.kill()
+       finish(false)
+     }, PROBE_TIMEOUT_MS)
+--- a/src/archive-tools.ts
++++ b/src/archive-tools.ts
+@@ -90,6 +90,7 @@
+ function probeTool(bin: string, spawner: ArchiveSpawn): Promise<boolean> {
+   return new Promise<boolean>((resolve) => {
+     let settled = false
++    let timer: ReturnType<typeof setTimeout> | undefined
+     const finish = (ok: boolean): void => {
+       if (settled) return
+       settled = true
+@@ -103,7 +104,7 @@
+       finish(false)
+       return
+     }
+-    const timer = setTimeout(() => {
++    timer = setTimeout(() => {
+       child.kill()
+       finish(false)
+     }, PROBE_TIMEOUT_MS)

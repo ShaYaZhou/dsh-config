@@ -14,7 +14,17 @@
     "@local/dsh-desktop-commands": "@artifact/desktop-commands",
     "@local/dsh-delete-session": "@artifact/delete-session",
     "@michengai/dsh-btw": "@artifact/btw",
-    "@tt-a1i/archify-dsh": "1.0.0"
+    "@tt-a1i/archify-dsh": "1.0.0",
+    "dsh-better-sidebar": "0.28.0",
+    "@michengai/dsh-code-review": "1.0.2",
+    "dsh-subagent-workspace-ui": "1.10.0",
+    "@michengai/dsh-skills-manager": "1.2.16",
+    "@local/dsh-local-environments": "@artifact/local-environments",
+    "@local/dsh-follow-ups": "@artifact/follow-ups",
+    "@local/dsh-team-view": "@artifact/team-view",
+    "@michengai/dsh-archive-manager": "1.1.14",
+    "@michengai/dsh-simplify": "1.0.4",
+    "dsh-init": "0.1.2"
   },
   "dsh": {
     "profile": {
@@ -31,7 +41,17 @@
         "@local/dsh-desktop-commands",
         "@local/dsh-delete-session",
         "@michengai/dsh-btw",
-        "@tt-a1i/archify-dsh"
+        "@tt-a1i/archify-dsh",
+        "dsh-better-sidebar",
+        "@michengai/dsh-code-review",
+        "dsh-subagent-workspace-ui",
+        "@michengai/dsh-skills-manager",
+        "@local/dsh-local-environments",
+        "@local/dsh-follow-ups",
+        "@local/dsh-team-view",
+        "@michengai/dsh-archive-manager",
+        "@michengai/dsh-simplify",
+        "dsh-init"
       ]
     }
   }

@@ -90,6 +90,7 @@ test("native adapters keep per-call variables isolated, preserve explicit env an
       .replace("export default class", "class");
     const box = {
       SandboxPwshExecutor: Base,
+      SandboxBashExecutor: Base,
       LocalSubprocessRuntime: Base,
       environmentOverlay,
     };
@@ -98,6 +99,11 @@ test("native adapters keep per-call variables isolated, preserve explicit env an
   }
   const shell = adapter("pwsh.js", "EnvironmentPwshExecutor"),
     terminal = adapter("subprocess.js", "EnvironmentSubprocessRuntime");
+  const bash = adapter("bash.js", "EnvironmentBashExecutor");
+  const policy = { mode: "read-only", root: "/fixture" };
+  const bashResult = await bash.execute({ dshEnv: { DSH_SESSION_ID: "A" }, sandboxPolicy: policy });
+  assert.equal(bashResult.env.BUILD_TAG, "red");
+  assert.equal(bashResult.sandboxPolicy, policy);
   assert.equal(shell.sandboxMode, "read-only");
   assert.equal(shell.constructor.Config, Base.Config);
   const a = { dshEnv: { DSH_SESSION_ID: "A" }, env: { CALLER: "literal" } },

@@ -30,7 +30,10 @@
     "@local/dsh-tool-workflow": "@artifact/tool-workflow",
     "@local/dsh-delete-session": "@artifact/delete-session",
     "@local/dsh-ultracode-control": "@artifact/ultracode-control",
-    "@local/dsh-dynamic-ui-view": "@artifact/dynamic-ui-view"
+    "@local/dsh-dynamic-ui-view": "@artifact/dynamic-ui-view",
+    "@michengai/dsh-archive-manager": "1.1.14",
+    "@michengai/dsh-simplify": "1.0.4",
+    "dsh-init": "0.1.2"
   },
   "dsh": {
     "profile": {
@@ -57,7 +60,10 @@
         "@local/dsh-file-links",
         "@local/dsh-team-view",
         "@local/dsh-delete-session",
-        "@local/dsh-dynamic-ui-view"
+        "@local/dsh-dynamic-ui-view",
+        "@michengai/dsh-archive-manager",
+        "@michengai/dsh-simplify",
+        "dsh-init"
       ]
     }
   }
