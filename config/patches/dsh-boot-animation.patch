@@ -1,0 +1,27 @@
+--- a/lib/host/selection-store.js
++++ b/lib/host/selection-store.js
+@@ -35,7 +35,7 @@
+  *    returns a valid, current-schema selection — no I/O, no globals — so it can
+  *    be exercised directly by tests instead of being inferred from behaviour.
+  */
+-import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
++import { lstatSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
+ import { dirname } from 'node:path'
+ import { ACTIVE_ALIAS, normalizeClipId } from './clip-id.js'
+ import { ClipError } from './errors.js'
+@@ -243,6 +243,15 @@
+       // No file yet: the defaults, and do not cache a negative so the first
+       // write is picked up without an invalidation dance.
+       this.cache = null
++      // Portable bundle default applies only when no user selection exists.
++      // Do not mistake unreadable files or dangling links for a fresh install.
++      try {
++        lstatSync(this.file)
++      } catch (error) {
++        if (error?.code === 'ENOENT') {
++          return { ...defaultSelection(), selectedClipId: 'builtin:cyberpunk' }
++        }
++      }
+       return defaultSelection()
+     }
+ 

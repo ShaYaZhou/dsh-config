@@ -20,7 +20,7 @@ const stamp=()=>new Date().toISOString().replaceAll(':','-').replaceAll('.','-')
 const dailyArtifactIds=new Set(Object.values(readJson(path.join(repository,'presets/daily/desktop.package.json')).dependencies).filter(spec=>spec.startsWith('@artifact/')).map(spec=>spec.slice(10)));
 
 function dependencyPatches(manifest){
- return Object.fromEntries(Object.entries(configuration('dependency-patches.json')).filter(([key])=>Object.entries(manifest.dependencies??{}).some(([name,version])=>key===name+'@'+version)));
+ return Object.fromEntries(Object.entries(configuration('dependency-patches.json')).filter(([key])=>Object.entries(manifest.dependencies??{}).some(([name,version])=>key===name+'@'+version||key===name)));
 }
 
 export function emitYaml(value){

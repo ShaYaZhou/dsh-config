@@ -160,3 +160,16 @@ test('sidebar sections persist independently and tolerate unavailable preference
  storage.getItem=()=>{throw Error('blocked');};storage.setItem=()=>{throw Error('blocked');};
  assert.doesNotThrow(()=>render('billing').props.onClick());
 });
+
+
+test('daily boot default patch ships with the pinned embedded animation without copying personal choices',()=>{
+ const plan=renderDailyPlan(path.join(os.tmpdir(),'dsh-boot-plan'),settingsFrom('/nonexistent'));
+ for(const profile of ['desktop','enhanced']) {
+  const workspace=JSON.parse(plan.get(`profiles/${profile}/pnpm-workspace.yaml`));
+  assert.equal(workspace.patchedDependencies['dsh-boot-animation'],'patches/dsh-boot-animation.patch');
+  assert.match(plan.get(`profiles/${profile}/patches/dsh-boot-animation.patch`),/builtin:cyberpunk/);
+  const manifest=JSON.parse(plan.get(`profiles/${profile}/package.json`));
+  assert.equal(manifest.dependencies['dsh-boot-animation'],'github:NativeDog1/dsh-boot-animation#24c711296cb4af2618fef4f65e81346a660fc67b');
+ }
+ assert(![...plan.keys()].some(key=>key.endsWith('selection.json')));
+});

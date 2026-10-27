@@ -155,4 +155,4 @@ rtk proxy node scripts/harness.mjs rollback
 
 精简的逐项影响、原生替代边界和遗漏修复清单见 [日常能力审计](docs/DAILY-CAPABILITY-AUDIT.md)。部署会保留本机相对生成基线的插件与配置变更；冲突会在写入前停止，status同时检查未应用的源码。
 
-插件版本、保留本地改造的合并结果及暂缓升级原因见 [2026-10-27 插件更新核查](docs/PLUGIN-UPDATE-20261027.md)。启动动画 `dsh-boot-animation`（固定Git提交）与用量插件 `@kenz1117/dsh-ui-usage-billing` 已纳入两个桌面安装清单；安装后保留原有配置。
+插件版本、保留本地改造的合并结果及暂缓升级原因见 [2026-10-27 插件更新核查](docs/PLUGIN-UPDATE-20261027.md)。启动动画 `dsh-boot-animation`（固定Git提交）与用量插件 `@kenz1117/dsh-ui-usage-billing` 已纳入两个桌面安装清单；安装后保留原有配置。首次安装且没有片头选择文件时，默认播放内置第二段「DeepSeek 赛博朋克片头」（`builtin:cyberpunk`），关闭随机播放、每次启动播放一次。视频已包含在锁定插件中，无需另行下载或复制个人视频；已有用户的选择、随机/关闭播放和会话专属设置不覆盖。

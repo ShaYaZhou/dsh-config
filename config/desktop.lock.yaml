@@ -6,6 +6,7 @@ settings:
 
 patchedDependencies:
   dsh-better-sidebar@0.28.0: 3e79f5efabdc9c5931c4772c00ca676174da85817d8317081ee3c9b6178ae1ce
+  dsh-boot-animation: 8950b1d0f790093ac58fd2fc1f16c647d68fd1c7a7f519f4670be927cb538917
 
 importers:
 
@@ -103,7 +104,7 @@ importers:
         version: 0.28.0(patch_hash=3e79f5efabdc9c5931c4772c00ca676174da85817d8317081ee3c9b6178ae1ce)
       dsh-boot-animation:
         specifier: github:NativeDog1/dsh-boot-animation#24c711296cb4af2618fef4f65e81346a660fc67b
-        version: https://codeload.github.com/NativeDog1/dsh-boot-animation/tar.gz/24c711296cb4af2618fef4f65e81346a660fc67b
+        version: https://codeload.github.com/NativeDog1/dsh-boot-animation/tar.gz/24c711296cb4af2618fef4f65e81346a660fc67b(patch_hash=8950b1d0f790093ac58fd2fc1f16c647d68fd1c7a7f519f4670be927cb538917)
       dsh-init:
         specifier: 0.1.2
         version: 0.1.2
@@ -2205,7 +2206,7 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  dsh-boot-animation@https://codeload.github.com/NativeDog1/dsh-boot-animation/tar.gz/24c711296cb4af2618fef4f65e81346a660fc67b: {}
+  dsh-boot-animation@https://codeload.github.com/NativeDog1/dsh-boot-animation/tar.gz/24c711296cb4af2618fef4f65e81346a660fc67b(patch_hash=8950b1d0f790093ac58fd2fc1f16c647d68fd1c7a7f519f4670be927cb538917): {}
 
   dsh-init@0.1.2: {}
 

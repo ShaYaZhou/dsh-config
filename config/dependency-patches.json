@@ -1,3 +1,4 @@
 {
-  "dsh-better-sidebar@0.28.0": "patches/dsh-better-sidebar.patch"
+  "dsh-better-sidebar@0.28.0": "patches/dsh-better-sidebar.patch",
+  "dsh-boot-animation": "patches/dsh-boot-animation.patch"
 }
