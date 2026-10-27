@@ -793,3 +793,4 @@ rc.3 相对 rc.2 的实际内容差异（逐包哈希比对，排除 `package.js
 - 隔离rc.3/Flash Medium/workspace-write真实模型，任务只要求检查Git状态和日志，未在任务中点名RTK。Standard与PTC均由全局规则自主执行rtk git status/log；有效仓库复验分别12.49秒/3次Shell和8.981秒/2次Shell，所有实际RTK调用exit0、sandbox enforcement=full。包括原始内容核对的rtk proxy，未宣称100%Shell强制包装或模型账单节省。
 - 首轮空仓库使Git log正常返回128，PTC进行了额外核查；保留该证据后补有效提交复验，不将其算成功日志查询。两轮测试工作区都是独立临时目录，无生产文件改动。
 - 全仓214通过、0失败、58跳过；portable17通过。安装文档同步macOS/Windows步骤，技能正文纠正“不支持的命令自动透传”的误导。
+- RTK规则最终加入日志压缩示例与统计库受限边界；生产预览185文件，备份portable-harness-2026-10-27T13-56-38-654Z，部署status无漂移。等待用户原任务自然结束后退出重开，没有安装全局hook或改其他宿主配置。
