@@ -154,3 +154,5 @@ rtk proxy node scripts/harness.mjs rollback
 远程仓库为 `https://github.com/ShaYaZhou/dsh-config.git`。首次按原生基线、增强版本顺序分别推送；原来的本地历史保留在未推送的 archive 分支。
 
 精简的逐项影响、原生替代边界和遗漏修复清单见 [日常能力审计](docs/DAILY-CAPABILITY-AUDIT.md)。部署会保留本机相对生成基线的插件与配置变更；冲突会在写入前停止，status同时检查未应用的源码。
+
+插件版本、保留本地改造的合并结果及暂缓升级原因见 [2026-10-27 插件更新核查](docs/PLUGIN-UPDATE-20261027.md)。启动动画 `dsh-boot-animation`（固定Git提交）与用量插件 `@kenz1117/dsh-ui-usage-billing` 已纳入两个桌面安装清单；安装后保留原有配置。

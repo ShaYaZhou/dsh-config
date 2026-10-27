@@ -5,7 +5,7 @@
     "@playwright/mcp": "0.0.83",
     "@local/dsh-nested-sessions": "@artifact/nested-sessions",
     "@local/dsh-shared": "@artifact/shared",
-    "dshmarket": "1.66.44",
+    "dshmarket": "1.70.2",
     "@local/dsh-enhancement-settings": "@artifact/enhancement-settings",
     "@local/dsh-dynamic-ui-view": "@artifact/dynamic-ui-view",
     "@local/dsh-browser-review": "@artifact/browser-review",
@@ -16,15 +16,18 @@
     "@michengai/dsh-btw": "@artifact/btw",
     "@tt-a1i/archify-dsh": "1.0.0",
     "dsh-better-sidebar": "0.28.0",
-    "@michengai/dsh-code-review": "1.0.2",
-    "dsh-subagent-workspace-ui": "1.10.0",
-    "@michengai/dsh-skills-manager": "1.2.16",
+    "@michengai/dsh-code-review": "1.0.3",
+    "dsh-subagent-workspace-ui": "1.11.0",
+    "@michengai/dsh-skills-manager": "1.2.19",
     "@local/dsh-local-environments": "@artifact/local-environments",
     "@local/dsh-follow-ups": "@artifact/follow-ups",
     "@local/dsh-team-view": "@artifact/team-view",
     "@michengai/dsh-archive-manager": "1.1.14",
     "@michengai/dsh-simplify": "1.0.4",
-    "dsh-init": "0.1.2"
+    "dsh-init": "0.1.2",
+    "@kenz1117/dsh-ui-usage-billing": "1.7.4",
+    "dsh-boot-animation": "github:NativeDog1/dsh-boot-animation#24c711296cb4af2618fef4f65e81346a660fc67b",
+    "@local/dsh-sidebar-layout": "@artifact/sidebar-layout"
   },
   "dsh": {
     "profile": {
@@ -51,7 +54,10 @@
         "@local/dsh-team-view",
         "@michengai/dsh-archive-manager",
         "@michengai/dsh-simplify",
-        "dsh-init"
+        "dsh-init",
+        "@kenz1117/dsh-ui-usage-billing",
+        "dsh-boot-animation",
+        "@local/dsh-sidebar-layout"
       ]
     }
   }

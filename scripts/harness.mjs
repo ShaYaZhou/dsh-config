@@ -156,7 +156,10 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
   const id=spec.slice(10);daily.dependencies[pkg]='file:../../local-plugins/'+(artifacts[id]?.filename??id+'-preview.tgz');
  }
  files.set('profiles/desktop/package.json',json(daily));
- files.set('profiles/desktop/pnpm-workspace.yaml',json({...JSON.parse(files.get('profiles/desktop/pnpm-workspace.yaml')),patchedDependencies:dependencyPatches(daily)}));
+ files.set('profiles/desktop/pnpm-workspace.yaml',json({...JSON.parse(files.get('profiles/desktop/pnpm-workspace.yaml')),patchedDependencies:dependencyPatches(daily),
+  // Carry only exact package exceptions already selected in the managed policy.
+  minimumReleaseAgeExclude:configuration('pnpm-workspace.json').minimumReleaseAgeExclude.filter(spec=>Object.entries(daily.dependencies).some(([name,version])=>spec===name+'@'+version)),
+ }));
  for(const relative of Object.values(dependencyPatches(daily))){
   assert(/^patches\/[a-z0-9-]+\.patch$/.test(relative),'Unsupported dependency patch path');
   files.set('profiles/desktop/'+relative,fs.readFileSync(path.join(repository,'config',relative),'utf8'));

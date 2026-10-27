@@ -34,7 +34,11 @@ async function main(){
    await agent.whenIdle();assert.equal(fs.readFileSync(file,'utf8').trim(),'AFTER');
    const userSeq=agent.session.snapshotEvents().find(e=>e.type==='user/message').seq;
    const surface=JSON.stringify(agent.session.surface.nodes);
-   const call=command=>ctx.commands.execute(agent,command,[],AbortSignal.timeout(30000));
+   const call=async command=>{
+    const response=await ctx.commands.execute(agent,command,[],AbortSignal.timeout(30000));
+    fs.appendFileSync(path.join(output,'command-results.jsonl'),JSON.stringify({preset,command,result:response.result})+'\n');
+    return response;
+   };
    assert.equal((await call('/rewind preview @'+userSeq)).result.kind,'success');
    assert.equal((await call('/rewind @'+userSeq+' code')).result.kind,'success');
    assert.equal(fs.readFileSync(file,'utf8'),'BEFORE\n');assert.equal(JSON.stringify(agent.session.surface.nodes),surface,'Code-only restore changed conversation');
@@ -54,4 +58,4 @@ async function main(){
   fs.writeFileSync(path.join(output,'result.json'),JSON.stringify(result,null,2));console.log('RESTORED_CONTROLS_PASS Standard/PTC real writes and Rewind verified');
  }finally{await shutdown.shutdown(0);}
 }
-withAgentTestHomeLock(process.env.DSH_HOME,main).catch(error=>{console.error(error.message);process.exitCode=1;});
+withAgentTestHomeLock(process.env.DSH_HOME,main).catch(error=>{console.error(error.stack);process.exitCode=1;});

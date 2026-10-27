@@ -1,7 +1,19 @@
 {
-  "packages": ["."],
+  "packages": [
+    "."
+  ],
   "nodeLinker": "hoisted",
   "autoInstallPeers": false,
-  "minimumReleaseAgeExclude": ["dshmarket@1.66.44", "dsh-rewind-plugin@0.17.1-local.1"],
-  "allowBuilds": {"protobufjs": false, "koffi": false, "cloudflared": true, "cpu-features": true, "ssh2": true}
+  "minimumReleaseAgeExclude": [
+    "dshmarket@1.66.44",
+    "dsh-rewind-plugin@0.17.1-local.1",
+    "@kenz1117/dsh-ui-usage-billing@1.7.4"
+  ],
+  "allowBuilds": {
+    "protobufjs": false,
+    "koffi": false,
+    "cloudflared": true,
+    "cpu-features": true,
+    "ssh2": true
+  }
 }

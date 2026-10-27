@@ -9,6 +9,9 @@ window.__ModuleLoader__.load({
     const ULTRACODE = 'ultracode';
     const CATALOG = 'capabilities';
     const CAPABILITIES = [
+      ['启动动画','dsh-boot-animation','侧栏片头片库：预览和选择片头；不自动改变已选动画。'],
+      ['用量与计费','@kenz1117/dsh-ui-usage-billing','侧栏使用统计；金额是按插件渠道配置计算的估算。'],
+      ['侧栏工具布局','@local/dsh-sidebar-layout','统一底部工具区的间距与换行，不改变各入口的行为。'],
       ['内联动态卡片','@local/dsh-dynamic-ui-view','在会话输入 /dynamic-ui，或要求绘制紧凑交互卡片。'],
       ['插件市场','dshmarket','侧栏“插件市场”或设置中的同名入口。'],
       ['回退与文件还原','dsh-rewind-plugin','会话顶部 Rewind；/rewind 可预览回退目标。'],
