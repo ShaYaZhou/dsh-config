@@ -9,6 +9,7 @@ var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __export = (target, all) => {
   for (var name2 in all)
     __defProp(target, name2, { get: all[name2], enumerable: true });
@@ -22,22 +23,72 @@ var __copyProps = (to, from, except, desc) => {
   return to;
 };
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 
 // src/client/index.ts
 var index_exports = {};
 __export(index_exports, {
   apply: () => apply,
-  hiddenSeqsOf: () => hiddenSeqsOf,
   inject: () => inject,
-  name: () => name,
-  targetSeqOfArgs: () => targetSeqOfArgs
+  name: () => name
 });
 module.exports = __toCommonJS(index_exports);
+
+// src/client/candidates.ts
+var PREVIEW_CHARS = 80;
+var DEFAULT_CANDIDATE_LIMIT = 100;
+function messagePreviewOf(message) {
+  const text = message.content.map((block) => block.type === "text" && typeof block.text === "string" ? block.text : "").join("").replace(/\s+/g, " ").trim();
+  return text.length <= PREVIEW_CHARS ? text : `${text.slice(0, PREVIEW_CHARS - 1)}\u2026`;
+}
+function formatCandidateTime(time) {
+  const d = new Date(time);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+function rewindCandidatesOf(snap, limit = DEFAULT_CANDIDATE_LIMIT) {
+  const candidates = [];
+  for (let i = snap.order.length - 1; i >= 0 && candidates.length < limit; i--) {
+    const key = snap.order[i];
+    if (key === void 0) continue;
+    const node = snap.nodes.get(key);
+    if (node === void 0 || node.kind !== "user" && node.kind !== "steering") continue;
+    candidates.push({
+      seq: node.data.seq,
+      time: node.data.time,
+      preview: messagePreviewOf(node.data)
+    });
+  }
+  return candidates;
+}
+function rewindCandidatesOfChat(snap) {
+  return rewindCandidatesOf(snap);
+}
+function rewindOptionsFromCandidates(candidates, t) {
+  return candidates.map((candidate) => ({
+    id: String(candidate.seq),
+    label: candidate.preview || t("popover.noText"),
+    detail: formatCandidateTime(candidate.time)
+  }));
+}
 
 // src/client/hidden.ts
 var ENGINE_COMMAND = "rewind-plugin";
 var LEGACY_ENGINE_COMMAND = "rewind";
 var ENGINE_COMMANDS = /* @__PURE__ */ new Set([ENGINE_COMMAND, LEGACY_ENGINE_COMMAND]);
+function chatNodesOf(chat) {
+  if (chat === void 0) return EMPTY_NODES;
+  const values = chat.nodes.values;
+  if (typeof values === "function") return [...values.call(chat.nodes)];
+  const nodes = [];
+  for (const key of chat.order) {
+    const node = chat.nodes.get(key);
+    if (node !== void 0) nodes.push(node);
+  }
+  return nodes;
+}
+var EMPTY_NODES = [];
 function resolveChatWatch(resolveView, sessionId, cb) {
   const view = resolveView(sessionId);
   return view?.subscribe?.(cb) ?? (() => {
@@ -48,9 +99,8 @@ function chatSnapshotOf(chatView) {
 }
 function messageTextAt(chat, seq) {
   if (chat === void 0) return void 0;
-  for (const key of chat.order) {
-    const node = chat.nodes.get(key);
-    if (node === void 0 || node.kind !== "user" && node.kind !== "steering") continue;
+  for (const node of chatNodesOf(chat)) {
+    if (node.kind !== "user" && node.kind !== "steering") continue;
     const data = node.data;
     if (data.seq === seq) {
       return data.content?.map((block) => block.type === "text" && typeof block.text === "string" ? block.text : "").join("");
@@ -60,9 +110,8 @@ function messageTextAt(chat, seq) {
 }
 function messageAttachmentsAt(chat, seq) {
   if (chat === void 0) return void 0;
-  for (const key of chat.order) {
-    const node = chat.nodes.get(key);
-    if (node === void 0 || node.kind !== "user" && node.kind !== "steering") continue;
+  for (const node of chatNodesOf(chat)) {
+    if (node.kind !== "user" && node.kind !== "steering") continue;
     const data = node.data;
     if (data.seq !== seq) continue;
     const images = [];
@@ -94,216 +143,28 @@ function isExecutedRewindCommand(node, seq) {
   const args = node.args ?? "";
   return new RegExp(`(?:^|\\s)@${seq}(?:\\s|$)`).test(args);
 }
-function hasFileImpact(text) {
-  if (text === void 0) return true;
-  const match = text.match(/impact=(\d+)/);
-  if (match !== null) return Number(match[1]) > 0;
-  return false;
-}
-function hasBackupDisabled(text) {
-  return text !== void 0 && /(?:^|\n)backup=off(?:\n|$)/.test(text);
-}
 function isPreviewCommand(command) {
   return (command.args ?? "").includes("preview");
 }
 function isCandidateCommand(command) {
   return (command.args ?? "").includes("__candidates");
 }
-function coalesceCuts(spans) {
-  if (spans.length < 2) return spans;
-  const sorted = [...spans].sort((left, right) => left.start - right.start || left.end - right.end);
-  const merged = [];
-  for (const span of sorted) {
-    const last = merged[merged.length - 1];
-    if (last !== void 0 && span.start <= last.end) {
-      if (span.end > last.end) last.end = span.end;
-      continue;
-    }
-    merged.push({ start: span.start, end: span.end });
-  }
-  return merged;
-}
-function cutsContain(cuts, seq) {
-  let low = 0;
-  let high = cuts.length - 1;
-  while (low <= high) {
-    const middle = low + high >> 1;
-    const cut = cuts[middle];
-    if (seq < cut.start) high = middle - 1;
-    else if (seq > cut.end) low = middle + 1;
-    else return true;
-  }
-  return false;
-}
-function liveAnchorKeys(snap, cuts) {
-  const live = /* @__PURE__ */ new Map();
-  for (const key of snap.order) {
-    const node = snap.nodes.get(key);
-    if (node === void 0 || cutsContain(cuts, node.anchorSeq)) continue;
-    const keys = live.get(node.anchorSeq);
-    if (keys === void 0) live.set(node.anchorSeq, [key]);
-    else keys.push(key);
-  }
-  return live;
-}
-var EMPTY_KEYS = [];
-function addWithdrawnTurnChrome(snap, cuts, hidden) {
-  const locations = snap.locations;
-  if (locations === void 0 || cuts.length === 0) return;
-  let live;
-  for (const key of snap.order) {
-    const chrome = snap.nodes.get(key);
-    if (chrome === void 0 || chrome.kind !== "turn-process") continue;
-    const located = chrome.location?.turn;
-    if (located?.start === void 0) continue;
-    const turn = located.turn;
-    if (typeof turn !== "number") continue;
-    const keys = locations.getTurn(turn);
-    if (keys.length === 0) continue;
-    const rows = keys.map((member) => snap.nodes.get(member)).filter((member) => member !== void 0);
-    if (rows.length !== keys.length) continue;
-    if (!rows.every((member) => member.key === chrome.key || cutsContain(cuts, member.anchorSeq))) continue;
-    live ?? (live = liveAnchorKeys(snap, cuts));
-    if ((live.get(chrome.anchorSeq) ?? EMPTY_KEYS).some((holder) => holder !== chrome.key)) continue;
-    hidden.add(chrome.anchorSeq);
-  }
-}
-var hiddenSeqsMemo = /* @__PURE__ */ new WeakMap();
-function hiddenSeqsOf(snap) {
-  const memo = hiddenSeqsMemo.get(snap);
-  if (memo !== void 0) return new Set(memo);
-  const hidden = /* @__PURE__ */ new Set();
-  const spans = [];
-  for (const key of snap.order) {
-    const node = snap.nodes.get(key);
-    if (node === void 0 || node.kind !== "command") continue;
+function rewindCutsOf(nodes) {
+  const cuts = [];
+  for (const node of nodes) {
+    if (node.kind !== "command") continue;
     const command = node.data;
     if (command.name === null || !ENGINE_COMMANDS.has(command.name)) continue;
-    if (isPreviewCommand(command) || isCandidateCommand(command)) {
-      hidden.add(command.seq);
-      continue;
-    }
+    if (isPreviewCommand(command) || isCandidateCommand(command)) continue;
     if (command.outcome?.kind !== "success") continue;
     const marker = command.outcome.sourceEventSeq;
     if (marker === void 0) continue;
-    hidden.add(command.seq);
     const target = targetSeqOfArgs(command.args);
-    if (target !== void 0) {
-      spans.push({ start: target, end: marker });
-    }
+    if (target === void 0 || target > marker) continue;
+    cuts.push({ target, marker });
   }
-  const cuts = coalesceCuts(spans);
-  for (const key of snap.order) {
-    const node = snap.nodes.get(key);
-    if (node === void 0) continue;
-    if (cutsContain(cuts, node.anchorSeq)) hidden.add(node.anchorSeq);
-  }
-  try {
-    addWithdrawnTurnChrome(snap, cuts, hidden);
-  } catch {
-  }
-  hiddenSeqsMemo.set(snap, new Set(hidden));
-  return hidden;
+  return cuts;
 }
-
-// src/client/candidates.ts
-var PREVIEW_CHARS = 80;
-var DEFAULT_CANDIDATE_LIMIT = 100;
-function messagePreviewOf(message) {
-  const text = message.content.map((block) => block.type === "text" && typeof block.text === "string" ? block.text : "").join("").replace(/\s+/g, " ").trim();
-  return text.length <= PREVIEW_CHARS ? text : `${text.slice(0, PREVIEW_CHARS - 1)}\u2026`;
-}
-function formatCandidateTime(time) {
-  const d = new Date(time);
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
-}
-function rewindCandidatesOf(snap, hidden, limit = DEFAULT_CANDIDATE_LIMIT) {
-  const candidates = [];
-  for (let i = snap.order.length - 1; i >= 0 && candidates.length < limit; i--) {
-    const key = snap.order[i];
-    if (key === void 0) continue;
-    const node = snap.nodes.get(key);
-    if (node === void 0 || node.kind !== "user" && node.kind !== "steering") continue;
-    if (hidden.has(node.anchorSeq ?? node.data.seq)) continue;
-    candidates.push({
-      seq: node.data.seq,
-      time: node.data.time,
-      preview: messagePreviewOf(node.data)
-    });
-  }
-  return candidates;
-}
-function rewindCandidatesOfChat(snap) {
-  return rewindCandidatesOf(snap, hiddenSeqsOf(snap));
-}
-var CANDIDATE_LIST_HEADER = "candidates=";
-function rewindCandidatesFromHostText(text) {
-  if (!text.startsWith(CANDIDATE_LIST_HEADER)) return [];
-  const lines = text.split("\n").slice(1);
-  const candidates = [];
-  for (const line of lines) {
-    if (line === "") continue;
-    const parts = line.split("	");
-    if (parts.length !== 3) continue;
-    const seq = Number(parts[0]);
-    const time = Number(parts[1]);
-    const preview = parts[2] ?? "";
-    if (!Number.isSafeInteger(seq) || !Number.isFinite(time)) continue;
-    candidates.push({ seq, time, preview });
-  }
-  return candidates;
-}
-function rewindOptionsFromCandidates(candidates, t) {
-  return candidates.map((candidate) => ({
-    id: String(candidate.seq),
-    label: candidate.preview || t("popover.noText"),
-    detail: formatCandidateTime(candidate.time)
-  }));
-}
-
-// src/client/log.ts
-var NS = "dsh-rewind";
-var DEBUG_KEY = "dsh-rewind.debug";
-var ALWAYS_ON = /* @__PURE__ */ new Set(["error", "warn"]);
-function switchValue() {
-  try {
-    return window.localStorage.getItem(DEBUG_KEY) ?? "";
-  } catch {
-    return "";
-  }
-}
-function matches(value, ns) {
-  for (const entry of value.split(",")) {
-    const part = entry.trim();
-    if (part === "") continue;
-    if (part === "*" || part === `${NS}*`) return true;
-    if (part.endsWith("*")) {
-      if (ns.startsWith(part.slice(0, -1))) return true;
-    } else if (ns === part) {
-      return true;
-    }
-  }
-  return false;
-}
-function tag(scope) {
-  return `[${NS}:${scope}]`;
-}
-function log(level, scope, message, data) {
-  if (ALWAYS_ON.has(level)) {
-    console[level](tag(scope), message, data);
-    return;
-  }
-  if (!matches(switchValue(), `${NS}:${scope}`)) return;
-  console.info(tag(scope), message, data);
-}
-var rewindLog = {
-  error: (scope, message, data) => log("error", scope, message, data),
-  warn: (scope, message, data) => log("warn", scope, message, data),
-  info: (scope, message, data) => log("info", scope, message, data),
-  debug: (scope, message, data) => log("debug", scope, message, data)
-};
 
 // src/client/styles.ts
 var CLASS = {
@@ -346,44 +207,58 @@ var STYLE = `
   width: calc(15px + var(--dsh-content-font-delta, 0px));
   height: calc(15px + var(--dsh-content-font-delta, 0px));
 }
-.dsh-rewind-btn:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-secondary);
+@media (hover: hover) {
+  .dsh-rewind-btn:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-secondary);
+  }
 }
 
 .dsh-rewind-popover {
   position: fixed;
-  z-index: 1000;
-  width: 288px;
-  padding: 12px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 12px;
+  z-index: 1100;
+  box-sizing: border-box;
+  width: min(300px, calc(100vw - 24px));
+  padding: 16px;
+  border: 0;
+  border-radius: var(--dsw-radius-lg);
   background: var(--dsw-specific-menu, var(--dsw-alias-bg-layer-3));
-  box-shadow: var(--dsw-shadow-lv3);
-  font-size: 14px;
-  line-height: 20px;
+  backdrop-filter: var(--dsw-menu-backdrop-filter);
+  isolation: isolate;
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  /* Elevated surface: match the menu cards' l2 scrollbar tokens. */
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  box-shadow: var(--dsw-elevation-prominent);
+  font-size: 12px;
+  line-height: 18px;
   color: var(--dsw-alias-label-primary);
 }
 .dsh-rewind-popover-title {
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
 }
 .dsh-rewind-popover-target {
-  margin: 4px 0 10px;
+  margin: 2px 0 10px;
   font-size: 12px;
-  line-height: 16px;
+  line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
   word-break: break-all;
+  /* The full message sits above the popover; two lines are enough context. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 .dsh-rewind-popover-option {
   display: flex;
   flex-direction: column;
   gap: 2px;
   width: 100%;
-  margin: 0 0 6px;
-  padding: 8px 10px;
-  border: 1px solid transparent;
+  margin: 0 0 2px;
+  padding: 6px 8px;
+  border: 0;
   border-radius: 8px;
   background: transparent;
   color: inherit;
@@ -403,7 +278,7 @@ var STYLE = `
   outline: none;
 }
 .dsh-rewind-popover-option:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: default;
 }
 .dsh-rewind-popover-option-label {
@@ -436,15 +311,15 @@ var STYLE = `
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  margin-top: 8px;
 }
 .dsh-rewind-popover-primary,
 .dsh-rewind-popover-ghost {
-  padding: 5px 12px;
+  height: 28px;
+  padding: 0 10px;
   border: none;
   border-radius: 8px;
   font: inherit;
-  font-size: 13px;
-  line-height: 18px;
   cursor: pointer;
 }
 .dsh-rewind-popover-primary {
@@ -455,7 +330,7 @@ var STYLE = `
   background: var(--dsw-alias-button-primary-hover);
 }
 .dsh-rewind-popover-primary:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: default;
 }
 .dsh-rewind-popover-ghost {
@@ -465,16 +340,22 @@ var STYLE = `
 .dsh-rewind-popover-ghost:hover {
   background: var(--dsw-alias-interactive-bg-hover);
 }
+.dsh-rewind-popover-ghost:active {
+  background: var(--dsw-alias-interactive-bg-active);
+}
 
 .dsh-rewind-guard-hint {
   position: fixed;
   z-index: 1000;
   max-width: min(440px, calc(100vw - 24px));
   padding: 8px 12px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 10px;
+  border: 0;
+  border-radius: var(--dsw-radius-md);
   background: var(--dsw-specific-menu, var(--dsw-alias-bg-layer-3));
-  box-shadow: var(--dsw-shadow-lv3);
+  backdrop-filter: var(--dsw-menu-backdrop-filter);
+  isolation: isolate;
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  box-shadow: var(--dsw-elevation-panel);
   font-size: 13px;
   line-height: 18px;
   color: var(--dsw-alias-label-primary);
@@ -514,11 +395,20 @@ var STYLE = `
 
 // src/client/popover.ts
 var popoverEl = null;
+var popoverAnchor = null;
 var disposeOutside = null;
 var liveSessionId = null;
 var composerFocuser = null;
 function registerComposerFocuser(focus) {
   composerFocuser = focus;
+}
+function markOpen(anchor) {
+  popoverAnchor = anchor;
+  anchor.setAttribute("aria-expanded", "true");
+}
+function markClosed() {
+  popoverAnchor?.setAttribute("aria-expanded", "false");
+  popoverAnchor = null;
 }
 function closePopover() {
   if (popoverEl !== null) {
@@ -529,6 +419,7 @@ function closePopover() {
     disposeOutside();
     disposeOutside = null;
   }
+  markClosed();
   const sessionId = liveSessionId;
   liveSessionId = null;
   if (sessionId !== null) {
@@ -538,31 +429,14 @@ function closePopover() {
     }
   }
 }
-function formatTarget(t, seq, time, preview) {
-  const d = new Date(time);
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  const previewText = preview.length > 0 ? preview : t("popover.noText");
-  return `seq ${seq} \xB7 ${hh}:${mm} \xB7 ${previewText}`;
-}
-function parseImpactList(text) {
-  const restores = [];
-  const deletes = [];
-  for (const line of text.split("\n")) {
-    if (line.startsWith("restore:")) restores.push(line.slice("restore:".length));
-    else if (line.startsWith("delete:")) deletes.push(line.slice("delete:".length));
-  }
-  return { restores, deletes };
-}
 function findCommand(chat, match) {
   if (chat === void 0) return void 0;
   let found;
-  for (const key of chat.order) {
-    const node = chat.nodes.get(key);
-    if (node !== void 0 && node.kind === "command") {
-      const command = node.data;
-      if (match(command)) found = command;
-    }
+  for (const node of chatNodesOf(chat)) {
+    if (node.kind !== "command") continue;
+    const command = node.data;
+    if (!match(command)) continue;
+    if (found === void 0 || command.seq >= found.seq) found = command;
   }
   return found;
 }
@@ -570,12 +444,10 @@ function knownCommandSeqs(session, chatOf, match) {
   const known = /* @__PURE__ */ new Set();
   const chat = chatOf(session);
   if (chat === void 0) return known;
-  for (const key of chat.order) {
-    const node = chat.nodes.get(key);
-    if (node !== void 0 && node.kind === "command") {
-      const command = node.data;
-      if (match(command)) known.add(command.seq);
-    }
+  for (const node of chatNodesOf(chat)) {
+    if (node.kind !== "command") continue;
+    const command = node.data;
+    if (match(command)) known.add(command.seq);
   }
   return known;
 }
@@ -600,28 +472,12 @@ function waitForCommand(session, chatOf, match, timeoutMs = 8e3, watch) {
     check();
   });
 }
-function isPreviewFor(node, seq) {
-  const args = node.args ?? "";
-  return node.name !== null && ENGINE_COMMANDS.has(node.name) && args.includes("preview") && new RegExp(`(?:^|\\s)@${seq}(?=\\s|$)`).test(args);
+var previewCall = null;
+function registerPreviewCall(call) {
+  previewCall = call;
 }
-async function previewImpact(session, chatOf, seq, watch) {
-  const known = knownCommandSeqs(session, chatOf, (node) => isPreviewFor(node, seq));
-  let result;
-  try {
-    result = await session.command(`/${ENGINE_COMMAND} preview @${seq} both`);
-  } catch (error) {
-    rewindLog.warn("preview", `preview command threw for @${seq}`, error);
-    return { kind: "error", text: error instanceof Error ? error.message : String(error) };
-  }
-  if (!result.ok) {
-    rewindLog.warn("preview", `preview command rejected for @${seq}`, result.error);
-    return { kind: "error", text: `${result.error.code}: ${result.error.message}` };
-  }
-  if (result.value?.matched !== true) {
-    rewindLog.warn("preview", `preview command was not matched for @${seq}`);
-    return { kind: "error", text: "the rewind command is not registered on this host" };
-  }
-  return waitForCommand(session, chatOf, (node) => isPreviewFor(node, seq) && !known.has(node.seq), 8e3, watch);
+function previewImpact(sessionId, seq) {
+  return previewCall?.(sessionId, seq) ?? Promise.resolve({ kind: "error", text: "host RPC is unavailable" });
 }
 function el(tag2, className, text) {
   const node = document.createElement(tag2);
@@ -653,7 +509,7 @@ function moveFocus(root, dir) {
   const next = index === -1 ? dir === 1 ? 0 : buttons.length - 1 : (index + dir + buttons.length) % buttons.length;
   buttons[next]?.focus();
 }
-function renderImpactStep(root, opts, back, cached) {
+function renderImpactStep(root, opts, back, reposition, cached) {
   const { session, seq, t } = opts;
   const impact = el("div", CLASS.popoverImpact, t("popover.impact.loading"));
   const actions = el("div", CLASS.popoverActions);
@@ -671,34 +527,32 @@ function renderImpactStep(root, opts, back, cached) {
   actions.append(confirm);
   root.replaceChildren(impact, actions);
   focusFirst(root);
+  reposition();
   void (async () => {
-    const outcome = cached ?? await previewImpact(session, opts.chatOf, seq, (cb) => opts.watchChat(session.sessionId, cb));
+    const outcome = cached ?? await previewImpact(session.sessionId, seq);
     if (outcome === null) {
-      impact.textContent = t("popover.impact.failed", { message: "preview command failed or timed out" });
+      impact.textContent = t("popover.impact.failed", { message: "preview request timed out" });
       return;
     }
     if (outcome.kind === "error") {
-      impact.textContent = t("popover.impact.failed", { message: outcome.text ?? "unknown error" });
+      impact.textContent = t("popover.impact.failed", { message: outcome.text });
       return;
     }
-    if (outcome.text === void 0) {
+    const restores = outcome.files.filter((file) => file.action === "restore").map((file) => file.path);
+    const deletes = outcome.files.filter((file) => file.action === "delete").map((file) => file.path);
+    if (restores.length === 0 && deletes.length === 0) {
       impact.textContent = t("popover.impact.none");
     } else {
-      const { restores, deletes } = parseImpactList(outcome.text);
-      if (restores.length === 0 && deletes.length === 0) {
-        impact.textContent = t("popover.impact.none");
+      const lines = [
+        ...restores.map((path) => t("popover.impact.restore", { path })),
+        ...deletes.map((path) => t("popover.impact.delete", { path }))
+      ];
+      if (outcome.backupOff) {
+        const list = document.createElement("div");
+        list.textContent = lines.join("\n");
+        impact.replaceChildren(list, el("div", CLASS.popoverNote, t("popover.backupDisabled")));
       } else {
-        const lines = [
-          ...restores.map((path) => t("popover.impact.restore", { path })),
-          ...deletes.map((path) => t("popover.impact.delete", { path }))
-        ];
-        if (hasBackupDisabled(outcome.text)) {
-          const list = document.createElement("div");
-          list.textContent = lines.join("\n");
-          impact.replaceChildren(list, el("div", CLASS.popoverNote, t("popover.backupDisabled")));
-        } else {
-          impact.textContent = lines.join("\n");
-        }
+        impact.textContent = lines.join("\n");
       }
     }
     confirm.disabled = false;
@@ -709,16 +563,44 @@ function renderImpactStep(root, opts, back, cached) {
     });
   })().catch(() => {
     impact.textContent = t("popover.impact.failed", { message: "unexpected error" });
+  }).finally(() => {
+    reposition();
   });
 }
 function mountShell(root, anchor, onKeyDown) {
+  const margin = 12;
+  const gap = 4;
+  let flippedAbove = null;
   const position = () => {
+    if (!root.isConnected) return;
+    if (!anchor.isConnected) {
+      if (popoverEl === root) closePopover();
+      return;
+    }
     const rect = anchor.getBoundingClientRect();
-    const gap = 4;
     const height = root.offsetHeight;
-    const top = rect.bottom + gap + height <= window.innerHeight - 8 ? rect.bottom + gap : Math.max(8, rect.top - gap - height);
+    if (flippedAbove === null) {
+      flippedAbove = rect.bottom + gap + height > window.innerHeight - margin;
+    }
+    const top = flippedAbove ? Math.max(margin, rect.top - gap - height) : Math.min(Math.max(margin, rect.bottom + gap), Math.max(margin, window.innerHeight - margin - height));
     root.style.top = `${Math.round(top)}px`;
-    root.style.left = `${Math.round(Math.min(rect.right, window.innerWidth - 8 - root.offsetWidth))}px`;
+    root.style.left = `${Math.round(Math.max(margin, Math.min(rect.right, window.innerWidth - margin - root.offsetWidth)))}px`;
+  };
+  let frame = 0;
+  const schedule = () => {
+    if (typeof requestAnimationFrame !== "function") {
+      position();
+      return;
+    }
+    if (frame !== 0) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      position();
+    });
+  };
+  const onScroll = (event) => {
+    if (event.target instanceof Node && root.contains(event.target)) return;
+    schedule();
   };
   const onPointerDown = (event) => {
     const target = event.target;
@@ -729,19 +611,30 @@ function mountShell(root, anchor, onKeyDown) {
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown, true);
   }, 0);
+  document.body.append(root);
+  position();
+  const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => {
+    schedule();
+  });
+  observer?.observe(root);
+  window.addEventListener("scroll", onScroll, true);
+  window.addEventListener("resize", schedule);
   const dispose = () => {
     clearTimeout(deferred);
     document.removeEventListener("pointerdown", onPointerDown);
     document.removeEventListener("keydown", onKeyDown, true);
+    window.removeEventListener("scroll", onScroll, true);
+    window.removeEventListener("resize", schedule);
+    observer?.disconnect();
+    if (frame !== 0) cancelAnimationFrame(frame);
   };
-  document.body.append(root);
-  position();
   return { position, dispose };
 }
 function openRetractPopover(opts) {
   closePopover();
   const { preview, anchor, t, retract, onRetract } = opts;
   if (retract === void 0 || onRetract === void 0) return;
+  markOpen(anchor);
   const root = el("div", CLASS.popover);
   root.setAttribute("role", "dialog");
   root.setAttribute("aria-label", t("popover.retract.title"));
@@ -798,21 +691,25 @@ function openPopover(opts) {
     openRetractPopover(opts);
     return;
   }
-  const { session, seq, time, preview, anchor, t, chatOf } = opts;
+  const { session, seq, time, preview, anchor, t } = opts;
   const onRewind = opts.onRewind;
   if (seq === void 0 || time === void 0 || onRewind === void 0) return;
-  const durableOpts = { session, seq, time, preview, anchor, t, chatOf, watchChat: opts.watchChat, onRewind };
+  markOpen(anchor);
+  const durableOpts = { session, seq, time, preview, anchor, t, onRewind };
   const root = el("div", CLASS.popover);
   root.setAttribute("role", "dialog");
   root.setAttribute("aria-label", t("popover.title"));
   let bothState = { state: "loading" };
   let impactOutcome = null;
   let step = "modes";
+  let reposition = () => {
+  };
   const renderModes = () => {
     step = "modes";
+    const previewText = preview.length > 0 ? preview : t("popover.noText");
     const children = [
       el("div", CLASS.popoverTitle, t("popover.title")),
-      el("div", CLASS.popoverTarget, formatTarget(t, seq, time, preview)),
+      el("div", CLASS.popoverTarget, previewText),
       modeOption(t("popover.chat"), t("popover.chat.hint"), () => {
         closePopover();
         durableOpts.onRewind("chat");
@@ -831,20 +728,13 @@ function openPopover(opts) {
       if (bothState.state === "loading") option.disabled = true;
       children.push(option);
     }
-    const actions = el("div", CLASS.popoverActions);
-    const cancel = document.createElement("button");
-    cancel.type = "button";
-    cancel.className = CLASS.popoverGhost;
-    cancel.textContent = t("popover.cancel");
-    cancel.addEventListener("click", closePopover);
-    actions.append(cancel);
-    children.push(actions);
     root.replaceChildren(...children);
     focusFirst(root);
+    reposition();
   };
   const renderImpact = () => {
     step = "impact";
-    renderImpactStep(root, durableOpts, renderModes, impactOutcome);
+    renderImpactStep(root, durableOpts, renderModes, reposition, impactOutcome);
   };
   const onKeyDown = (event) => {
     if (event.key === "ArrowDown") {
@@ -868,28 +758,315 @@ function openPopover(opts) {
   };
   renderModes();
   const shell = mountShell(root, anchor, onKeyDown);
+  reposition = shell.position;
   popoverEl = root;
   disposeOutside = shell.dispose;
   void (async () => {
-    const outcome = await previewImpact(session, chatOf, seq, (cb) => opts.watchChat(session.sessionId, cb));
+    const outcome = await previewImpact(session.sessionId, seq);
     impactOutcome = outcome;
     if (outcome !== null && outcome.kind === "success") {
-      bothState = { state: hasFileImpact(outcome.text) ? "hasChanges" : "noChanges" };
+      bothState = { state: outcome.files.length > 0 ? "hasChanges" : "noChanges" };
     } else {
-      bothState = { state: "error", message: outcome?.text ?? "preview command timed out" };
+      bothState = { state: "error", message: outcome?.kind === "error" ? outcome.text : "preview request timed out" };
     }
     renderModes();
-    shell.position();
   })().catch(() => {
     bothState = { state: "error", message: "unexpected error" };
     renderModes();
-    shell.position();
   });
+}
+
+// src/client/log.ts
+var NS = "dsh-rewind";
+var DEBUG_KEY = "dsh-rewind.debug";
+var ALWAYS_ON = /* @__PURE__ */ new Set(["error", "warn"]);
+function switchValue() {
+  try {
+    return window.localStorage.getItem(DEBUG_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+function matches(value, ns) {
+  for (const entry of value.split(",")) {
+    const part = entry.trim();
+    if (part === "") continue;
+    if (part === "*" || part === `${NS}*`) return true;
+    if (part.endsWith("*")) {
+      if (ns.startsWith(part.slice(0, -1))) return true;
+    } else if (ns === part) {
+      return true;
+    }
+  }
+  return false;
+}
+function tag(scope) {
+  return `[${NS}:${scope}]`;
+}
+function log(level, scope, message, data) {
+  if (ALWAYS_ON.has(level)) {
+    console[level](tag(scope), message, data);
+    return;
+  }
+  if (!matches(switchValue(), `${NS}:${scope}`)) return;
+  console.info(tag(scope), message, data);
+}
+var rewindLog = {
+  error: (scope, message, data) => log("error", scope, message, data),
+  warn: (scope, message, data) => log("warn", scope, message, data),
+  info: (scope, message, data) => log("info", scope, message, data),
+  debug: (scope, message, data) => log("debug", scope, message, data)
+};
+
+// src/client/visibility.ts
+var patches = /* @__PURE__ */ new Map();
+var currentCleanup;
+function installChatViewVisibility(ctx) {
+  let stopped = false;
+  const start = () => {
+    const scope = ctx.inject?.(["uiConversation"], (child) => {
+      if (!stopped) installOn(child.get("uiConversation"), ctx.sessions);
+    });
+    if (ctx.inject === void 0) {
+      installOn(ctx.get("uiConversation"), ctx.sessions);
+    }
+    return () => {
+      stopped = true;
+      currentCleanup?.();
+      currentCleanup = void 0;
+      if (typeof scope === "function") scope();
+    };
+  };
+  if (ctx.effect === void 0) {
+    start();
+    return;
+  }
+  ctx.effect(start, "dsh-rewind chat visibility");
+}
+function installOn(ui, sessions) {
+  currentCleanup?.();
+  currentCleanup = void 0;
+  if (ui?.views === void 0) return;
+  const views = ui.views;
+  const ensure = () => {
+    try {
+      const definition = views.entries().find((candidate) => candidate.target === "chat");
+      if (definition === void 0 || typeof definition.create !== "function") return;
+      const current = patches.get(definition);
+      const create = definition.create;
+      if (current !== void 0 && create === current.wrapper) return;
+      const wrapper = function wrappedChatBuilder() {
+        return new RewindVisibilityBuilder(create.call(definition));
+      };
+      const mutable = definition;
+      mutable.create = wrapper;
+      patches.set(definition, { original: create, wrapper });
+      rewindLog.info("visibility", "installed Chat snapshot visibility wrapper");
+      rebuildOpenSessions(ui, sessions);
+    } catch (error) {
+      rewindLog.error("visibility", "Chat visibility install probe failed", error);
+    }
+  };
+  let unsubscribe;
+  try {
+    unsubscribe = views.subscribe?.(ensure);
+  } catch (error) {
+    rewindLog.warn("visibility", "Chat view subscription failed", error);
+  }
+  ensure();
+  currentCleanup = () => {
+    unsubscribe?.();
+    restorePatches();
+    rebuildOpenSessions(ui, sessions);
+  };
+}
+function restorePatches() {
+  for (const [definition, record] of patches) {
+    const mutable = definition;
+    if (mutable.create === record.wrapper) mutable.create = record.original;
+  }
+  patches = /* @__PURE__ */ new Map();
+}
+function rebuildOpenSessions(ui, sessions) {
+  const state = sessions?.list?.getSnapshot();
+  if (state === void 0) return;
+  const ids = /* @__PURE__ */ new Set([...state.ids ?? [], ...Object.keys(state.byId ?? {})]);
+  for (const id of ids) {
+    const row = state.byId?.[id];
+    const retained = row?.retainedBy;
+    if (retained === void 0 || !Object.values(retained).some((count) => (count ?? 0) > 0)) continue;
+    try {
+      ui.binding?.(id)?.rebuild?.();
+    } catch (error) {
+      rewindLog.warn("visibility", `chat rebuild failed for ${id}`, error);
+    }
+  }
+}
+var RewindVisibilityBuilder = class {
+  /** @param inner - the real Chat builder. */
+  constructor(inner) {
+    __publicField(this, "inner", inner);
+    __publicField(this, "originals", /* @__PURE__ */ new Map());
+    __publicField(this, "commands", /* @__PURE__ */ new Map());
+    __publicField(this, "byTurn", /* @__PURE__ */ new Map());
+    __publicField(this, "turnProcess", /* @__PURE__ */ new Map());
+    __publicField(this, "derived", /* @__PURE__ */ new Map());
+    __publicField(this, "cuts", []);
+    __publicField(this, "cutSignature", "[]");
+    __publicField(this, "lastSignature", "[]");
+  }
+  get empty() {
+    return this.inner.empty;
+  }
+  replace(input) {
+    this.setAll(input.nodes);
+    this.lastSignature = this.cutSignature;
+    return this.inner.replace({ nodes: this.deriveAll(), timeline: input.timeline, ...changed(input) });
+  }
+  apply(input) {
+    const affected = /* @__PURE__ */ new Set();
+    let commandsChanged = false;
+    for (const node of input.upserts) {
+      const previous = this.originals.get(node.key);
+      const previousTurn = previous === void 0 ? void 0 : turnOf(previous);
+      const nextTurn = turnOf(node);
+      if (previousTurn !== void 0) affected.add(previousTurn);
+      if (nextTurn !== void 0) affected.add(nextTurn);
+      if (previous?.kind === "command" || node.kind === "command") commandsChanged = true;
+      this.setOriginal(node);
+    }
+    if (commandsChanged) this.refreshCuts();
+    if (this.cutSignature !== this.lastSignature) {
+      this.lastSignature = this.cutSignature;
+      return this.inner.replace({ nodes: this.deriveAll(), timeline: input.timeline, ...changed(input) });
+    }
+    const cuts = this.cuts;
+    const upserts = /* @__PURE__ */ new Map();
+    for (const node of input.upserts) upserts.set(node.key, this.deriveOne(node, cuts));
+    for (const turn of affected) {
+      const processKey = this.turnProcess.get(turn);
+      const base = processKey === void 0 ? void 0 : this.originals.get(processKey);
+      if (base === void 0) continue;
+      const next = this.deriveTurnProcess(base, cuts, turn, this.deriveOne(base, cuts));
+      if (this.derived.get(processKey) !== next) upserts.set(processKey, next);
+    }
+    const list = [...upserts.values()];
+    for (const node of list) this.derived.set(node.key, node);
+    return this.inner.apply({ upserts: list, timeline: input.timeline, ...changed(input) });
+  }
+  groupInput() {
+    return this.inner.groupInput?.();
+  }
+  publish() {
+    this.inner.publish?.();
+  }
+  setAll(nodes) {
+    this.originals.clear();
+    this.commands.clear();
+    this.byTurn.clear();
+    this.turnProcess.clear();
+    this.derived.clear();
+    for (const node of nodes) this.setOriginal(node);
+    this.refreshCuts();
+  }
+  setOriginal(node) {
+    const previous = this.originals.get(node.key);
+    if (previous !== void 0) this.unindex(previous);
+    this.originals.set(node.key, node);
+    if (node.kind === "command") this.commands.set(node.key, node);
+    const turn = turnOf(node);
+    if (turn === void 0) return;
+    const members = this.byTurn.get(turn) ?? /* @__PURE__ */ new Map();
+    members.set(node.key, node);
+    this.byTurn.set(turn, members);
+    if (node.kind === "turn-process") this.turnProcess.set(turn, node.key);
+  }
+  unindex(node) {
+    if (node.kind === "command") this.commands.delete(node.key);
+    const turn = turnOf(node);
+    if (turn === void 0) return;
+    const members = this.byTurn.get(turn);
+    if (members === void 0) return;
+    members.delete(node.key);
+    if (members.size === 0) this.byTurn.delete(turn);
+    if (node.kind === "turn-process" && this.turnProcess.get(turn) === node.key) {
+      this.turnProcess.delete(turn);
+      for (const member of members.values()) {
+        if (member.kind === "turn-process") {
+          this.turnProcess.set(turn, member.key);
+          break;
+        }
+      }
+    }
+  }
+  refreshCuts() {
+    this.cuts = rewindCutsOf(this.commands.values());
+    this.cutSignature = JSON.stringify(
+      this.cuts.map((cut) => `${cut.target}:${cut.marker}`).sort()
+    );
+  }
+  deriveAll() {
+    const cuts = this.cuts;
+    const derived = /* @__PURE__ */ new Map();
+    for (const node of this.originals.values()) derived.set(node.key, this.deriveOne(node, cuts));
+    for (const [turn, key] of this.turnProcess) {
+      const base = this.originals.get(key);
+      if (base === void 0) continue;
+      const current = derived.get(key) ?? this.deriveOne(base, cuts);
+      derived.set(key, this.deriveTurnProcess(base, cuts, turn, current));
+    }
+    const result = [...derived.values()];
+    this.derived = derived;
+    return result;
+  }
+  deriveOne(node, cuts) {
+    const base = this.originals.get(node.key) ?? node;
+    if (base.kind === "command") {
+      const command = base.data;
+      if (command.name !== void 0 && command.name !== null && ENGINE_COMMANDS.has(command.name)) {
+        const args = command.args ?? "";
+        const probe = args.includes("preview") || args.includes("__candidates");
+        const executed = command.outcome?.kind === "success" && command.outcome.sourceEventSeq !== void 0;
+        if (probe || executed) return hidden(base);
+      }
+      return base;
+    }
+    const contained = cuts.some((cut) => cut.target <= base.anchorSeq && base.anchorSeq <= cut.marker);
+    return contained ? hidden(base) : base;
+  }
+  deriveTurnProcess(base, cuts, turn = turnOf(base), current = this.deriveOne(base, cuts)) {
+    if (turn === void 0 || current.visibility === "hidden") return current;
+    const members = this.byTurn.get(turn);
+    if (members === void 0) return current;
+    let count = 0;
+    let allHidden = true;
+    for (const member of members.values()) {
+      if (member.key === base.key) continue;
+      count += 1;
+      if (this.deriveOne(member, cuts).visibility !== "hidden") {
+        allHidden = false;
+        break;
+      }
+    }
+    if (count === 0) return current;
+    return allHidden ? hidden(base) : current;
+  }
+};
+function hidden(node) {
+  return node.visibility === "hidden" ? node : { ...node, visibility: "hidden" };
+}
+function turnOf(node) {
+  const turn = node.location?.turn?.turn;
+  return typeof turn === "number" ? turn : void 0;
+}
+function changed(input) {
+  return input.changedTurns === void 0 ? {} : { changedTurns: input.changedTurns };
 }
 
 // src/client/portals.tsx
 var import_react = require("react");
 var import_react_dom = require("react-dom");
+var import_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
 
 // src/client/pending.ts
 var QUEUE_PREVIEW_CHARS = 200;
@@ -1066,7 +1243,6 @@ function showHint(text) {
 }
 var COMPOSER_EDITABLE_SELECTOR = "[data-composer-input]";
 var USER_SEAT_SELECTOR = '[data-chat-flow-kind="user"][data-chat-anchor-key], [data-chat-flow-kind="steering"][data-chat-anchor-key]';
-var CHAT_SEAT_SELECTOR = "[data-chat-anchor-key]";
 var IGNORED_PORTAL_SCOPE = [
   "[data-composer-seat]",
   "[data-composer-input]",
@@ -1074,14 +1250,6 @@ var IGNORED_PORTAL_SCOPE = [
   "[data-sidebar-chat]",
   "[data-plugin-panel]"
 ].join(", ");
-var GROUP_SHELL_SELECTOR = '[data-chat-anchor-key^="group:"]';
-function resolveSeatAnchorSeq(element, chat) {
-  if (chat === void 0) return void 0;
-  const flowKey = element.dataset.chatAnchorKey;
-  const nodeKey = element.dataset.chatNodeKey;
-  const node = (flowKey !== void 0 ? chat.nodes.get(flowKey) : void 0) ?? (nodeKey !== void 0 ? chat.nodes.get(nodeKey) : void 0);
-  return node?.anchorSeq;
-}
 var PENDING_SEAT_SELECTOR = "[data-pending-steering]";
 var MESSAGE_ATTACHMENT_SELECTOR = "[data-message-attachments]";
 function actionsContainerOf(row) {
@@ -1091,47 +1259,7 @@ function actionsContainerOf(row) {
   if (structural instanceof HTMLElement && structural.querySelector("button") !== null) return structural;
   return void 0;
 }
-function hideWithdrawnSeats(chat, seats, hiddenSeqs, hidden) {
-  if (chat === void 0) return;
-  const shells = /* @__PURE__ */ new Map();
-  for (const seat of seats) {
-    if (seat.matches(GROUP_SHELL_SELECTOR)) continue;
-    const anchor = resolveSeatAnchorSeq(seat, chat);
-    const withdrawn = anchor !== void 0 && hiddenSeqs.has(anchor);
-    if (withdrawn) {
-      seat.style.display = "none";
-      seat.dataset.dshRewindHidden = "true";
-      hidden.add(seat);
-    } else if (hidden.has(seat)) {
-      seat.style.display = "";
-      delete seat.dataset.dshRewindHidden;
-      hidden.delete(seat);
-    }
-    if (seat.dataset.chatNodeKey === void 0) continue;
-    const shell = seat.parentElement?.closest(GROUP_SHELL_SELECTOR);
-    if (shell === null || shell === void 0) continue;
-    shells.set(shell, (shells.get(shell) ?? true) && withdrawn);
-  }
-  for (const [shell, allWithdrawn] of shells) {
-    if (allWithdrawn) {
-      shell.style.display = "none";
-      shell.dataset.dshRewindHidden = "true";
-      hidden.add(shell);
-    } else if (hidden.has(shell)) {
-      shell.style.display = "";
-      delete shell.dataset.dshRewindHidden;
-      hidden.delete(shell);
-    }
-  }
-}
-function showHiddenSeats(hidden) {
-  for (const element of hidden) {
-    element.style.display = "";
-    delete element.dataset.dshRewindHidden;
-  }
-  hidden.clear();
-}
-function collectTargets(chat, hiddenSeqs) {
+function collectTargets(chat) {
   const rows = /* @__PURE__ */ new Map();
   for (const element of document.querySelectorAll(USER_SEAT_SELECTOR)) {
     const key = element.dataset.chatAnchorKey;
@@ -1142,7 +1270,6 @@ function collectTargets(chat, hiddenSeqs) {
     const node = chat.nodes.get(key);
     if (node === void 0 || node.kind !== "user" && node.kind !== "steering") continue;
     const user = node.data;
-    if (hiddenSeqs.has(node.anchorSeq ?? user.seq)) continue;
     const row = rows.get(key);
     const actions = actionsContainerOf(row);
     if (actions === void 0) continue;
@@ -1153,9 +1280,9 @@ function collectTargets(chat, hiddenSeqs) {
 function isRewindInertSession(snapshot) {
   return snapshot.subagent !== null && snapshot.subagent !== void 0;
 }
-function collectDurableTargets(snapshot, chat, hiddenSeqs) {
+function collectDurableTargets(snapshot, chat) {
   if (chat === void 0 || isRewindInertSession(snapshot)) return [];
-  return collectTargets(chat, hiddenSeqs);
+  return collectTargets(chat);
 }
 function inboxOf(session) {
   return session.projections.faceOf(INBOX_PROJECTION).getSnapshot();
@@ -1204,7 +1331,6 @@ function sameTargets(left, right) {
 }
 function RewindPortals({ sessionId, sessionOf, chatOf, isMainViewSession, watchChat, t, subscribeLocale, setComposerText, restoreImages }) {
   const [targets, setTargets] = (0, import_react.useState)([]);
-  const hidden = (0, import_react.useRef)(/* @__PURE__ */ new Set());
   const [, forceRender] = (0, import_react.useReducer)((count) => count + 1, 0);
   (0, import_react.useEffect)(() => subscribeLocale(() => {
     forceRender();
@@ -1224,17 +1350,7 @@ function RewindPortals({ sessionId, sessionOf, chatOf, isMainViewSession, watchC
       }
       const snapshot = session.getSnapshot();
       const chat = chatOf(session);
-      const hiddenSeqs = chat === void 0 ? /* @__PURE__ */ new Set() : hiddenSeqsOf(chat);
-      for (const element of hidden.current) if (!element.isConnected) hidden.current.delete(element);
-      if (hiddenSeqs.size > 0 || hidden.current.size > 0) {
-        hideWithdrawnSeats(
-          chat,
-          chat === void 0 ? [] : document.querySelectorAll(CHAT_SEAT_SELECTOR),
-          hiddenSeqs,
-          hidden.current
-        );
-      }
-      const durable = collectDurableTargets(snapshot, chat, hiddenSeqs);
+      const durable = collectDurableTargets(snapshot, chat);
       const next = [...durable, ...collectPendingTargets(snapshot, steeringItemsOf(inboxOf(session)?.["next-step"]))];
       setTargets((current) => sameTargets(current, next) ? current : next);
     };
@@ -1262,26 +1378,17 @@ function RewindPortals({ sessionId, sessionOf, chatOf, isMainViewSession, watchC
     const unsubscribeChat = watchChat(sessionId, queueRefresh);
     const observer = new MutationObserver((records) => {
       for (const record of records) {
-        if (record.type === "attributes") {
-          const target = record.target;
-          if (target instanceof HTMLElement && hidden.current.has(target) && target.style.display !== "none") {
-            queueRefresh();
-            return;
-          }
-          continue;
-        }
         const node = record.target instanceof Element ? record.target : record.target.parentElement;
         if (node !== null && node.closest(IGNORED_PORTAL_SCOPE) !== null) continue;
         queueRefresh();
         return;
       }
     });
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style"] });
+    observer.observe(document.body, { childList: true, subtree: true });
     return () => {
       active = false;
       observer.disconnect();
       unsubscribeChat();
-      showHiddenSeats(hidden.current);
       unsubscribeInbox?.();
       unsubscribeInbox = void 0;
       inboxOwner = void 0;
@@ -1294,8 +1401,6 @@ function RewindPortals({ sessionId, sessionOf, chatOf, isMainViewSession, watchC
         target,
         sessionId,
         sessionOf,
-        chatOf,
-        watchChat,
         setComposerText,
         t
       },
@@ -1331,8 +1436,6 @@ function RewindButton({ target, sessionId, sessionOf, chatOf, watchChat, isMainV
     if (node === void 0) return;
     openPopover({
       session,
-      chatOf,
-      watchChat,
       seq: node.seq,
       time: node.time,
       preview: messagePreviewOf(node),
@@ -1343,17 +1446,17 @@ function RewindButton({ target, sessionId, sessionOf, chatOf, watchChat, isMainV
       }
     });
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Tooltip, { label: t("button.title"), side: "bottom", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
     "button",
     {
       type: "button",
       className: CLASS.button,
       "aria-label": t("button.aria"),
-      title: t("button.title"),
+      "aria-haspopup": "dialog",
       onClick,
       dangerouslySetInnerHTML: { __html: REWIND_ICON_SVG }
     }
-  );
+  ) });
 }
 function composerText() {
   const surface = composerSurface();
@@ -1379,15 +1482,13 @@ async function retractPending(session, itemId, text, setComposerText) {
     setComposerText(session.sessionId, text);
   }
 }
-function RetractButton({ target, sessionId, sessionOf, chatOf, watchChat, setComposerText, t }) {
+function RetractButton({ target, sessionId, sessionOf, setComposerText, t }) {
   const onClick = (event) => {
     event.stopPropagation();
     const session = sessionOf(sessionId);
     if (session === void 0) return;
     openPopover({
       session,
-      chatOf,
-      watchChat,
       preview: target.preview,
       anchor: event.currentTarget,
       t,
@@ -1397,17 +1498,17 @@ function RetractButton({ target, sessionId, sessionOf, chatOf, watchChat, setCom
       }
     });
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_dsh_client_ui_primitives.Tooltip, { label: t("button.retract.title"), side: "bottom", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
     "button",
     {
       type: "button",
       className: CLASS.button,
       "aria-label": t("button.retract.aria"),
-      title: t("button.retract.title"),
+      "aria-haspopup": "dialog",
       onClick,
       dangerouslySetInnerHTML: { __html: REWIND_ICON_SVG }
     }
-  );
+  ) });
 }
 function createRewindBridge(deps) {
   return function RewindBridge({ sessionId }) {
@@ -1415,10 +1516,69 @@ function createRewindBridge(deps) {
   };
 }
 
+// src/client/host-rpc.ts
+var CHANNEL = "/dsh-rewind";
+var TIMEOUT_MS = 8e3;
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function isImpact(value) {
+  return isRecord(value) && typeof value["path"] === "string" && (value["action"] === "restore" || value["action"] === "delete");
+}
+function isCandidate(value) {
+  return isRecord(value) && Number.isSafeInteger(value["seq"]) && typeof value["time"] === "number" && Number.isFinite(value["time"]) && typeof value["preview"] === "string";
+}
+function isAbort(error) {
+  const name2 = error?.name;
+  return name2 === "AbortError" || name2 === "TimeoutError";
+}
+async function previewOverRpc(connection, sessionId, seq) {
+  if (connection === void 0) return { kind: "error", text: "host RPC is unavailable" };
+  try {
+    const result = await connection.rpc.call(CHANNEL, "preview", { sessionId, seq }, AbortSignal.timeout(TIMEOUT_MS));
+    if (!result.ok) {
+      rewindLog.warn("preview", `RPC preview failed for @${seq}`, result.error);
+      return { kind: "error", text: result.error.message };
+    }
+    const value = result.value;
+    if (!isRecord(value) || typeof value["backupOff"] !== "boolean" || !Array.isArray(value["files"]) || !value["files"].every(isImpact)) {
+      rewindLog.warn("preview", `RPC preview returned an invalid result for @${seq}`);
+      return { kind: "error", text: "invalid preview response" };
+    }
+    return { kind: "success", files: value["files"], backupOff: value["backupOff"] };
+  } catch (error) {
+    if (isAbort(error)) {
+      rewindLog.warn("preview", `RPC preview timed out for @${seq}`);
+      return null;
+    }
+    rewindLog.warn("preview", `RPC preview threw for @${seq}`, error);
+    return { kind: "error", text: error instanceof Error ? error.message : String(error) };
+  }
+}
+async function candidatesOverRpc(connection, sessionId) {
+  if (connection === void 0) return void 0;
+  try {
+    const result = await connection.rpc.call(CHANNEL, "candidates", { sessionId }, AbortSignal.timeout(TIMEOUT_MS));
+    if (!result.ok) {
+      rewindLog.warn("preview", "RPC candidates failed", result.error);
+      return void 0;
+    }
+    const value = result.value;
+    if (!isRecord(value) || !Array.isArray(value["candidates"]) || !value["candidates"].every(isCandidate)) {
+      rewindLog.warn("preview", "RPC candidates returned an invalid result");
+      return void 0;
+    }
+    return value["candidates"];
+  } catch (error) {
+    rewindLog.warn("preview", "RPC candidates threw", error);
+    return void 0;
+  }
+}
+
 // src/client/build-info.ts
-var PLUGIN_VERSION = true ? "0.17.1" : "dev";
+var PLUGIN_VERSION = true ? "0.19.0" : "dev";
 var PLUGIN_PACKAGE = "dsh-rewind-plugin";
-var BUILD_HASH = true ? "0d33ec37" : "dev";
+var BUILD_HASH = true ? "bccc8c9b" : "dev";
 
 // src/client/locales.ts
 var zh = {
@@ -1433,11 +1593,11 @@ var zh = {
   "popover.retract.hint": "\u64A4\u56DE\u8FD9\u6761\u53CA\u4E4B\u540E\u7684\u63D2\u8BDD\u6D88\u606F\uFF0C\u4E0D\u6253\u65AD\u5F53\u524D\u751F\u6210",
   "popover.retract.confirm": "\u786E\u8BA4\u56DE\u9000",
   "popover.chat": "\u4EC5\u56DE\u9000\u5BF9\u8BDD",
-  "popover.chat.hint": "\u53EA\u56DE\u9000\u6A21\u578B\u4E0A\u4E0B\u6587\uFF0C\u4E0D\u52A8\u5DE5\u4F5C\u533A\u6587\u4EF6",
-  "popover.both": "\u56DE\u9000\u5BF9\u8BDD\u548C\u4EE3\u7801",
-  "popover.both.hint": "\u5BF9\u8BDD\u56DE\u9000\u5E76\u8FD8\u539F\u5DE5\u4F5C\u533A\u6587\u4EF6",
+  "popover.chat.hint": "\u4EC5\u56DE\u9000\u4E0A\u4E0B\u6587\uFF0C\u4E0D\u52A8\u5DE5\u4F5C\u533A\u6587\u4EF6",
+  "popover.both": "\u56DE\u9000\u5BF9\u8BDD\u548C\u6587\u4EF6",
+  "popover.both.hint": "\u56DE\u9000\u4E0A\u4E0B\u6587\u5E76\u8FD8\u539F\u5DE5\u4F5C\u533A\u6587\u4EF6",
   "popover.checking": "\u6B63\u5728\u68C0\u67E5\u6587\u4EF6\u53D8\u66F4\u2026",
-  "popover.noChanges": "\u6B64\u6D88\u606F\u4E4B\u540E\u6CA1\u6709\u53EF\u8FD8\u539F\u7684\u6587\u4EF6\u53D8\u66F4\uFF0C\u4EC5\u53EF\u56DE\u9000\u5BF9\u8BDD",
+  "popover.noChanges": "\u65E0\u53EF\u8FD8\u539F\u7684\u6587\u4EF6\u53D8\u66F4",
   "popover.backupDisabled": "\u5FEB\u7167\u5907\u4EFD\u5DF2\u5173\u95ED\uFF0C\u8FD8\u539F\u53EF\u80FD\u4E0D\u5145\u5206",
   "popover.cancel": "\u53D6\u6D88",
   "popover.impact.loading": "\u6B63\u5728\u83B7\u53D6\u5F71\u54CD\u6E05\u5355\u2026",
@@ -1476,11 +1636,11 @@ var en = {
   "popover.retract.hint": "Retracts this pending message and the ones after it, without interrupting the run",
   "popover.retract.confirm": "Confirm rewind",
   "popover.chat": "Rewind conversation only",
-  "popover.chat.hint": "Cut the model context only; workspace files stay untouched",
-  "popover.both": "Rewind conversation and code",
-  "popover.both.hint": "Cut the context and restore workspace files",
+  "popover.chat.hint": "Context only; workspace untouched",
+  "popover.both": "Rewind conversation and files",
+  "popover.both.hint": "Context and restore workspace files",
   "popover.checking": "Checking for file changes\u2026",
-  "popover.noChanges": "No tracked file changes after this message; conversation-only rewind",
+  "popover.noChanges": "No restorable file changes",
   "popover.backupDisabled": "Snapshots off; the restore may be incomplete",
   "popover.cancel": "Cancel",
   "popover.impact.loading": "Fetching impact list\u2026",
@@ -1509,7 +1669,7 @@ var en = {
 };
 
 // src/client/settings-card.tsx
-var import_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
+var import_dsh_client_ui_primitives2 = require("@deepseek-ai/dsh-client-ui-primitives");
 var import_jsx_runtime2 = require("react/jsx-runtime");
 var SETTINGS_ENTRY_ID = "dsh-rewind-plugin";
 var DEFAULT_MAX_AGE_DAYS = 30;
@@ -1537,10 +1697,10 @@ function formLabels(t) {
   };
 }
 function settingsForm(scope) {
-  const form = new import_dsh_client_ui_primitives.SettingsFormModel(scope, [
+  const form = new import_dsh_client_ui_primitives2.SettingsFormModel(scope, [
     fileCheckpointingEnabledField(),
     autoCleanupEnabledField(),
-    (0, import_dsh_client_ui_primitives.settingsNumberField)("autoCleanupMaxAgeDays")
+    (0, import_dsh_client_ui_primitives2.settingsNumberField)("autoCleanupMaxAgeDays")
   ]);
   return {
     form,
@@ -1560,7 +1720,7 @@ function SettingsCard(props) {
   const checkpointing = state.checkpointingEnabled.text === "true";
   const cleanupEnabled = state.enabled.text === "true";
   return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
-    import_dsh_client_ui_primitives.SettingsForm,
+    import_dsh_client_ui_primitives2.SettingsForm,
     {
       labels: formLabels(t),
       state,
@@ -1571,7 +1731,7 @@ function SettingsCard(props) {
           /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "dsh-rewind-settings-toggle-row", children: [
             /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "dsh-rewind-settings-toggle-label", children: t("backup.title") }),
             /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-              import_dsh_client_ui_primitives.Switch,
+              import_dsh_client_ui_primitives2.Switch,
               {
                 checked: checkpointing,
                 label: t("backup.title"),
@@ -1589,7 +1749,7 @@ function SettingsCard(props) {
           /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "dsh-rewind-settings-toggle-row", children: [
             /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "dsh-rewind-settings-toggle-label", children: t("cleanup.auto") }),
             /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-              import_dsh_client_ui_primitives.Switch,
+              import_dsh_client_ui_primitives2.Switch,
               {
                 checked: cleanupEnabled,
                 label: t("cleanup.auto"),
@@ -1603,7 +1763,7 @@ function SettingsCard(props) {
           /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { className: "dsh-rewind-settings-hint", children: t(cleanupEnabled ? "cleanup.auto.on" : "cleanup.auto.off") })
         ] }),
         cleanupEnabled ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-          import_dsh_client_ui_primitives.SettingsValueField,
+          import_dsh_client_ui_primitives2.SettingsValueField,
           {
             id: "dsh-rewind-cleanup-maxage",
             label: t("cleanup.maxAge"),
@@ -1630,7 +1790,7 @@ function SettingsCard(props) {
 
 // src/client/index.ts
 var name = "dsh-rewind";
-var inject = ["slots", "sessions", "locale", "commandUi", "configForms"];
+var inject = ["slots", "sessions", "locale", "commandUi", "configForms", "connection"];
 var NS2 = "rewind";
 var HEADER_ACTIONS_SLOT = "conversation.session.header.actions";
 var COMPOSER_EDITABLE_SELECTOR2 = "[data-composer-input]";
@@ -1639,10 +1799,16 @@ function apply(ctx) {
   ctx.effect(function* () {
     yield ctx.locale.register(NS2, { zh, en });
     const t = ctx.locale.bind(NS2);
+    const connection = ctx.get("connection");
+    registerPreviewCall((sessionId, seq) => previewOverRpc(connection, sessionId, seq));
+    yield () => {
+      registerPreviewCall(null);
+    };
     const style = document.createElement("style");
     style.dataset.plugin = PLUGIN_PACKAGE;
     style.textContent = STYLE + `.dsh-rewind-header{position:relative}.dsh-rewind-header summary{cursor:pointer;list-style:none;padding:4px 8px;border-radius:6px;color:var(--dsw-alias-label-primary)}.dsh-rewind-header[open]>div{position:absolute;top:100%;right:0;z-index:500;min-width:260px;max-width:420px;max-height:320px;overflow:auto;background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-3));color:var(--dsw-alias-label-primary);border:1px solid var(--dsw-alias-border-l2,#ccc);border-radius:8px;padding:6px;box-shadow:0 6px 24px #0002}.dsh-rewind-header button{display:block;width:100%;text-align:left;border:0;background:none;color:inherit;padding:8px;cursor:pointer}.dsh-rewind-header button:hover{background:var(--dsw-alias-interactive-bg-hover,#eee)}`;
     document.head.appendChild(style);
+    installChatViewVisibility(ctx);
     const sessionOf = (sessionId) => ctx.sessions.binding(sessionId)?.session;
     const isMainViewSession = (sessionId) => (ctx.sessions.list.getSnapshot().byId[sessionId]?.retainedBy.mainView ?? 0) > 0;
     const subscribeLocale = (cb) => ctx.locale.subscribe(cb);
@@ -1777,14 +1943,7 @@ function apply(ctx) {
       const chat = chatOf(face);
       return chat !== void 0 && rewindCandidatesOfChat(chat).length > 0;
     };
-    const fetchHostCandidates = async (face, chatOf2) => {
-      const known = knownCommandSeqs(face, chatOf2, (node) => isCandidateCommand(node));
-      const result = await face.command(`/${ENGINE_COMMAND} __candidates`);
-      if (!result.ok || result.value?.matched !== true) return void 0;
-      const outcome = await waitForCommand(face, chatOf2, (node) => isCandidateCommand(node) && !known.has(node.seq), 8e3, (cb) => watchChat(face.sessionId, cb));
-      if (outcome === null || outcome.kind !== "success" || outcome.text === void 0) return void 0;
-      return rewindCandidatesFromHostText(outcome.text);
-    };
+    const fetchHostCandidates = async (face) => candidatesOverRpc(connection, face.sessionId);
     const hostCandidatesCache = /* @__PURE__ */ new Map();
     const composerAnchor = () => {
       const surface = composerSurface2();
@@ -1802,7 +1961,7 @@ function apply(ctx) {
         options: async (session) => {
           const face = sessionOf(session.sessionId);
           if (face === void 0) return [];
-          const candidates = await fetchHostCandidates(face, chatOf);
+          const candidates = await fetchHostCandidates(face);
           if (candidates !== void 0) hostCandidatesCache.set(session.sessionId, candidates);
           return candidates === void 0 ? [] : rewindOptionsFromCandidates(candidates, t);
         },
@@ -1815,8 +1974,6 @@ function apply(ctx) {
           if (candidate === void 0) return;
           openPopover({
             session: face,
-            chatOf,
-            watchChat,
             seq: candidate.seq,
             time: candidate.time,
             preview: candidate.preview,

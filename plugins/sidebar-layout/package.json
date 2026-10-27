@@ -1,15 +1,32 @@
 {
   "name": "@local/dsh-sidebar-layout",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
   "main": "lib/index.js",
-  "exports": {".": "./lib/index.js", "./client": "./lib/client.js", "./package.json": "./package.json"},
-  "files": ["lib", "cordis.patch.yml"],
-  "peerDependencies": {"@deepseek-ai/cordis": "^4.0.5", "@deepseek-ai/dsh-client-ui-sidebar": "0.2.1-rc.3"},
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.5",
+    "@deepseek-ai/dsh-client-ui-sidebar": "0.2.1-rc.3"
+  },
   "dsh": {
-    "bundle": {"patch": "./cordis.patch.yml"},
-    "client": {"platform": "web", "inject": ["@deepseek-ai/dsh-client-ui-sidebar"]}
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ]
+    }
   }
 }

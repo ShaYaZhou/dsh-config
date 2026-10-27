@@ -25,6 +25,7 @@ async function main(){
   }
   assert(process.env.OPENAI_API_KEY,'Real-model test needs configured proxy credential');
   const result=[];
+  const {SnapshotStore,createRewindRpcHandler}=await import(pathToFileURL(path.join(home,'profiles/desktop/node_modules/dsh-rewind-plugin/lib/index.js')));
   for(const preset of ['standard','ptc']){
    const cwd=path.join(output,preset);fs.mkdirSync(cwd,{recursive:true});const file=path.join(cwd,'fixture.txt');fs.writeFileSync(file,'BEFORE\n');
    const w=await ctx.workspaceRegistry.create(cwd,'Rewind isolated '+preset),made=await ctx.sessionController.create({workspaceId:w.id,agentPreset:preset});
@@ -34,12 +35,21 @@ async function main(){
    await agent.whenIdle();assert.equal(fs.readFileSync(file,'utf8').trim(),'AFTER');
    const userSeq=agent.session.snapshotEvents().find(e=>e.type==='user/message').seq;
    const surface=JSON.stringify(agent.session.surface.nodes);
+   const beforePreview=agent.session.snapshotEvents().length;
+   const query=createRewindRpcHandler(new SnapshotStore(undefined,{dshHome:home}),()=>new Map([[agent.id,agent]]),()=>true);
+   const candidates=await query('candidates',{sessionId:agent.id});
+   assert(candidates.ok&&candidates.value.candidates.some(row=>row.seq===userSeq),'RPC candidate lookup failed');
+   const preview=await query('preview',{sessionId:agent.id,seq:userSeq});
+   assert(preview.ok&&preview.value.files.some(row=>row.path===file),'RPC preview did not read the committed file snapshot');
+   assert.equal(agent.session.snapshotEvents().length,beforePreview,'Read-only RPC polluted session history');
    const call=async command=>{
     const response=await ctx.commands.execute(agent,command,[],AbortSignal.timeout(30000));
     fs.appendFileSync(path.join(output,'command-results.jsonl'),JSON.stringify({preset,command,result:response.result})+'\n');
     return response;
    };
-   assert.equal((await call('/rewind preview @'+userSeq)).result.kind,'success');
+   // Upstream moved read-only preview/candidates to connection RPC. The retired
+   // command must fail, while file-only and chat restoration still work.
+   assert.equal((await call('/rewind preview @'+userSeq)).result.kind,'error');
    assert.equal((await call('/rewind @'+userSeq+' code')).result.kind,'success');
    assert.equal(fs.readFileSync(file,'utf8'),'BEFORE\n');assert.equal(JSON.stringify(agent.session.surface.nodes),surface,'Code-only restore changed conversation');
    assert.equal((await call('/rewind @999999 code')).result.kind,'error');assert.equal(fs.readFileSync(file,'utf8'),'BEFORE\n');
@@ -53,7 +63,7 @@ async function main(){
     assert.equal(JSON.stringify(agent.session.surface.nodes),before);assert.equal(fs.readFileSync(file,'utf8'),'BEFORE\n');
    }
    await ctx.sessions.flush(agent.session);
-   result.push({preset,sessionId:agent.id,file,userSeq,codeRestore:true,conversationPreserved:true,invalidTargetRefused:true,chatRewind:true});
+   result.push({preset,sessionId:agent.id,file,userSeq,rpcPreview:true,previewHistoryUnchanged:true,codeRestore:true,conversationPreserved:true,invalidTargetRefused:true,chatRewind:true});
   }
   fs.writeFileSync(path.join(output,'result.json'),JSON.stringify(result,null,2));console.log('RESTORED_CONTROLS_PASS Standard/PTC real writes and Rewind verified');
  }finally{await shutdown.shutdown(0);}

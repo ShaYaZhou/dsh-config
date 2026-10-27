@@ -73,8 +73,8 @@ async function main() {
           const skills=await agent.ctx.get("skills").list({scope:agent,cwd:workspace});
           for(const name of ['think','ponytail','rtk-reference','openspec-explore'])assert(skills.some(skill=>skill.name===name&&(process.env.DSH_VERIFY_MANAGED_SKILLS!=='1'||skill.path.includes('inline-skills/catalog'))),name+' missing portable skill');
           for(const name of ['render_widget','create_worktree','message_session','usage_report'])assert(tools.get(name,agent),preset+' missing '+name);
-          const rewind=await ctx.commands.execute(agent,'/rewind __candidates',[],AbortSignal.timeout(10000));
-          assert.equal(rewind.result.kind,'success','Rewind command missing');
+          // Rewind candidates/preview now use the read-only connection RPC;
+          // command presence is checked above, not via the retired query command.
         }
       }
       report.push({preset, loaded: true, tools: tools.schemas(agent).length});

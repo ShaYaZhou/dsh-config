@@ -2,6 +2,28 @@ import fs from "node:fs";
 import vm from "node:vm";
 import test from "node:test";
 import assert from "node:assert/strict";
+test("Rewind read RPC validates attached session and sequence without starting work", async () => {
+  const source = fs.readFileSync(new URL('../plugins/rewind/lib/index.js', import.meta.url), 'utf8');
+  const start = source.indexOf('function isRecord(value) {', source.indexOf('async function previewImpact'));
+  const end = source.indexOf('function renderFailures', start);
+  assert(start >= 0 && end > start);
+  const calls = [], events = Object.freeze([]), nodes = Object.freeze([]);
+  const session = {snapshotEvents: () => events, surface: {nodes}};
+  const box = {
+    previewImpact: async (store, selected, seq, enabled) => {calls.push({selected, seq, enabled}); return {files: [], backupOff: !enabled};},
+    listRewindCandidates: (seen, surface) => {assert.equal(seen, events); assert.equal(surface, nodes); return [];},
+  };
+  vm.runInNewContext(source.slice(start, end)+'\nthis.create = createRewindRpcHandler;', box);
+  const handler = box.create({}, () => new Map([['fixture', {session}]]), () => true);
+  assert.equal((await handler('preview', {sessionId:'fixture', seq:8})).ok, true);
+  assert.equal(calls.length, 1); assert.equal(calls[0].selected, session);
+  for(const payload of [{sessionId:'fixture',seq:'8'},{sessionId:'missing',seq:8},{seq:8},null])
+    assert.equal((await handler('preview',payload)).ok,false);
+  assert.equal((await handler('unknown',{sessionId:'fixture'})).ok,false);
+  assert.equal(calls.length,1);
+  assert.equal((await handler('candidates',{sessionId:'fixture'})).ok,true);
+  assert.equal(events.length,0); assert.equal(nodes.length,0);
+});
 test("desktop commands choose real native presets and preserve source sessions", async () => {
   let plugin;
   const listeners = new Map();

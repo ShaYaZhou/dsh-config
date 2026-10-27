@@ -109,6 +109,7 @@ async function main() {
     );
     const created = await ctx.sessionController.create({
       workspaceId: workspace.id,
+      ...(process.env.DSH_BTW_PRESET ? {agentPreset: process.env.DSH_BTW_PRESET} : {}),
     });
     parent = (await ctx.sessionController.resolveAgent(created.sessionId))
       .agent;
@@ -275,8 +276,21 @@ async function main() {
       0,
       "Side follow-up executed a tool",
     );
+    phase("promotion from empty read-only parent");
+    const empty = await ctx.sessionController.create({ cwd, agentPreset: parent.session.header.agentPreset });
+    const emptyAgent = (await ctx.sessionController.resolveAgent(empty.sessionId)).agent;
+    ctx.permissionPresets.set(emptyAgent.session, 'read-only');
+    const promoted = await ctx.commands.execute(emptyAgent, '/btw-task Use only read to read main-work.txt and return its content. Do not write or delegate.', [], signal);
+    assert.equal(promoted.result.kind, 'success');
+    const promotedId = promoted.result.text.match(/Background session: (\S+)/)?.[1];
+    assert(promotedId, 'No background session identity returned');
+    const promotedAgent = (await ctx.sessionController.resolveAgent(promotedId)).agent;
+    assert.equal(ctx.permissionPresets.current(promotedAgent.session), 'read-only', 'Empty-parent promotion widened permissions');
+    await promotedAgent.whenIdle();
+    assert(JSON.stringify(promotedAgent.session.snapshotEvents().findLast(e=>e.type==='assistant/message')).includes(workCode));
     result = {
       passed: true,
+      preset: parent.session.header.agentPreset,
       sessionId: id,
       inheritedCompletedContext: true,
       mainNotInterrupted: true,
@@ -287,6 +301,7 @@ async function main() {
       mainReadToolCompleted: true,
       durableSideHistory: true,
       sideFollowupAfterRestart: true,
+      promotedEmptyParentInheritedReadOnly: true,
       elapsedSeconds: Math.round((Date.now() - started) / 1000),
     };
   } catch (error) {

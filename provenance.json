@@ -108,7 +108,7 @@
     {
       "id": "btw",
       "package": "@michengai/dsh-btw",
-      "version": "1.0.0-local.1",
+      "version": "1.0.8-local.1",
       "license": "Apache-2.0",
       "upstream": {
         "type": "git",
@@ -116,20 +116,22 @@
       },
       "localChanges": {
         "unpublishedLocalBuild": true,
-        "baseVersion": "1.0.0",
-        "date": "2026-10-21",
+        "baseVersion": "1.0.8",
+        "date": "2026-10-27",
         "changes": [
           "Durable last-20 side conversation pairs.",
           "Tool-enabled background-session promotion.",
           "Native Ctrl+Alt+Shift+B side-question dialog preserves the main composer draft.",
-          "Child-scoped prompt assembly removes inherited and child-local tools from answer-only requests."
+          "Child-scoped prompt assembly removes inherited and child-local tools from answer-only requests.",
+          "Merge 1.0.8 structured quotes, native Modal, input safeguards and bounded output; retain tool-free side-answer assembly, so exact upstream prompt-cache equivalence is not claimed.",
+          "Native shortcut also has macOS defaults; background promotion inherits parent permissions and public memory-write restrictions even without a prior parent turn."
         ]
       }
     },
     {
       "id": "rewind",
       "package": "dsh-rewind-plugin",
-      "version": "0.17.1-local.3",
+      "version": "0.19.0-local.1",
       "license": "MIT",
       "upstream": {
         "type": "git",
@@ -137,11 +139,12 @@
       },
       "localChanges": {
         "unpublishedLocalBuild": true,
-        "baseVersion": "0.17.1",
-        "date": "2026-10-20",
+        "baseVersion": "0.19.0",
+        "date": "2026-10-27",
         "changes": [
           "Code-only restore through the original snapshot journal under native maintenance lock.",
-          "Do not report complete file restoration when no checkpoint was restored or restoration was partial."
+          "Do not report complete file restoration when no checkpoint was restored or restoration was partial.",
+          "Migrate candidate and preview queries to upstream read-only connection RPC without conversation records; retain file-only restore and honest partial-restore reporting."
         ]
       }
     },
@@ -311,12 +314,13 @@
     {
       "id": "sidebar-layout",
       "package": "@local/dsh-sidebar-layout",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
         "changes": [
-          "Presentation-only footer utility grid; exact native rc.3 SidebarRoot CSS structure adapter. No cross-plugin DOM mutation, tools, prompts or storage."
+          "Presentation-only footer utility grid; exact native rc.3 SidebarRoot CSS structure adapter. No cross-plugin DOM mutation, tools, prompts or storage.",
+          "Use the native footer slot container as the grid; the wide billing control spans a full row and compact controls use two columns."
         ]
       }
     }

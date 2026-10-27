@@ -9,15 +9,8 @@ function preferredLocale(preference) {
   return preference.toLowerCase().split("-")[0] === "zh" ? "zh" : "en";
 }
 var en = {
-  "plan.rewinding": "Rewind to seq {targetSeq}, removing {count} node(s) from the model context (conversation log kept).",
-  "plan.affects": "Affects {count} file(s):",
-  "plan.restore": "restore {path}",
-  "plan.delete": "delete {path}",
-  "plan.noChanges": "No restorable changes after the target.",
-  "plan.backupOff": "Snapshot backups are off; this restore may be incomplete.",
   "plan.skip": "  not restored: {path} ({reason})",
   "skipReason.oversized": "over the {limit} backup limit, so the recorded state predates untracked edits",
-  "uncovered.header": "{count} tracked file(s) exceed the {limit} backup limit and are not covered:",
   "error.invalidTarget": 'Cannot parse target "{raw}" (expected <index> or @<seq>)',
   "sep.list": ", ",
   "sep.clause": "; ",
@@ -35,7 +28,7 @@ var en = {
   "storeUnsupported": "file restore unavailable: these snapshots use a newer store format (v{version}) than this plugin understands; nothing was changed. Update the plugin or clear this session's snapshots.",
   "success": "Withdrawn seq {targetSeq} and everything after it (conversation returned to earlier){restore}.",
   "noUserMessages": "This session has no rewindable user messages yet.",
-  "command.description": "Rewind the conversation and/or code to a previous point",
+  "command.description": "Rewind the conversation and/or files to a previous point",
   "command.undoDescription": "Alias of /rewind",
   "engine.description": "dsh-rewind internal command",
   "engine.rejected": "Internal command: use /rewind or /undo.",
@@ -62,15 +55,8 @@ var en = {
   "cleanup.usage": "Usage:\n  /snapshot-auto-cleanup                 show status\n  /snapshot-auto-cleanup on|off          enable/disable auto-cleanup\n  /snapshot-auto-cleanup max-age <days>  set the idle cutoff\n  /snapshot-auto-cleanup run [--apply]   dry-run, or execute with --apply\n  /snapshot-auto-cleanup run --current [--apply]   dry-run/clear this session's snapshots"
 };
 var zh = {
-  "plan.rewinding": "\u5C06\u56DE\u9000\u5230 seq {targetSeq}\uFF0C\u4ECE\u6A21\u578B\u4E0A\u4E0B\u6587\u79FB\u9664 {count} \u4E2A\u8282\u70B9\uFF08\u5BF9\u8BDD\u65E5\u5FD7\u4FDD\u7559\uFF09\u3002",
-  "plan.affects": "\u5C06\u5F71\u54CD {count} \u4E2A\u6587\u4EF6\uFF1A",
-  "plan.restore": "\u8FD8\u539F {path}",
-  "plan.delete": "\u5220\u9664 {path}",
-  "plan.noChanges": "\u76EE\u6807\u4E4B\u540E\u6CA1\u6709\u9700\u8981\u8FD8\u539F\u7684\u53D8\u66F4\u3002",
-  "plan.backupOff": "\u5FEB\u7167\u5907\u4EFD\u5DF2\u5173\u95ED\uFF1B\u672C\u6B21\u8FD8\u539F\u53EF\u80FD\u4E0D\u5145\u5206\u3002",
   "plan.skip": "  \u672A\u8FD8\u539F\uFF1A{path}\uFF08{reason}\uFF09",
   "skipReason.oversized": "\u5DF2\u8D85\u8FC7 {limit} \u7684\u5907\u4EFD\u4E0A\u9650\uFF0C\u8BB0\u5F55\u7684\u72B6\u6001\u65E9\u4E8E\u672A\u88AB\u8DDF\u8E2A\u7684\u4FEE\u6539",
-  "uncovered.header": "{count} \u4E2A\u5DF2\u8DDF\u8E2A\u6587\u4EF6\u8D85\u8FC7 {limit} \u7684\u5907\u4EFD\u4E0A\u9650\uFF0C\u672A\u7EB3\u5165\u8BB0\u5F55\uFF1A",
   "error.invalidTarget": '\u65E0\u6CD5\u89E3\u6790\u76EE\u6807 "{raw}"\uFF08\u5E94\u4E3A <\u5E8F\u53F7> \u6216 @<seq>\uFF09',
   "sep.list": "\u3001",
   "sep.clause": "\uFF1B",
@@ -88,7 +74,7 @@ var zh = {
   "storeUnsupported": "\u6587\u4EF6\u8FD8\u539F\u4E0D\u53EF\u7528\uFF1A\u8FD9\u4E9B\u5FEB\u7167\u4F7F\u7528\u4E86\u6BD4\u672C\u63D2\u4EF6\u66F4\u65B0\u7684\u5B58\u50A8\u683C\u5F0F\uFF08v{version}\uFF09\uFF1B\u5DE5\u4F5C\u533A\u672A\u505A\u4EFB\u4F55\u6539\u52A8\u3002\u8BF7\u66F4\u65B0\u63D2\u4EF6\uFF0C\u6216\u6E05\u9664\u8BE5\u4F1A\u8BDD\u7684\u5FEB\u7167\u3002",
   "success": "\u5DF2\u64A4\u56DE seq {targetSeq} \u53CA\u4E4B\u540E\u5185\u5BB9\uFF08\u5BF9\u8BDD\u5DF2\u56DE\u5230\u6B64\u524D\uFF09{restore}\u3002",
   "noUserMessages": "\u5F53\u524D\u4F1A\u8BDD\u8FD8\u6CA1\u6709\u53EF\u56DE\u9000\u7684\u7528\u6237\u6D88\u606F\u3002",
-  "command.description": "\u56DE\u9000\u5BF9\u8BDD\u548C/\u6216\u4EE3\u7801\u5230\u4E4B\u524D\u7684\u67D0\u6761\u6D88\u606F",
+  "command.description": "\u628A\u5BF9\u8BDD\u548C/\u6216\u6587\u4EF6\u56DE\u9000\u5230\u4E4B\u524D\u7684\u67D0\u6761\u6D88\u606F",
   "command.undoDescription": "/rewind \u7684\u522B\u540D",
   "engine.description": "dsh-rewind \u5185\u90E8\u547D\u4EE4",
   "engine.rejected": "\u5185\u90E8\u547D\u4EE4\uFF1A\u8BF7\u4F7F\u7528 /rewind \u6216 /undo\u3002",
@@ -181,14 +167,6 @@ function listRewindCandidates(events, surface, limit = DEFAULT_CANDIDATE_LIMIT) 
     });
   }
   return candidates;
-}
-var CANDIDATE_LIST_HEADER = "candidates=";
-function formatCandidateList(candidates) {
-  const lines = [`${CANDIDATE_LIST_HEADER}${candidates.length}`];
-  for (const candidate of candidates) {
-    lines.push(`${candidate.seq}	${candidate.time}	${candidate.preview}`);
-  }
-  return lines.join("\n");
 }
 function planRewind(events, surface, target) {
   let targetSeq;
@@ -2319,6 +2297,7 @@ function shouldRunAutoSweep(lastAtMs, nowMs, intervalMs = AUTO_SWEEP_INTERVAL_MS
 var name = "dsh-rewind";
 var inject = ["commands", "tools", "settings"];
 var ENGINE_COMMAND = "rewind-plugin";
+var REWIND_RPC_CHANNEL = "/dsh-rewind";
 var DEFAULT_FILE_CHECKPOINTING_ENABLED = true;
 var Config = z.object({
   snapshotDir: z.string().required(false),
@@ -2357,7 +2336,7 @@ function t(key, params) {
 function warnCommandUnavailable(ctx, name2, error) {
   ctx.logger.warn(`[dsh-rewind] command "${name2}" was not registered: ${error instanceof Error ? error.message : String(error)}`);
   if (name2 === ENGINE_COMMAND) {
-    ctx.logger.warn(`[dsh-rewind] the internal "${ENGINE_COMMAND}" engine channel is unavailable; the rewind button and picker will not work.`);
+    ctx.logger.warn(`[dsh-rewind] the internal "${ENGINE_COMMAND}" engine channel is unavailable; rewind execution will not work.`);
   }
 }
 async function discardCapture(capture) {
@@ -2489,37 +2468,60 @@ function formatBytes(bytes) {
   if (bytes >= 1024) return `${Math.round(bytes / 1024)} KiB`;
   return `${bytes} B`;
 }
-function formatPlan(plan, files, uncovered = [], maxFileBytes = 0, checkpointingEnabled = true) {
-  const lines = [
-    t("plan.rewinding", { targetSeq: plan.targetSeq, count: plan.shadowedSeqs.length })
-  ];
-  if (files.length > 0) {
-    lines.push(t("plan.affects", { count: files.length }));
-    for (const file of files) {
-      lines.push(`  ${file.action === "restore" ? t("plan.restore", { path: file.path }) : t("plan.delete", { path: file.path })}`);
-    }
-  } else {
-    lines.push(t("plan.noChanges"));
-  }
-  if (uncovered.length > 0) {
-    lines.push(t("uncovered.header", { count: uncovered.length, limit: formatBytes(maxFileBytes) }));
-    for (const file of uncovered.slice(0, 5)) lines.push(`  ${file.path}`);
-    if (uncovered.length > 5) lines.push("  \u2026");
-  }
-  if (!checkpointingEnabled) lines.push(t("plan.backupOff"));
-  lines.push(`impact=${files.length}`);
-  for (const file of files) {
-    lines.push(`${file.action}:${file.path}`);
-  }
-  if (!checkpointingEnabled) lines.push("backup=off");
-  return lines.join("\n");
-}
 function resolveOrError(events, surface, raw) {
   const target = parseRewindTarget(raw);
   if (target === void 0) {
     throw new RewindError("invalid-index", t("error.invalidTarget", { raw }));
   }
   return planRewind(events, surface, target);
+}
+async function previewImpact(store, session, seq, checkpointingEnabled) {
+  const plan = resolveOrError(session.snapshotEvents(), session.surface.nodes, `@${seq}`);
+  let impacts;
+  try {
+    impacts = await store.impactsAfter(session.id, plan.targetSeq);
+  } catch (error) {
+    if (!(error instanceof UnknownStoreVersionError)) throw error;
+    throw new Error(t("storeUnsupported", { version: await store.readStoreVersion(session.id) ?? 0 }));
+  }
+  const uncovered = await store.uncoveredPaths(session.id).catch(() => []);
+  return { files: impacts, uncovered, backupOff: !checkpointingEnabled };
+}
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function rpcFailure(code, message) {
+  return { ok: false, error: { code, message, details: {} } };
+}
+function createRewindRpcHandler(store, agentsOf, checkpointingEnabled) {
+  return async (endpoint, payload) => {
+    try {
+      if (!isRecord(payload)) return rpcFailure("rewind/bad-request", "invalid payload");
+      const sessionId = payload["sessionId"];
+      if (typeof sessionId !== "string" || sessionId.length === 0) {
+        return rpcFailure("rewind/bad-request", "sessionId must be a non-empty string");
+      }
+      const agents = agentsOf();
+      if (agents === void 0) return rpcFailure("rewind/agents-unavailable", "agent registry is unavailable");
+      const agent = agents.get(sessionId);
+      if (agent === void 0) return rpcFailure("rewind/session-not-found", `session ${sessionId} is not attached`);
+      const session = agent.session;
+      if (endpoint === "preview") {
+        const seq = payload["seq"];
+        if (!Number.isSafeInteger(seq)) return rpcFailure("rewind/bad-request", "seq must be an integer");
+        return { ok: true, value: await previewImpact(store, session, seq, checkpointingEnabled()) };
+      }
+      if (endpoint === "candidates") {
+        return {
+          ok: true,
+          value: { candidates: listRewindCandidates(session.snapshotEvents(), session.surface.nodes) }
+        };
+      }
+      return rpcFailure("rewind/unknown-endpoint", `unknown endpoint: ${endpoint}`);
+    } catch (error) {
+      return rpcFailure("rewind/failed", error instanceof Error ? error.message : String(error));
+    }
+  };
 }
 function renderFailures(failed) {
   if (failed.length === 0) return "";
@@ -2708,29 +2710,6 @@ async function handleRewind(ctx, store, fs, invocation, inflight, checkpointingE
     return executeRewind(ctx, store, fs, invocation, `@${candidates[0].seq}`, "chat", inflight, checkpointingEnabled);
   }
   const parts = input.split(/\s+/);
-  if (parts[0] === "preview") {
-    const target2 = parts[1];
-    if (target2 === void 0) return { kind: "error", text: t("engine.rejected") };
-    let plan;
-    try {
-      plan = resolveOrError(session.snapshotEvents(), session.surface.nodes, target2);
-    } catch (error) {
-      return rewindErrorResult(error);
-    }
-    const impacts = await store.impactsAfter(session.id, plan.targetSeq).catch((error) => {
-      if (error instanceof UnknownStoreVersionError) return void 0;
-      throw error;
-    });
-    if (impacts === void 0) {
-      return { kind: "error", text: t("storeUnsupported", { version: await store.readStoreVersion(session.id) ?? 0 }) };
-    }
-    const uncovered = await store.uncoveredPaths(session.id).catch(() => []);
-    return { kind: "success", text: formatPlan(plan, impacts, uncovered, store.fileCapBytes, checkpointingEnabled) };
-  }
-  if (parts[0] === "__candidates") {
-    const candidates = listRewindCandidates(session.snapshotEvents(), session.surface.nodes);
-    return { kind: "success", text: formatCandidateList(candidates) };
-  }
   const target = parts[0];
   const mode = parts[1];
   if (mode !== void 0 && mode !== "chat" && mode !== "both" && mode !== "code") {
@@ -3010,6 +2989,23 @@ function apply(ctx, config) {
       }
     })();
   }, { global: true });
+  ctx.inject(["connection"], (scope) => {
+    try {
+      const connection = scope.root.connection;
+      if (connection === void 0) return;
+      const dispose = connection.rpc.handle(
+        REWIND_RPC_CHANNEL,
+        createRewindRpcHandler(
+          store,
+          () => scope.get("agents"),
+          () => isFileCheckpointingEnabled(config)
+        )
+      );
+      scope.effect(() => dispose, "dsh-rewind RPC channel");
+    } catch (error) {
+      ctx.logger.warn(`[dsh-rewind] RPC channel registration failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  });
   ctx.inject(["fs", "workingDirectory"], (scope) => {
     const fs = scope.fs;
     const workingDirectory = scope.workingDirectory;
@@ -3053,6 +3049,7 @@ export {
   DEFAULT_FILE_CHECKPOINTING_ENABLED,
   ENGINE_COMMAND,
   SnapshotStore,
+  createRewindRpcHandler,
   apply,
   inject,
   name,
