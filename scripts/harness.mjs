@@ -341,6 +341,10 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
  prepare(preview);
  if(dryRun){console.log('Would manage '+preview.size+' files in the selected DSH_HOME; source templates remain unchanged.');return preview;}
  assert(new URL(settings.proxyBaseUrl).hostname!=='proxy.example.invalid','Configure .local/settings.json or OPENAI_BASE_URL before deploying');
+ if(!clean){
+  const probe=spawnSync('rtk',['--version'],{encoding:'utf8',timeout:5000,windowsHide:true});
+  assert(probe.status===0&&/^rtk \d+\./m.test(probe.stdout??''),'RTK CLI unavailable on PATH. Install rtk-ai/rtk (macOS: brew install rtk; Windows: winget install rtk-ai.rtk), restart the terminal, then deploy again. No configuration has been changed.');
+ }
  const runtime=globalRuntime();const command=runner();
  const version=execute(command.executable,['--expose-internals',command.cli,'--version'],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1'}});
  assert(version.includes(provenance.runtime),'Desktop runtime differs from the pinned source');

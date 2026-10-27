@@ -175,3 +175,16 @@ test('daily boot default patch ships with the pinned embedded animation without 
  }
  assert(![...plan.keys()].some(key=>key.endsWith('selection.json')));
 });
+
+
+test('daily and full instructions retain the same portable RTK execution guidance',()=>{
+ const daily=fs.readFileSync(path.join(repository,'presets/daily/AGENTS.md'),'utf8');
+ const full=fs.readFileSync(path.join(repository,'config/AGENTS.md'),'utf8');
+ const section=text=>text.split('## RTK command output\n')[1].split('\n---')[0].trim();
+ assert.equal(section(daily),section(full));
+ assert.match(section(daily),/including calls dispatched through PTC/);
+ assert.match(section(daily),/rtk proxy/);
+ assert.match(section(daily),/Never change the command/);
+ const plan=renderDailyPlan(path.join(os.tmpdir(),'dsh-rtk-plan'),settingsFrom('/nonexistent'));
+ assert.match(plan.get('AGENTS.md'),/## RTK command output/);
+});

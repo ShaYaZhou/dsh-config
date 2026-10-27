@@ -12,17 +12,12 @@ The level here is effectively always `full`, because this file is plain always-o
 
 Provenance: ponytail 4.10.0, <https://github.com/DietrichGebert/ponytail>. The ruleset below is copied verbatim from the upstream `AGENTS.md`; upstream keeps its per-agent copies aligned with `scripts/check-rule-copies.js`, so leave the text byte-identical when updating.
 
-## RTK
+## RTK command output
 
-`rtk` ("Rust Token Killer") is a CLI proxy that compresses command output before it reaches context. Installed machine-wide via winget (`winget upgrade --id rtk-ai.rtk`), already wired into Claude Code (a `rtk hook claude` PreToolUse hook in `~/.claude/settings.json`) and Codex (`~/.codex/AGENTS.md` → `RTK.md`). Here it is instruction-only, because DSH has no rtk hook target.
-
-Rules for commands sent through the `pwsh` tool:
-
-- Prefer the rtk form for anything whose output is bulky: `rtk git …` (status/log/diff/show/branch/stash/worktree), `rtk ls`, `rtk find`, `rtk grep`, `rtk read`, `rtk diff`, `rtk json`, `rtk wc`, `rtk log <file>`, plus `rtk err <cmd>`, `rtk test <cmd>`, `rtk summary <cmd>`, `rtk deps`, `rtk env` for wrapped runs.
-- Do NOT prefix PowerShell cmdlets, built-ins, or aliases. rtk resolves the wrapped program on PATH, so `rtk Get-ChildItem …`, `rtk pwd`, `rtk echo` all fail with `[rtk: program not found]`. When no rtk subcommand exists, either wrap a real executable (`rtk pwsh -Command "…"`, `rtk node …`, `rtk git …`) or run the command unwrapped.
-- Keep using this harness's first-party tools (`read`, `grep`, `glob`, `edit`) for file inspection and edits; they are already the cheapest path and rtk adds nothing there.
-- The full command catalog is the `rtk-reference` skill, deployed with this repo under the profile's `agent-capabilities/skills/`; it is user-invocable only, so read it on demand instead of duplicating the table here.
-- Accounting and escape hatches: `rtk gain`, `rtk gain --history`, `rtk proxy <cmd>` (run unfiltered but still tracked), `rtk hook check <cmd>` (see the rewrite without running it).
+For shell commands (Bash/PowerShell, including calls dispatched through PTC), use RTK by default for supported output-heavy commands: `rtk git status`, `rtk git diff`, `rtk git log`, `rtk ls`, `rtk rg`, `rtk npm test`. RTK must be available on the shell PATH; if unavailable, report it once and use native commands rather than retrying indefinitely or installing software without authorization.
+Use `rtk proxy <executable> <args>` when exact/unfiltered output is required or no RTK filter supports the command. Do not blindly prefix shell built-ins, assignments, pipelines, redirects or scripts; preserve their semantics. Never change the command's intent or repeat a mutating command merely to obtain savings.
+Keep using native read/grep/glob/edit tools where appropriate; do not replace them with shell just to use RTK. RTK still runs inside the original permission, working-directory, cancellation and approval boundaries. It never authorizes bypassing a refusal.
+Read `rtk-reference` only for command details. `rtk gain` reports estimated command-output savings, not total model cost. No Claude/Codex hook installation is needed for DSH.
 
 ---
 

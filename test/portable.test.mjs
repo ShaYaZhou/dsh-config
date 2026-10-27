@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {spawnSync} from 'node:child_process';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -206,3 +207,16 @@ test('versioned sources contain neither personal host paths nor credential files
   assert.equal(delegation.config.find(row=>row.id==='tool-workflow').name,'@local/dsh-tool-workflow');
   assert.equal(delegation.config.find(row=>row.id==='workflow-ptc').config.maxConcurrentAgents,16);
  });
+
+
+test('missing RTK rejects deployment before writing target configuration',()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'dsh-no-rtk-'));
+ try {
+  const home=path.join(dir,'home'),file=path.join(dir,'settings.json');
+  fs.writeFileSync(file,JSON.stringify({...settings,proxyBaseUrl:'https://example.invalid/v1'}));
+  const result=spawnSync(process.execPath,[path.join(repository,'scripts/harness.mjs'),'install','--home',home,'--settings',file],{encoding:'utf8',env:{...process.env,PATH:'',OPENAI_BASE_URL:''}});
+  assert.notEqual(result.status,0);
+  assert.match(result.stderr,/RTK CLI unavailable on PATH/);
+  assert.equal(fs.existsSync(home),false);
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});

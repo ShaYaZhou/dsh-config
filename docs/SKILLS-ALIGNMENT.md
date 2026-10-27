@@ -68,7 +68,7 @@ rtk gain
 winget install rtk-ai.rtk
 ```
 
-macOS/Linux 及已有 Rust 工具链的机器，可使用上游提供的 Git 安装方式；其他预编译安装方式见上游文档：
+macOS（或已配置 Homebrew 的 Linux）优先使用 `brew install rtk`。已有 Rust 工具链的机器也可使用上游 Git 安装方式；其他预编译安装方式见上游文档：
 
 ```sh
 cargo install --git https://github.com/rtk-ai/rtk rtk
@@ -76,9 +76,13 @@ cargo install --git https://github.com/rtk-ai/rtk rtk
 
 这些是首次安装命令，RTK 尚不存在时不要给安装命令加 `rtk` 前缀。安装后重新运行 `rtk --version` 和 `rtk gain`，再执行本仓库部署步骤。不要仅执行 `cargo install rtk` 并假定取得的是同一个项目。
 
-**工具本体与技能分开验证：** 本仓库安装器不安装 RTK 可执行文件，只部署 `skills/rtk-reference/` 到 `DSH_HOME/profiles/enhanced/agent-capabilities/skills/rtk-reference/`。在 `dsh --profile enhanced` 的技能菜单中选择 `rtk-reference` 查看命令参考；它不自动调用模型，也不会仅凭安装就自动改写 DSH 的终端命令。RTK CLI 若在 PATH 中，日常精简模式也可显式使用，例如 `rtk git status`。
+**CLI、日常规则、按需技能分开验证：** 安装器不静默下载或安装 RTK；正式安装在写配置前检查 PATH 中的 `rtk --version`，缺失时停止并提示安装命令。安装 CLI 后重开终端和 Harness，确保桌面进程也获得新 PATH。`clean` 原生回退不要求 RTK。
 
-只部署 DSH 时，不执行面向其他宿主的 `rtk init -g` 或全局 hook 安装步骤；那些操作会改变对应宿主的配置，不是本仓库的技能安装流程。本节仅补说明，不更新技能副本、不改日常加载策略，也不影响已冻结的对照测试。
+日常 `presets/daily/AGENTS.md` 与完整 `config/AGENTS.md` 均包含相同的短 RTK 规则，要求 Standard、PTC 经 Bash/PowerShell 执行支持的输出密集命令时默认使用 RTK。`rtk-reference` 在日常与增强配置中按需提供完整参考，不把整份命令表塞进每轮。原生 read/grep/edit 等工具继续使用；精确输出通过 `rtk proxy` 获取，内建命令、管道和脚本不机械添加前缀。
+
+这是原生指令驱动，**不是拦截每条命令的强制 hook**；不改变原生权限、取消、审批和工作目录，也不保证每次模型调用都使用RTK。可用 `scripts/test-rtk.cjs` 在隔离宿主检查真实模型的叶子Shell调用。RTK用量统计是命令输出的估算节省，不是模型总账单降幅。
+
+只部署 DSH 时，不执行 `rtk init -g` 或其他宿主的 hook 安装；“No hook installed”提醒不代表显式RTK命令未生效，不应为消除提示擅自修改Claude/Codex配置。
 
 ### 2.3 不纳入
 

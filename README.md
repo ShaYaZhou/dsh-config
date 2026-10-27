@@ -89,7 +89,7 @@ rtk proxy node scripts/harness.mjs status
 
 Ponytail 已随仓库部署为 DSH 技能，用于减少过度设计并优先复用原生能力；官方仓库是 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)。安装路径、使用方式和更新边界见 [Ponytail 安装与使用](docs/SKILLS-ALIGNMENT.md#221-ponytail-安装与使用)。
 
-Ponytail、`rtk-reference` 及通用/OpenSpec技能已恢复到日常入口的受管按需目录；正文不自动注入每轮。编排专用技能仍只在enhanced提供。
+Ponytail、`rtk-reference` 及通用/OpenSpec技能已恢复到日常入口的受管按需目录；技能正文不自动注入每轮；RTK另有简短的常驻命令规则，Standard/PTC默认用于支持的Shell命令。部署前要求PATH可找到RTK，缺失时在写配置前报错，安装方法见上面的RTK章节。编排专用技能仍只在enhanced提供。
 
 | 内容 | 版本控制位置 |
 |---|---|
