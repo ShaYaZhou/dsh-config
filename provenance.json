@@ -314,7 +314,7 @@
     {
       "id": "sidebar-layout",
       "package": "@local/dsh-sidebar-layout",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,

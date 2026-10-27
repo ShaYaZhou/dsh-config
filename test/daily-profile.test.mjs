@@ -141,3 +141,22 @@ test('nested mode routes only new dispatch and leaves legal communication availa
  assert(scope.check('worker','workflow'));
  assert.equal(scope.check('linked','workflow'),undefined);
 });
+
+
+test('sidebar sections persist independently and tolerate unavailable preference storage',()=>{
+ const source=fs.readFileSync(path.join(repository,'plugins/sidebar-layout/lib/client.js'),'utf8');
+ const saved=new Map(),components=new Map();let plugin;
+ const react={createElement:(type,props,...children)=>({type,props,children}),useState:fn=>[fn(),()=>{}]};
+ const storage={getItem:key=>saved.get(key),setItem:(key,value)=>saved.set(key,value)};
+ vm.runInNewContext(source,{window:{__ModuleLoader__:{load:def=>{plugin=def.factory(()=>react);}}},localStorage:storage});
+ plugin.apply({effect(){},slots:{inject:(_name,fn)=>fn(),register:(meta,render)=>components.set(meta.id,render)}});
+ const render=section=>{const view=components.get('sidebar-layout-'+section)();return view.type(view.props);};
+ assert.equal(render('tools').props['aria-expanded'],true);
+ render('tools').props.onClick();
+ assert.equal(render('tools').props['aria-expanded'],false);
+ assert.equal(render('billing').props['aria-expanded'],true);
+ render('tools').props.onClick();
+ assert.equal(render('tools').props['aria-expanded'],true);
+ storage.getItem=()=>{throw Error('blocked');};storage.setItem=()=>{throw Error('blocked');};
+ assert.doesNotThrow(()=>render('billing').props.onClick());
+});

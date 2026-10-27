@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-sidebar-layout",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
@@ -25,7 +25,8 @@
     "client": {
       "platform": "web",
       "inject": [
-        "@deepseek-ai/dsh-client-ui-sidebar"
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-slots"
       ]
     }
   }

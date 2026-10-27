@@ -1,2 +1,2 @@
-// Layout only; no tools, prompts, storage or execution policy.
+// Presentation only; no tools, prompts or execution policy.
 export function apply() {}

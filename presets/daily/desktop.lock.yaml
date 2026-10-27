@@ -347,7 +347,7 @@ packages:
 
   '@local/dsh-sidebar-layout@file:../../local-plugins/${SIDEBAR-LAYOUT_TGZ}':
     resolution: {integrity: ${SIDEBAR-LAYOUT_INTEGRITY}, tarball: file:../../local-plugins/${SIDEBAR-LAYOUT_TGZ}}
-    version: 1.0.1
+    version: 1.0.2
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.5
       '@deepseek-ai/dsh-client-ui-sidebar': 0.2.1-rc.3
