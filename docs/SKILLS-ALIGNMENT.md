@@ -80,7 +80,7 @@ cargo install --git https://github.com/rtk-ai/rtk rtk
 
 日常 `presets/daily/AGENTS.md` 与完整 `config/AGENTS.md` 均包含相同的短 RTK 规则，要求 Standard、PTC 经 Bash/PowerShell 执行支持的输出密集命令时默认使用 RTK。`rtk-reference` 在日常与增强配置中按需提供完整参考，不把整份命令表塞进每轮。原生 read/grep/edit 等工具继续使用；精确输出通过 `rtk proxy` 获取，内建命令、管道和脚本不机械添加前缀。
 
-**自动执行适配与设置：** `@local/dsh-rtk-shell`通过本地环境插件的公开Bash/PowerShell执行器子类复用原生执行链。进入 **设置 → 命令规则** 可控制总开关与Git/日志/搜索/测试分类，添加精确排除项、自定义精确命令，并选择Bash或PowerShell进行不执行命令的预览。配置通过原生ConfigForms保存；关闭总开关只是透传，不卸载Shell或环境服务。
+**自动执行适配与设置：** `@local/dsh-rtk-shell`通过本地环境插件的公开Bash/PowerShell执行器子类复用原生执行链。进入 **设置 → Hooks** 可控制总开关与Git/日志/搜索/测试分类，添加精确排除项、自定义精确命令，并选择Bash或PowerShell进行不执行命令的预览。配置通过原生ConfigForms保存；关闭总开关只是透传，不卸载Shell或环境服务。
 
 | 类别 | 自动支持的安全子集 | 输出方式 |
 |---|---|---|

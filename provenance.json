@@ -327,7 +327,7 @@
     {
       "id": "rtk-shell",
       "package": "@local/dsh-rtk-shell",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
@@ -336,7 +336,8 @@
           "One native execution only, retaining policy, signal, cwd, environment, timeout and background handles; no execution-error retry.",
           "Complex shell syntax, machine-readable options, explicit RTK/proxy and mutations pass through unchanged.",
           "Literal log/search/test adapters plus exact owner-configured external-command filters; complex syntax and stdin passthrough.",
-          "Native ConfigForms settings section and owner-only non-executing preview use the same validated backend rules."
+          "Native ConfigForms settings section and owner-only non-executing preview use the same validated backend rules.",
+          "Hooks settings groups actual Shell-before-execution entries into collapsible rows; preserves native config keys and exposes no inert lifecycle switches."
         ]
       }
     }

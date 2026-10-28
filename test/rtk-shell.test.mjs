@@ -311,6 +311,10 @@ test("settings page registers independently; preview uses only the owner RPC and
           ? [node, ...flatten(node.children)]
           : [];
   const tree = flatten(Page());
+  assert(tree.some(n=>n.type==='h2'&&n.children.includes('Hooks')));
+  assert(tree.some(n=>n.type==='h3'&&n.children.includes('Shell 执行前')));
+  assert.equal(tree.filter(n=>n.type==='button'&&String(n.props['aria-label']).startsWith('展开 RTK ·')).length,4);
+  assert(tree.filter(n=>n.props.className==='hook-detail').every(n=>n.props.hidden===true));
   const preview = tree.find(
     (n) => n.type === "button" && n.children.includes("预览改写"),
   );
