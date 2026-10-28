@@ -323,6 +323,20 @@
           "Use the native footer slot container as the grid; the wide billing control spans a full row and compact controls use two columns."
         ]
       }
+    },
+    {
+      "id": "rtk-shell",
+      "package": "@local/dsh-rtk-shell",
+      "version": "0.1.0",
+      "license": "UNLICENSED",
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "changes": [
+          "Compose public local-environment shell executors with a conservative read-only Git RTK prefix transform; pinned native runtime 0.2.1-rc.3.",
+          "One native execution only, retaining policy, signal, cwd, environment, timeout and background handles; no execution-error retry.",
+          "Complex shell syntax, machine-readable options, explicit RTK/proxy and mutations pass through unchanged."
+        ]
+      }
     }
   ],
   "flavor": "tuned",

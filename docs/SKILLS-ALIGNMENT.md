@@ -80,7 +80,13 @@ cargo install --git https://github.com/rtk-ai/rtk rtk
 
 日常 `presets/daily/AGENTS.md` 与完整 `config/AGENTS.md` 均包含相同的短 RTK 规则，要求 Standard、PTC 经 Bash/PowerShell 执行支持的输出密集命令时默认使用 RTK。`rtk-reference` 在日常与增强配置中按需提供完整参考，不把整份命令表塞进每轮。原生 read/grep/edit 等工具继续使用；精确输出通过 `rtk proxy` 获取，内建命令、管道和脚本不机械添加前缀。
 
-这是原生指令驱动，**不是拦截每条命令的强制 hook**；不改变原生权限、取消、审批和工作目录，也不保证每次模型调用都使用RTK。可用 `scripts/test-rtk.cjs` 在隔离宿主检查真实模型的叶子Shell调用。RTK用量统计是命令输出的估算节省，不是模型总账单降幅。默认统计库若位于工作区之外，`rtk gain`可能因原生写保护失败；命令过滤仍可用，不为统计放宽权限。
+**自动执行适配与指令配合：** `@local/dsh-rtk-shell`通过本地环境插件的公开Bash/PowerShell执行器子类，复用原生执行链。支持的简单Git查询即使模型不加前缀也会自动改写：`git status`、`git diff`（可选`--stat/--cached/--staged`）、`git log`（可选`-N/-n N/--oneline/--stat/--all`）、`git show`（可选`--stat`）。不启动额外的rewrite进程，不读取Claude hooks。
+
+其他命令仍按常驻规则显式用RTK。管道、重定向、赋值、脚本、带路径参数、机器格式（porcelain/short/format等）、写操作以及已有`rtk`/`rtk proxy`原样通过，不尝试泛化Shell解析。原工具历史保留模型输入，验收在原生confine入口核实改写后的真实命令；不能仅凭历史参数没有前缀判定适配失效。
+
+所有命令均只调用一次原生执行器；RTK缺失、失败、超时、拒绝或停止都不会再执行裸命令。需原始输出用`rtk proxy git ...`。取消整个自动适配时，移除`@local/dsh-rtk-shell` bundle并重新部署，使本地环境的原执行器恢复；不要只禁用当前shell provider而留下原provider关闭。安装器备份可整体回滚。
+
+RTK统计是命令输出估算，不是模型总账单降幅；统计库若位于工作区之外，`rtk gain`可能被原生写保护拒绝，过滤仍可用，不为统计放宽权限。自动适配的真实模型/权限/停止验收用`scripts/test-rtk-auto.cjs`（隔离DSH_HOME），原指令式验收仍保留。
 
 只部署 DSH 时，不执行 `rtk init -g` 或其他宿主的 hook 安装；“No hook installed”提醒不代表显式RTK命令未生效，不应为消除提示擅自修改Claude/Codex配置。
 

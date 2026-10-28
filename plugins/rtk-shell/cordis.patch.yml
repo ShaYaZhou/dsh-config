@@ -1,0 +1,13 @@
+# Replace only the environment shell providers, preserving their public classes.
+# The original subprocess overlay and local-environment services stay mounted.
+- id: local-environment-bash
+  disabled: true
+- id: local-environment-pwsh
+  disabled: true
+- insert:
+    - id: rtk-bash
+      name: '@local/dsh-rtk-shell/bash'
+      disabled: !!js process.platform === 'win32'
+    - id: rtk-pwsh
+      name: '@local/dsh-rtk-shell/pwsh'
+      disabled: !!js process.platform !== 'win32'

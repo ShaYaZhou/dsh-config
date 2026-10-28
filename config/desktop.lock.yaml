@@ -60,6 +60,9 @@ importers:
       '@local/dsh-nested-sessions':
         specifier: file:../../local-plugins/${NESTED-SESSIONS_TGZ}
         version: file:../../local-plugins/${NESTED-SESSIONS_TGZ}(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3))(zod@4.4.3)
+      '@local/dsh-rtk-shell':
+        specifier: file:../../local-plugins/${RTK-SHELL_TGZ}
+        version: file:../../local-plugins/${RTK-SHELL_TGZ}(@local/dsh-local-environments@file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3))(zod@4.4.3))
       '@local/dsh-shared':
         specifier: file:../../local-plugins/${SHARED_TGZ}
         version: file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3)
@@ -443,6 +446,12 @@ packages:
       '@deepseek-ai/dsh-typert-protocol': 0.2.1-rc.2 || 0.2.1-rc.3
       '@local/dsh-shared': 0.1.0
       zod: ^4.0.0
+
+  '@local/dsh-rtk-shell@file:../../local-plugins/${RTK-SHELL_TGZ}':
+    resolution: {integrity: ${RTK-SHELL_INTEGRITY}, tarball: file:../../local-plugins/${RTK-SHELL_TGZ}}
+    version: 0.1.0
+    peerDependencies:
+      '@local/dsh-local-environments': 0.1.2
 
   '@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}':
     resolution: {integrity: ${SHARED_INTEGRITY}, tarball: file:../../local-plugins/${SHARED_TGZ}}
@@ -1689,6 +1698,10 @@ snapshots:
     dependencies:
       '@local/dsh-shared': file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3)
       zod: 4.4.3
+
+  '@local/dsh-rtk-shell@file:../../local-plugins/${RTK-SHELL_TGZ}(@local/dsh-local-environments@file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3))(zod@4.4.3))':
+    dependencies:
+      '@local/dsh-local-environments': file:../../local-plugins/${LOCAL-ENVIRONMENTS_TGZ}(@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3))(zod@4.4.3)
 
   '@local/dsh-shared@file:../../local-plugins/${SHARED_TGZ}(zod@4.4.3)':
     dependencies:

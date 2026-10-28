@@ -801,3 +801,13 @@ rc.3 相对 rc.2 的实际内容差异（逐包哈希比对，排除 `package.js
 - 一条node scripts/check-rtk.mjs完成普通终端自检：创建带空格路径的临时Git仓库，经过RTK（Windows经PowerShell）读取状态并核对夹具文件，finally清理自己的目录。Mac实际执行通过；Windows的exe选取、NoProfile参数、错误分支为注入执行器的模拟回归，不冒称Windows实机运行。
 - 修正“无PATH”部署回归，删除所有大小写变体的PATH环境键，避免Windows Path键意外泄漏。真实模型验收脚本接受rtk.exe命令、使用带空格路径并记录平台，依旧要求成功退出及full保护，不允许失败后通过裸命令冒充RTK通过。
 - portable18通过；完整215通过、0失败、58环境跳过。隔离安装预览185文件并实际成功。用户确认暂时没有Windows测试机，因此Windows Standard/PTC受限执行仍待PC实测，尤其需关注原生命名管道限制；不放宽保护作为兼容方案。
+
+## 原生Shell链路RTK自动适配（2026-10-28）
+
+- 新增独立@local/dsh-rtk-shell 0.1.0，仅组合local-environments公开bash/pwsh执行器；环境服务和subprocess覆盖保留，一次调用原生执行器，不引入调度器/工具拦截器/外部rewrite进程。来源、两份manifest、bundle与锁模板一致。
+- 支持保守的Git人读查询语法；管道、重定向、脚本、动态展开、路径参数、机器格式、写操作及显式rtk原样执行。未知不改写；无法启动RTK或已执行失败不回退裸命令。
+- Bash/PowerShell模拟回归核对cwd、env、dshEnv、signal、sandboxPolicy、stdin、timeout、onExpiry及原生handle不变；执行同步异常/异步拒绝仅一次，提前abort零次。测试最初写入了合成Windows绝对路径，被便携扫描拒绝；改用带空格相对夹具后重验，未删检查。
+- 隔离rc.3/Flash Medium，要求模型发送原样git status、git log -3及变量查询，Standard/PTC分别7.398秒、6.810秒，各3次Shell。实际原生confine入口捕获rtk git status；返回exit0和full保护，所选环境变量分别保持env-standard/env-ptc。并非仅检查模型自己加了前缀。
+- 实际原生边界：损坏合成Git HEAD后失败仅一次confine；read-only写入被拒绝且无目标文件；Mac替身git记录启动后等待，启动后abort，启动计数仅1且2.3秒后没有晚到写入。未放宽沙箱或继续被停任务。
+- Windows已实现同一语法与原生PowerShell类组合、模拟参数/异常回归，仍无Windows实机，未把Mac停止测试计为Windows通过；PC端必须执行隔离脚本确认原生命名管道/子进程兼容性。
+- 全仓217通过、0失败、58环境跳过；portable18通过，安全扫描0 high。Standard/PTC宿主加载各96工具，无新增模型工具。

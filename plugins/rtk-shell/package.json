@@ -1,0 +1,27 @@
+{
+  "name": "@local/dsh-rtk-shell",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./bash": "./lib/bash.js",
+    "./pwsh": "./lib/pwsh.js",
+    "./rewrite": "./lib/rewrite.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml"
+  ],
+  "peerDependencies": {
+    "@local/dsh-local-environments": "0.1.2"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

@@ -36,7 +36,8 @@
     "dsh-init": "0.1.2",
     "@kenz1117/dsh-ui-usage-billing": "1.7.4",
     "dsh-boot-animation": "github:NativeDog1/dsh-boot-animation#24c711296cb4af2618fef4f65e81346a660fc67b",
-    "@local/dsh-sidebar-layout": "@artifact/sidebar-layout"
+    "@local/dsh-sidebar-layout": "@artifact/sidebar-layout",
+    "@local/dsh-rtk-shell": "@artifact/rtk-shell"
   },
   "dsh": {
     "profile": {
@@ -69,7 +70,8 @@
         "dsh-init",
         "@kenz1117/dsh-ui-usage-billing",
         "dsh-boot-animation",
-        "@local/dsh-sidebar-layout"
+        "@local/dsh-sidebar-layout",
+        "@local/dsh-rtk-shell"
       ]
     }
   }
