@@ -12,8 +12,11 @@ export function checkRtk({platform=process.platform, run=spawnSync}={}) {
   const version=run(executable,['--version'],options);
   assert(version.status===0&&/^rtk \d+\./m.test(version.stdout??''),
     'RTK CLI unavailable on PATH. Install rtk-ai/rtk (Windows: winget install --id rtk-ai.rtk --exact; macOS: brew install rtk), then restart the terminal and Harness. No configuration has been changed.');
-  const help=run(executable,['proxy','--help'],options);
-  assert(help.status===0&&/proxy/i.test(help.stdout??''),'Installed rtk does not expose the required proxy command; verify it is rtk-ai/rtk.');
+  for (const filter of ['proxy','log','summary','err']) {
+    const help=run(executable,[filter,'--help'],options);
+    assert(help.status===0&&new RegExp('\\b'+filter+'\\b','i').test(help.stdout??''),
+      'Required RTK filter unavailable: '+filter+'. Verify or upgrade the official rtk-ai/rtk package.');
+  }
   if(platform==='win32') {
     const shell=run('pwsh.exe',['-NoLogo','-NoProfile','-NonInteractive','-Command',
       "$ErrorActionPreference='Stop'; Get-Command rtk.exe -CommandType Application -ErrorAction Stop | Out-Null; & rtk.exe --version; exit $LASTEXITCODE"],options);

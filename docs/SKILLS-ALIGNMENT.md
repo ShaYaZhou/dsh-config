@@ -80,13 +80,23 @@ cargo install --git https://github.com/rtk-ai/rtk rtk
 
 日常 `presets/daily/AGENTS.md` 与完整 `config/AGENTS.md` 均包含相同的短 RTK 规则，要求 Standard、PTC 经 Bash/PowerShell 执行支持的输出密集命令时默认使用 RTK。`rtk-reference` 在日常与增强配置中按需提供完整参考，不把整份命令表塞进每轮。原生 read/grep/edit 等工具继续使用；精确输出通过 `rtk proxy` 获取，内建命令、管道和脚本不机械添加前缀。
 
-**自动执行适配与指令配合：** `@local/dsh-rtk-shell`通过本地环境插件的公开Bash/PowerShell执行器子类，复用原生执行链。支持的简单Git查询即使模型不加前缀也会自动改写：`git status`、`git diff`（可选`--stat/--cached/--staged`）、`git log`（可选`-N/-n N/--oneline/--stat/--all`）、`git show`（可选`--stat`）。不启动额外的rewrite进程，不读取Claude hooks。
+**自动执行适配与设置：** `@local/dsh-rtk-shell`通过本地环境插件的公开Bash/PowerShell执行器子类复用原生执行链。进入 **设置 → 命令规则** 可控制总开关与Git/日志/搜索/测试分类，添加精确排除项、自定义精确命令，并选择Bash或PowerShell进行不执行命令的预览。配置通过原生ConfigForms保存；关闭总开关只是透传，不卸载Shell或环境服务。
 
-其他命令仍按常驻规则显式用RTK。管道、重定向、赋值、脚本、带路径参数、机器格式（porcelain/short/format等）、写操作以及已有`rtk`/`rtk proxy`原样通过，不尝试泛化Shell解析。原工具历史保留模型输入，验收在原生confine入口核实改写后的真实命令；不能仅凭历史参数没有前缀判定适配失效。
+| 类别 | 自动支持的安全子集 | 输出方式 |
+|---|---|---|
+| Git | status；diff可选stat/cached/staged；log可选条数/oneline/stat/all；show可选stat | RTK Git过滤 |
+| 日志 | Bash单文件cat；PowerShell单参数Get-Content/cat/gc/type；文件为.log或.txt，不含通配符 | RTK log去重并保留错误标记 |
+| 搜索 | rg普通文本匹配/文件列表及受限筛选参数；Bash find的name/type/depth子集 | 原搜索工具与参数不变，由RTK summary汇总；不替换成忽略行为不同的grep |
+| 测试 | npm/pnpm test及run test:*；Node --test与字面文件路径；pytest/cargo/go的受限参数 | RTK err保留错误警告和退出码，不推断通过数量 |
+| 自定义 | UI精确匹配的常用外部程序命令 | summary汇总或err错误过滤；已识别测试必须用err |
 
-所有命令均只调用一次原生执行器；RTK缺失、失败、超时、拒绝或停止都不会再执行裸命令。需原始输出用`rtk proxy git ...`。取消整个自动适配时，移除`@local/dsh-rtk-shell` bundle并重新部署，使本地环境的原执行器恢复；不要只禁用当前shell provider而留下原provider关闭。安装器备份可整体回滚。
+字面引用路径可含空格；参数先解析为保守字面子集，再序列化交给RTK，避免RTK再次拼接时丢失引号。变量/命令替换、管道、重定向、脚本片段、控制符、stdin依赖、机器格式等不改写；已加`rtk`/`rtk proxy`不重复包装。自定义规则不是任意Shell hook：不新增命令、不支持正则替换或额外脚本，不改变权限。
 
-RTK统计是命令输出估算，不是模型总账单降幅；统计库若位于工作区之外，`rtk gain`可能被原生写保护拒绝，过滤仍可用，不为统计放宽权限。自动适配的真实模型/权限/停止验收用`scripts/test-rtk-auto.cjs`（隔离DSH_HOME），原指令式验收仍保留。
+**范围与保真：**这是面向模型阅读的压缩，不是字节等价输出。`rg --files`等结果会汇总，不应用于机器解析；成功测试仅据原退出码报告无错误，不代表保留了每个测试名或数量。需要完整结果时使用`rtk proxy`。当前RTK0.38的通用test过滤丢失Node失败名称、summary误报测试通过数，实测后没有将这两种组合用于自动测试规则。
+
+原工具历史保留模型输入，验收在原生confine入口核实真实命令。所有命令只执行一次；RTK缺失、失败、超时、拒绝或停止都不会再执行裸命令。预览只使用同一纯规则引擎，不运行命令、不读取目标文件。运行中的命令保持其开始时的规则，不因开关变化重启。
+
+设置通过部署三方合并保留。整体移除自动适配时，可移除bundle并重新部署，使本地环境原执行器恢复，或用安装器备份回滚；不要单独禁用唯一shell provider。RTK统计是命令输出估算，不是总账单降幅；统计库访问被拒绝不放宽权限。真实验收脚本为`scripts/test-rtk-auto.cjs`及`scripts/test-rtk-settings.cjs`，仅在隔离DSH_HOME执行。
 
 只部署 DSH 时，不执行 `rtk init -g` 或其他宿主的 hook 安装；“No hook installed”提醒不代表显式RTK命令未生效，不应为消除提示擅自修改Claude/Codex配置。
 

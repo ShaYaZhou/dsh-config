@@ -226,12 +226,12 @@ test('missing RTK rejects deployment before writing target configuration',()=>{
 
 test('Windows RTK preflight checks the real executable and no-profile PowerShell without shell interpolation',()=>{
  const calls=[];
- const run=(file,args,options)=>{calls.push({file,args,options});return {status:0,stdout:args.includes('--help')?'Usage: rtk proxy':'rtk 0.38.0\r\n'};};
+ const run=(file,args,options)=>{calls.push({file,args,options});return {status:0,stdout:args.includes('--help')?'Usage: rtk '+args[0]:'rtk 0.38.0\r\n'};};
  assert.equal(checkRtk({platform:'win32',run}).executable,'rtk.exe');
- assert.deepEqual(calls.map(x=>x.file),['rtk.exe','rtk.exe','pwsh.exe']);
+ assert.deepEqual(calls.map(x=>x.file),['rtk.exe','rtk.exe','rtk.exe','rtk.exe','rtk.exe','pwsh.exe']);
  assert(calls.every(x=>x.options.shell===false&&x.options.windowsHide));
- assert(calls[2].args.includes('-NoProfile'));
- assert.match(calls[2].args.at(-1),/Get-Command rtk.exe -CommandType Application/);
+ assert(calls.at(-1).args.includes('-NoProfile'));
+ assert.match(calls.at(-1).args.at(-1),/Get-Command rtk.exe -CommandType Application/);
  assert.throws(()=>checkRtk({platform:'win32',run:(file,args,opts)=>file==='pwsh.exe'?{status:1,stdout:''}:run(file,args,opts)}),/PowerShell 7 cannot run/);
  assert.throws(()=>checkRtk({platform:'win32',run:()=>({status:0,stdout:'unrelated program'})}),/RTK CLI unavailable/);
 });

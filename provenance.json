@@ -327,14 +327,16 @@
     {
       "id": "rtk-shell",
       "package": "@local/dsh-rtk-shell",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
         "changes": [
           "Compose public local-environment shell executors with a conservative read-only Git RTK prefix transform; pinned native runtime 0.2.1-rc.3.",
           "One native execution only, retaining policy, signal, cwd, environment, timeout and background handles; no execution-error retry.",
-          "Complex shell syntax, machine-readable options, explicit RTK/proxy and mutations pass through unchanged."
+          "Complex shell syntax, machine-readable options, explicit RTK/proxy and mutations pass through unchanged.",
+          "Literal log/search/test adapters plus exact owner-configured external-command filters; complex syntax and stdin passthrough.",
+          "Native ConfigForms settings section and owner-only non-executing preview use the same validated backend rules."
         ]
       }
     }

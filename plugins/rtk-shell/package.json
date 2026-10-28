@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-rtk-shell",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
@@ -10,18 +10,32 @@
     "./bash": "./lib/bash.js",
     "./pwsh": "./lib/pwsh.js",
     "./rewrite": "./lib/rewrite.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./client": "./lib/client.js"
   },
   "files": [
     "lib",
     "cordis.patch.yml"
   ],
   "peerDependencies": {
-    "@local/dsh-local-environments": "0.1.2"
+    "@local/dsh-local-environments": "0.1.2",
+    "@local/dsh-shared": "0.1.0",
+    "@deepseek-ai/schemastery": "3.18.5",
+    "@deepseek-ai/dsh-typert-protocol": "0.2.1-rc.3",
+    "zod": "^4.0.0"
   },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-primitives",
+        "@deepseek-ai/dsh-client-connection"
+      ]
     }
   }
 }
