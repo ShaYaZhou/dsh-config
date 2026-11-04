@@ -8,6 +8,7 @@ import {spawnSync} from 'node:child_process';
 import {createRequire} from 'node:module';
 import testHome from './test-home.cjs';
 import {checkRtk} from './check-rtk.mjs';
+import {stableNodeCommand} from './node-command.mjs';
 import {auditInstalledManifests} from './installation-audit.mjs';
 import {parseHooksFile, describeHooks, readStateFile, writeStateFile} from '../plugins/codex-hooks/lib/core.js';
 import {reconcileDeployment, deploymentInputs, baselinePath, preservedConfig, pluginPreferenceFiles, assertNoUncapturedCode, assertManagedSkillPath} from './deployment-state.mjs';
@@ -20,7 +21,6 @@ const digest=file=>fs.existsSync(file)?createHash('sha256').update(fs.readFileSy
 const configuration=name=>readJson(path.join(repository,'config',name));
 const provenance=readJson(path.join(repository,'provenance.json'));
 const stamp=()=>new Date().toISOString().replaceAll(':','-').replaceAll('.','-');
-const dailyArtifactIds=new Set(Object.values(configuration('desktop.package.json').dependencies).filter(spec=>spec.startsWith('@artifact/')).map(spec=>spec.slice(10)));
 
 function dependencyPatches(manifest){
  return Object.fromEntries(Object.entries(configuration('dependency-patches.json')).filter(([key])=>Object.entries(manifest.dependencies??{}).some(([name,version])=>key===name+'@'+version||key===name)));
@@ -64,11 +64,10 @@ export function renderPlan(home,settings,artifacts={}, {clean=true}={}){
  home=path.resolve(home);
  const directory=path.join(repository,'presets/native');
  const config=name=>readJson(path.join(directory,name));
- const plugins=[];
  const moduleNames=[];
  const desktop=path.join(home,'profiles','desktop');
  const tokens={
-  '${DSH_HOME}':home,'${DESKTOP_DIR}':desktop,'${NODE_EXECUTABLE}':process.execPath,
+  '${DSH_HOME}':home,'${DESKTOP_DIR}':desktop,'${NODE_EXECUTABLE}':stableNodeCommand(),
   '${MODULE_URL}':pathToFileURL(path.join(desktop,'agent-capabilities')).href,
   '${PROXY_BASE_URL}':settings.proxyBaseUrl,'${DEFAULT_MODEL}':settings.defaultModel,'${BROWSER}':settings.browser,
   '${REASONING_EFFORT}':settings.reasoningEffort,'${PERMISSION_PRESET}':settings.permissionPreset,
@@ -92,15 +91,7 @@ export function renderPlan(home,settings,artifacts={}, {clean=true}={}){
   const defaultModel=patch.find(row=>row.id==='agent-default-model');
   if(defaultModel){defaultModel.config.provider=settings.defaultProvider;if(settings.reasoningEffort===null)delete defaultModel.config.reasoningEffort;}
   files.set('profiles/'+profile+'/cordis.patch.yml',emitYaml(patch));
-  const lock=path.join(directory,profile+'.lock.yaml');
-  if(fs.existsSync(lock)){
-   let text=fs.readFileSync(lock,'utf8');
-   for(const plugin of plugins){
-    text=text.replaceAll('${'+plugin.id.toUpperCase()+'_TGZ}',artifacts[plugin.id]?.filename??plugin.id+'-preview.tgz');
-    text=text.replaceAll('${'+plugin.id.toUpperCase()+'_INTEGRITY}',artifacts[plugin.id]?.integrity??'sha512-preview');
-   }
-   files.set('profiles/'+profile+'/pnpm-lock.yaml',text);
-  }
+
  }
  files.set('cordis.patch.yml',emitYaml(substitute(config('global.patch.json'),tokens)));
  files.set('AGENTS.md',fs.readFileSync(path.join(directory,'AGENTS.md'),'utf8'));
@@ -139,8 +130,6 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
  }
  files.set('profiles/desktop/package.json',json(daily));
  files.set('profiles/desktop/pnpm-workspace.yaml',json({...JSON.parse(files.get('profiles/desktop/pnpm-workspace.yaml')),patchedDependencies:dependencyPatches(daily),
-  // Carry only exact package exceptions already selected in the managed policy.
-  minimumReleaseAgeExclude:configuration('pnpm-workspace.json').minimumReleaseAgeExclude.filter(spec=>Object.entries(daily.dependencies).some(([name,version])=>spec===name+'@'+version)),
  }));
  for(const relative of Object.values(dependencyPatches(daily))){
   assert(/^patches\/[a-z0-9-]+\.patch$/.test(relative),'Unsupported dependency patch path');
@@ -170,7 +159,7 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
    fs.readFileSync(path.join(repository,'skills/dynamic-ui',file),'utf8'));
  patch.push(substitute(configuration('desktop.patch.json').find(row=>row.id==='permission'),{'${PERMISSION_PRESET}':settings.permissionPreset}));
  patch.push({insert:[{id:'isolated-browser',name:pathToFileURL(path.join(oldPath,'agent-capabilities','isolated-browser.mjs')).href,config:{
-  command:process.execPath,cli:path.join(oldPath,'node_modules','@playwright','mcp','cli.js'),browser:settings.browser,outputRoot:path.join(home,'browser-output','isolated')
+  command:stableNodeCommand(),cli:path.join(oldPath,'node_modules','@playwright','mcp','cli.js'),browser:settings.browser,outputRoot:path.join(home,'browser-output','isolated')
  }}]});
  // Daily defaults follow the selected management switches; native
  // pluginManager still controls each entry after deployment.
@@ -199,16 +188,7 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
  files.set('profiles/desktop/agent-capabilities/isolated-browser.mjs',fs.readFileSync(path.join(repository,'modules/isolated-browser.mjs'),'utf8'));
  files.set('profiles/desktop/agent-capabilities/manifest.json',json({managedBy:'deepseek-harness-config',flavor:'daily',runtime:provenance.runtime,
   modules:Object.fromEntries(['isolated-browser.mjs','compaction-basic.mjs','rtk-hooks.mjs',...Object.values(optionalModules)].map(file=>[file,digest(path.join(repository,'modules',file))])),artifacts:{}}));
- const lock=path.join(repository,'config/desktop.lock.yaml');
- if(fs.existsSync(lock)){
-  let text=fs.readFileSync(lock,'utf8');
-  for(const id of dailyArtifactIds){
-   text=text.replaceAll('${'+id.toUpperCase()+'_TGZ}',artifacts[id]?.filename??id+'-preview.tgz');
-   text=text.replaceAll('${'+id.toUpperCase()+'_INTEGRITY}',artifacts[id]?.integrity??'sha512-preview');
-  }
-  files.set('profiles/desktop/pnpm-lock.yaml',text);
- }
- else files.delete('profiles/desktop/pnpm-lock.yaml');
+
  files.set('AGENTS.md',fs.readFileSync(path.join(repository,'presets/daily/AGENTS.md'),'utf8'));
  return files;
 }
@@ -266,11 +246,10 @@ function globalRuntime(){
  const location=path.join(root,'@deepseek-ai','dsh');
  const manifest=path.join(location,'package.json');
  assert(fs.existsSync(manifest),'Install the matching global @deepseek-ai/dsh version first; see README');
- assert.equal(readJson(manifest).version,provenance.runtime,'Global Harness runtime version differs from the pinned source');
  return path.join(location,'node_modules');
 }
 function linkRuntime(home,source){
- // Local modules use the same pinned native dependency closure as the global CLI.
+ // Local modules use the same native dependency closure as the global CLI.
  const root=path.join(home,'profiles','node_modules');fs.mkdirSync(root,{recursive:true});
  function link(name){
   const from=path.join(source,name),to=path.join(root,name);
@@ -313,7 +292,7 @@ export function renderRtkHooks(home) {
   return "'"+value.replaceAll("'", "'\"'\"'")+"'";
  };
  const script=path.join(path.resolve(home),'profiles','desktop','agent-capabilities','rtk-hooks.mjs');
- const command=quote(process.execPath)+' '+quote(script);
+ const command=quote(stableNodeCommand())+' '+quote(script);
  return substitute(configuration('rtk-hooks.json'),{'${RTK_CONTEXT_COMMAND}':command+' context','${RTK_CHECK_COMMAND}':command+' check'});
 }
 export function configureRtkHook(home) {
@@ -326,7 +305,17 @@ export function configureRtkHook(home) {
  writeStateFile(stateFile,state);
 }
 export function install(home,settings,{dryRun=false,refreshLock=false,clean=false,settings:settingsFile}={}){
- const plan = records => clean ? renderPlan(home,settings,records,{clean:true}) : renderDailyPlan(home,settings,records);
+ if(!clean&&!dryRun)checkRtk();
+ const runtime=globalRuntime();
+ const runtimeVersion=readJson(path.join(runtime,'..','package.json')).version;
+ const plan = records => {
+  const files=clean ? renderPlan(home,settings,records,{clean:true}) : renderDailyPlan(home,settings,records);
+  for(const profile of plannedProfiles(files)){
+   const file='profiles/'+profile+'/package.json';
+   files.set(file,json(bindRuntimeDependencies(JSON.parse(files.get(file)),runtimeVersion)));
+  }
+  return files;
+ };
  const stateFile=path.join(home,'.portable-harness/state.json');
  const previous=fs.existsSync(stateFile)?readJson(stateFile):undefined;
  assert(!previous?.pending,'Previous installation is incomplete; rollback before installing again');
@@ -356,13 +345,14 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
  prepare(preview);
  if(dryRun){console.log('Would manage '+preview.size+' files in the selected DSH_HOME; source templates remain unchanged.');return preview;}
  assert(new URL(settings.proxyBaseUrl).hostname!=='proxy.example.invalid','Configure .local/settings.json or OPENAI_BASE_URL before deploying');
- if(!clean)checkRtk();
- const runtime=globalRuntime();const command=runner();
+ const command=runner();
  const version=execute(command.executable,['--expose-internals',command.cli,'--version'],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1'}});
- assert(version.includes(provenance.runtime),'Desktop runtime differs from the pinned source');
+ const latestRuntime=JSON.parse(execute(process.execPath,[npmCli(),'view','@deepseek-ai/dsh@latest','version','--json']));
+ assert.equal(runtimeVersion,latestRuntime,'Update the desktop app and global @deepseek-ai/dsh@latest before installing');
+ assert.equal(version.trim(),runtimeVersion,'Desktop and global CLI versions must match');
  assert.equal(migrateLiangshen(home,{dryRun:true}).count,0,'Legacy sessions remain; quit Harness and run: node scripts/harness.mjs migrate-liangshen');
  const records=build({clean});const files=plan(records);
- const {baselines,customProfiles}=prepare(files);
+ const {baselines}=prepare(files);
  const profiles=plannedProfiles(files);
  if(refreshLock)for(const profile of profiles)files.delete('profiles/'+profile+'/pnpm-lock.yaml');
  const extra=[...profiles.flatMap(profile=>['profiles/'+profile+'/pnpm-lock.yaml','profiles/'+profile+'/pnpm-workspace.yaml']),'.portable-harness/state.json','hooks.state.json'];
@@ -379,7 +369,12 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
   }
   for(const relative of stale){const target=path.join(home,relative);const info=fs.lstatSync(target,{throwIfNoEntry:false});if(info){assert(info.isFile()||info.isSymbolicLink(),'Old module must be a file');fs.unlinkSync(target);}}
   linkRuntime(home,runtime);
-  for(const profile of profiles)native(command,home,profile,['install',!refreshLock&&!customProfiles.has(profile)&&files.has('profiles/'+profile+'/pnpm-lock.yaml')?'--frozen-lockfile':'--no-frozen-lockfile']);
+  for(const profile of profiles){
+   const manifest=readJson(path.join(home,'profiles',profile,'package.json'));
+   const targets=latestDependencies(manifest);
+   // Explicit targets leave local artifacts and user-pinned market installs intact.
+   native(command,home,profile,targets.length?['update',...targets,'--latest']:['install','--no-frozen-lockfile']);
+  }
   if(!clean)configureRtkHook(home);
   for(const [relative,content]of baselines)write(path.join(home,relative),content);
   const tracked={};for(const relative of files.keys())if(!pluginPreferenceFiles.has(relative))tracked[relative]=digest(path.join(home,relative));
@@ -413,7 +408,7 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
    tracked[relative]=digest(path.join(home,relative));
   }
   write(path.join(home,'.portable-harness/state.json'),json({
-   at:new Date().toISOString(),flavor:clean?'native':'daily',runtime:provenance.runtime,
+   at:new Date().toISOString(),flavor:clean?'native':'daily',runtime:runtimeVersion,
    backup:path.relative(home,saved).split(path.sep).join('/'),files:tracked,sources,
    generatedHashes:Object.fromEntries([...baselines].map(([file,text])=>[file,createHash('sha256').update(text).digest('hex')])),
    inputHashes:deploymentInputs(repository),
@@ -480,19 +475,21 @@ export function rollback(home){
  console.log('Previous files restored; session/memory stores and added unmounted modules retained.');
 }
 export function saveLocks(home){
- const artifacts=readJson(path.join(repository,'build/artifacts.json'));
- for(const profile of ['desktop','headless']){
-  let text=fs.readFileSync(path.join(home,'profiles',profile,'pnpm-lock.yaml'),'utf8');
-  for(const plugin of profile==='desktop'?provenance.plugins:[]){
-   const packed=artifacts[plugin.id];assert(text.includes(packed.filename),'Lock does not match the current built sources: '+plugin.id);
-   assert(typeof packed.integrity==='string'&&text.includes(packed.integrity),'Lock integrity does not match the built package: '+plugin.id);
-   text=text.replaceAll(packed.filename,'${'+plugin.id.toUpperCase()+'_TGZ}').replaceAll(packed.integrity,'${'+plugin.id.toUpperCase()+'_INTEGRITY}');
-  }
-  assert(!/(?<![A-Za-z])[A-Za-z]:[\\/]/.test(text),'Lock contains a drive-absolute path');
-  const target='config/'+profile+'.lock.yaml';
-  write(path.join(repository,target),text);
- }
- console.log('Saved portable lock templates for desktop and headless.');
+ // Locks are installation receipts and rollback inputs, never shared version policy.
+ for(const profile of ['desktop','headless'])
+  assert(fs.existsSync(path.join(home,'profiles',profile,'pnpm-lock.yaml')),'Install first to generate a local lockfile');
+ console.log('Local installation lockfiles retained; no pinned templates are written to the repository.');
+}
+export function bindRuntimeDependencies(manifest,runtimeVersion){
+ assert(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(runtimeVersion),'Invalid native runtime version');
+ return {...manifest,dependencies:Object.fromEntries(Object.entries(manifest.dependencies??{}).map(([name,spec])=>{
+  if(spec!=='${DSH_RUNTIME_VERSION}')return [name,spec];
+  assert(name.startsWith('@deepseek-ai/'),'Only native packages follow the runtime');
+  return [name,runtimeVersion];
+ }))};
+}
+export function latestDependencies(manifest){
+ return Object.entries(manifest.dependencies??{}).filter(([,spec])=>spec==='latest').map(([name])=>name);
 }
 export function parseArgs(args){
  const options={command:args[0]??'status',home:path.resolve(process.env.DSH_HOME??path.join(os.homedir(),'.dsh')),settings:path.join(repository,'.local/settings.json'),dryRun:false};

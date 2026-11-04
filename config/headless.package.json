@@ -2,8 +2,8 @@
   "name": "dsh-profile-headless",
   "private": true,
   "dependencies": {
-    "@deepseek-ai/dsh-hook-protocol": "0.2.1-rc.5",
-    "@deepseek-ai/dsh-hooks-claude-code": "0.2.1-rc.5"
+    "@deepseek-ai/dsh-hook-protocol": "${DSH_RUNTIME_VERSION}",
+    "@deepseek-ai/dsh-hooks-claude-code": "${DSH_RUNTIME_VERSION}"
   },
   "dsh": {
     "profile": {

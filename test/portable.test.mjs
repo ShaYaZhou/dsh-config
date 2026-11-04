@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import {pathToFileURL} from 'node:url';
-import {repository,renderPlan as renderBasePlan,renderDailyPlan,settingsFrom,emitYaml,parseArgs,status,capture,staleModulePaths} from '../scripts/harness.mjs';
+import {bindRuntimeDependencies,latestDependencies,repository,renderPlan as renderBasePlan,renderDailyPlan,settingsFrom,emitYaml,parseArgs,status,capture,staleModulePaths} from '../scripts/harness.mjs';
 import {createHash} from 'node:crypto';
 import {deploymentInputs} from '../scripts/deployment-state.mjs';
 const hash=p=>createHash('sha256').update(fs.readFileSync(p)).digest('hex');
@@ -60,15 +60,21 @@ test('desktop configuration does not register the retired liangshen preset',()=>
  const patch=JSON.parse(rendered.replace(/!!js ("(?:[^"\\]|\\.)*")/g,'{"$js":$1}'));
  assert(!patch.flatMap(row=>[row,...(row.insert??[])]).some(row=>row.config?.id==='liangshen'));
 });
-test('locks replace both tarball names and checksums for a different checkout build',()=>{
- const artifacts=Object.fromEntries(plugins.map(({id})=>[id,{filename:id+'-another-checkout.tgz',integrity:'sha512-'+id+'-another-checkout'}]));
- const text=renderPlan(path.join(os.tmpdir(),'separate-lock-home'),settings,artifacts).get('profiles/desktop/pnpm-lock.yaml');
- const source=fs.readFileSync(path.join(repository,'config/desktop.lock.yaml'),'utf8');
- for(const {id} of plugins){
-  assert(source.includes('${'+id.toUpperCase()+'_INTEGRITY}'),'Checksums must remain template values');
-  assert(text.includes(artifacts[id].integrity));assert(text.includes(artifacts[id].filename));
+test('upstream packages track latest without distributing a frozen resolution',()=>{
+ const artifacts=Object.fromEntries(plugins.map(({id})=>[id,{filename:id+'-another-checkout.tgz'}]));
+ const plan=renderPlan(path.join(os.tmpdir(),'latest-home'),settings,artifacts);
+ assert(![...plan.keys()].some(file=>file.endsWith('pnpm-lock.yaml')));
+ const manifest=JSON.parse(plan.get('profiles/desktop/package.json'));
+ for(const [name,spec] of Object.entries(manifest.dependencies)) {
+  if(spec.startsWith('file:'))assert(!latestDependencies(manifest).includes(name));
+  else assert.equal(spec,name.startsWith('@deepseek-ai/')?'${DSH_RUNTIME_VERSION}':'latest',name);
  }
- assert(!text.includes('${'));
+ assert.equal(bindRuntimeDependencies({dependencies:{'@deepseek-ai/example':'${DSH_RUNTIME_VERSION}'}},'9.0.0-rc.1').dependencies['@deepseek-ai/example'],'9.0.0-rc.1');
+ assert.throws(()=>bindRuntimeDependencies({dependencies:{community:'${DSH_RUNTIME_VERSION}'}},'9.0.0'));
+ assert.deepEqual(latestDependencies({dependencies:{managed:'latest',personal:'1.2.3',local:'file:a.tgz'}}),['managed']);
+ const patches=JSON.parse(plan.get('profiles/desktop/pnpm-workspace.yaml')).patchedDependencies;
+ assert(patches['dsh-better-sidebar']);
+ assert(patches['@ninkch/dsh-infinite-canvas']);
 });
 test('machine settings reject embedded credentials and unsupported settings',()=>{
  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'dsh-settings-'));const file=path.join(folder,'settings.json');

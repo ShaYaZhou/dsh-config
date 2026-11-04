@@ -249,6 +249,13 @@
         "patch": "config/patches/dsh-better-sidebar.patch",
         "reason": "Fix synchronous denied-spawn timer initialization in search/archive probes; retain existing fallback and permission limits.",
         "mechanism": "native pnpm-workspace patchedDependencies"
+      },
+      "dshmarket": {
+        "source": "installed upstream dshmarket",
+        "patch": "config/patches/dshmarket.patch",
+        "reason": "Classify ordinary dependencies without DSH metadata or observed loader rows as libraries; never infer MCP liveness.",
+        "testedVersion": "1.73.9",
+        "mechanism": "native pnpm-workspace patchedDependencies"
       }
     },
     "dailySkills": {

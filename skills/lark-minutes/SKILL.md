@@ -153,7 +153,7 @@ lark-cli minutes +todo --minute-token <token> --as user --todos '[
 
 1. 确认 `minute_token`。
 2. **先**用 `lark-cli api GET "/open-apis/minutes/v1/minutes/<token>/transcript/speakerlist"` 查说话人列表（内部 HTTP，无 shortcut、无公开 OpenAPI 文档页）。
-3. 根据用户描述的原说话人展示名，在返回的 `data.speakers[]` 中匹配 `name` → 得到 `speaker_id`；同名多人时结合 `vc +notes` 逐字稿请用户确认，**不要擅自挑选**。
+3. 根据用户描述的原说话人展示名，在返回的 `data.speakers[]` 中匹配 `name` → 得到 `speaker_id`；同名多人时结合 `minutes +detail --minute-tokens <token> --transcript` 逐字稿请用户确认，**不要擅自挑选**。
 4. 新说话人姓名用 [lark-contact](../lark-contact/SKILL.md) 解析为 `ou_` open_id。
 5. 调用 `minutes +speaker-replace`，**`--from-speaker-id` 只传步骤 3 的 `speaker_id`，禁止传展示名**。
 

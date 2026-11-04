@@ -1,6 +1,6 @@
 --- a/lib/index.js
 +++ b/lib/index.js
-@@ -2645,6 +2645,7 @@
+@@ -2672,6 +2672,7 @@
  function verify(binary) {
  	return new Promise((resolve) => {
  		let settled = false;
@@ -8,7 +8,7 @@
  		const finish = (ok) => {
  			if (settled) return;
  			settled = true;
-@@ -2658,7 +2659,7 @@
+@@ -2685,7 +2686,7 @@
  			finish(false);
  			return;
  		}
@@ -17,7 +17,7 @@
  			child.kill();
  			finish(false);
  		}, PROBE_TIMEOUT_MS$1);
-@@ -4065,6 +4066,7 @@
+@@ -4112,6 +4113,7 @@
  function probeTool(bin, spawner) {
  	return new Promise((resolve) => {
  		let settled = false;
@@ -25,7 +25,7 @@
  		const finish = (ok) => {
  			if (settled) return;
  			settled = true;
-@@ -4081,7 +4083,7 @@
+@@ -4128,7 +4130,7 @@
  			finish(false);
  			return;
  		}

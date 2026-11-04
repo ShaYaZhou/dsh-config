@@ -3,6 +3,7 @@
 | 位置 | 职责 |
 |---|---|
 | `scripts/harness.mjs`、`deployment-state.mjs` | 生成配置、打包、安装、合并配置、漂移检查、备份与回滚 |
+| `scripts/node-command.mjs`、`installation-audit.mjs` | 选择稳定 Node 入口，核对安装声明与宿主版本 |
 | `config/`、`presets/native/` | 当前配置模板与原生恢复基线 |
 | `plugins/external-workflow/` | 上游 Workflow，rc5 适配集中在 `lib/rc5-subagents.js` |
 | `plugins/browser-review/` | 内嵌浏览器截图与批注 |
@@ -16,5 +17,7 @@
 | `provenance.json` | 版本、来源和本地修改说明 |
 
 跨功能使用原生服务或明确的公共接口。UI 不直接改写会话存储；扩展记录采用可忽略的原生插件记录。配置与源码变更遵守根目录 AGENTS.md。
+
+`plugins/` 中保留的第三方 README、CHANGELOG 和设计文档描述其上游包，不替代本仓库的部署流程；本地差异以 provenance 和当前测试为准。技能引用的上游源码不一定随技能一起分发。
 
 会话总线、用量报告与自建嵌套会话不再注册。Workflow 使用原生 subagent 通信，不依赖已移除模块。

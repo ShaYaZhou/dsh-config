@@ -1,6 +1,6 @@
 # 浏览器批注与桌面控制
 
-桌面配置使用现有 Playwright MCP `0.0.83`，开启可见 Chromium、`vision,devtools` 和快照坐标。新增同版本官方 `dsh-computer-use` 注册服务及 CUA Driver native provider `0.2.1-rc.5`，其 SDK 固定为 `0.28.0`。没有额外安装第三方批注或浏览器插件。
+桌面配置通过 `isolated-browser.mjs` 为每个执行者注册 Playwright stdio MCP，使用 `vision,devtools`、快照坐标和隔离浏览器。Playwright 跟随 latest；官方 computer-use 注册服务与原生驱动跟随已安装的 DSH 版本。另有已纳入配置的 Ego Browser，它是独立插件，不共享 Playwright 的页面或登录态。
 
 安装后需等当前任务结束，从菜单真正退出 Harness 再打开。Harness 右侧内置浏览器仍使用原生载体，工具栏新增“批注”；Playwright 的独立浏览器与 Dashboard 是另一条自动化链路，不应混为同一页面。
 
@@ -26,9 +26,11 @@
 
 网页操作使用 `mcp__playwright__browser_*`。Agent 先读取新快照；结果为文件链接时读取对应 YAML，然后用 `browser_highlight` 高亮精确 ref。页面会显示目标遮罩及 `aria-ref=e6` 这类与当前快照一致的标签。操作后重新观察，清除旧高亮，不把一次点击投递当成成功。
 
-需要保留登录态时改用 `mcp__playwright-session__browser_*`。它使用 `DSH_HOME/browser-profiles/playwright-session` 下的独立持久 profile，产物写入 `DSH_HOME/browser-output-session`。第一次使用要在该窗口里登录目标站点：Harness 不复制日常浏览器或其他 profile 的 cookie，所以“另一条链路已登录”不能当作这条也已登录。这个 profile 不是安全边界，不要把高权限账号长期留在里面。两个服务使用同一浏览器内核，但会话、缓存和登录态互不共享。
+当前没有注册 `playwright-session`。每个执行者使用 `--isolated`，产物写入 `DSH_HOME/browser-output/isolated/<执行者哈希>/`；不要照旧文档调用 `mcp__playwright-session__*` 或依赖持久 profile。需要登录时在当前工具所属浏览器中完成，不能把另一浏览器的登录状态当作已有授权。
 
-`browser_annotate` 打开 Dashboard 的批注模式。在截图上拖出区域，填写意见，点击 **ADD**，完成后点 **Done annotating**，再点 **Submit**。工具返回页面 URL、区域坐标、完整意见、批注图片与 ARIA 快照文件路径。图片可由 Agent 的图像读取工具读取；不需要手动把意见重新粘贴进聊天。取消批注或空结果不算已提交。工具等待上限设为 10 分钟，超时后需重新请求批注。
+MCP 工具调用超时为 60 秒。具体高亮或交互批注工具以当前 MCP 工具清单为准；只有工具实际提供时才调用，不能将历史 Dashboard 的按钮、10 分钟等待或登录持久化行为当作当前保证。右侧内嵌浏览器的“截图/批注”入口不依赖这些可选 MCP 工具。
+
+正常释放执行者后允许重新建立连接进行复验；明确停止、失败或清理不确定会保留阻断状态，不自动重启浏览器，也不能改用 Shell/PTC 绕过。
 
 原生桌面控制使用 `cua_driver_native__*`。先发现准确应用与窗口，再获取 UIA 元素/截图；使用当前元素 token 或截图坐标操作，最后读取新状态验证。优先后台投递；遇到明确拒绝不能擅自切换前台或另一个窗口。
 
@@ -36,20 +38,17 @@ computer-use 使用官方注册服务与原生驱动；自定义指导模块和�
 
 ## 选择依据与验证
 
-Windows 可运行 `rtk proxy npm run test:browser-native` 重现安全载体回归。它在 `.local/browser-native-test` 使用安装版同一 Electron 运行时和本仓库批注代码，启用主窗同等沙箱设置；只打开本地测试页，不使用真实 DSH 会话、账号或凭据。测试的 PNG、全屏截图和结果留在该被忽略目录。不同安装位置设置本机 `DSH_APP_DIR`。
+Windows 和 macOS 可运行 `rtk npm run test:browser-native` 重现安全载体回归。它在 `.local/browser-native-test` 使用安装版同一 Electron 运行时和本仓库批注代码，启用主窗同等沙箱设置；只打开本地测试页，不使用真实 DSH 会话、账号或凭据。测试的 PNG、全屏截图和结果留在该被忽略目录。不同安装位置设置本机 `DSH_APP_DIR`。
 
 Playwright 已提供高亮、可交互区域批注和快照，无需再装功能重复的插件。试用的 `dsh-annotate` 存在 Windows 静态文件 URL 转换问题，而且只面向本地预览，因此没有加入最终依赖。`@nono-neko/dsh-browser` 的 HTML 转发方案不保留登录态，且不能完整代理表单提交，也没有采用。社区 computer-use 方案有 macOS 限定或缺少 Windows 实机验收；选择能在本机验证的官方 CUA 适配器。
 
-本机已验证：
+当前可复核的检查：仓库测试覆盖截图几何、权限拒绝、草稿归属与浏览器停止状态；`test-preset-loading.cjs` 在隔离宿主检查 Standard/PTC 工具注册。2026-11-04 使用生成配置中的稳定 Node 入口完成 MCP 初始化与 tools/list，返回 44 项工具；这不等于所有网站、桌面应用和平台均已实测通过。
 
-- Playwright 在可见浏览器中显示精确 ref 高亮；Dashboard 框选、填写中文意见、提交，并返回批注与图片/快照路径。
-- CUA 创建独立浏览器，读取 DOM 语义 ref，输入测试文字、点击按钮，重新读取页面验证结果。
-- CUA 读取 Windows 窗口 UIA/截图，执行测试窗口最大化，再读取窗口尺寸验证变化。
-- 本机代理上的 `deepseek-v4.1-flash` 从批注图中正确读出中文意见。
-- 隔离 Harness 启动、工具注册、真实模型请求及原有旁问链路通过。
-- 右侧内置页面的工具栏批注按钮、框选编号、原会话收件、模型确认以及输入框原草稿保留通过。
-- 使用安装版同一 Electron 运行时的隔离 WebView，实际调用 capturePage，框选生成有编号的 PNG，验证只附带批注自己的图片并发给绑定会话。没有关闭或操作用户现有桌面任务；不把这个隔离载体验收说成所有真实网站都已通过。
-
-独立浏览器默认不继承日常浏览器登录态；持久 profile 只保留它自己在该窗口里登录过的会话，两者不互相继承。原生桌面能力需要可交互图形会话；锁屏或应用权限高于宿主时，操作可能被拒绝。Windows CUA 的独立 OS 光标叠层未验证可见，不能据此宣称已具备该效果；网页反馈由已验证的 Playwright 高亮与批注承担。其他电脑、其他操作系统与所有第三方网站未逐一实测。
+原生桌面能力需要可交互图形会话；锁屏或应用权限高于宿主时可能被拒绝。Windows 光标叠层、所有第三方网站及所有浏览器登录流程不在上述检查的通过范围内。
 
 依据：[Playwright MCP](https://github.com/microsoft/playwright-mcp)、[官方 CUA native provider](https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/experimental/computer-use-cua-driver-native)。不改写浏览器安全配置，不启用 legacy JavaScript mutation 逃生开关，不绕过驱动的拒绝。
+## MCP 依赖状态与 Node 入口
+
+`@playwright/mcp` 是 stdio MCP 服务依赖，不是 DSH bundle。市场将没有 DSH 元数据、没有实际 Loader 条目、也不包含子插件的普通包显示为“依赖库”，不再误报“已安装，未生效”。这只是类型识别，不代表 MCP 连接健康；健康状态必须由当前执行者的 MCP 握手和工具调用确认。已有 Loader 状态、错误 bundle 声明仍优先。
+
+安装器为浏览器和 RTK Hooks 选择指向当前 Node 的稳定入口，保留符号链接路径而不将它展开为版本目录。Homebrew 优先采用其 `bin/node`；其他平台从绝对 PATH 项查找同一个可执行文件，没有匹配入口才保留当前路径。不硬编码个人目录，不使用 PATH 上另一份未知程序。

@@ -1,6 +1,6 @@
 --- a/index.js
 +++ b/index.js
-@@ -3095,6 +3095,12 @@
+@@ -3500,6 +3500,12 @@
  
      const methods = {
        async ping() { return { ok: true, version: VERSION }; },
@@ -15,7 +15,7 @@
        async updateCheck() { return updateCheck(); },
 --- a/client.js
 +++ b/client.js
-@@ -3539,12 +3539,28 @@
+@@ -3613,12 +3613,28 @@
      let legacyImageApiRefMap = {}; // 旧扁平配置 id → 'providerId|modelId'（节点字段懒迁移用）
      let legacyVideoApiRefMap = {};
      /** 供应商列表 → 扁平模型视图（ref = 'providerId|modelId'）；未填模型名的条目不进下拉。 */
@@ -45,7 +45,7 @@
          }
        }
        return out;
-@@ -3555,7 +3571,7 @@
+@@ -3629,7 +3645,7 @@
          for (const m of (p.models || [])) {
            if (!m || !m.id || !String(m.model || '').trim()) continue;
            // vendor 必须带出去：否则「显式选了厂商」在请求侧丢失，只能靠模型名/URL 猜协议（曾把万相误判成 Seedance）
@@ -54,7 +54,7 @@
          }
        }
        return out;
-@@ -6574,6 +6590,8 @@
+@@ -6648,6 +6664,8 @@
      async function sanbaoImageTask(prompt, refBlobs, s, opts) {
        const base = vendorBase(s.baseUrl, VIDEO_VENDORS.sanbao.base);
        const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (s.apiKey || '') };
@@ -63,7 +63,7 @@
        const o = opts || {};
        const rawRefs = refBlobs || [];
        // 扩展参数：逃生舱；uploadKey 专用上传 key 只用于 /uploads/raw，绝不进任务请求体
-@@ -6591,9 +6609,12 @@
+@@ -6665,9 +6683,12 @@
          if (!raw) continue;
          refUrls.push(await sanbaoUploadRaw(base, uploadKey, raw, 'image'));
        }
@@ -77,7 +77,7 @@
        const r1 = await fetchViaProxy(base + '/openapi/v1/images', { headers, body, timeoutMs: 120000, label: 'Sanbao 图片提交' });
        if (!r1.ok) throw new Error('Sanbao 图片提交 HTTP ' + r1.status + ' @ ' + base + '：' + r1.text.slice(0, 300));
        let j1 = null; try { j1 = JSON.parse(r1.text); } catch { throw new Error('Sanbao 图片响应非 JSON：' + r1.text.slice(0, 200)); }
-@@ -6601,13 +6622,17 @@
+@@ -6675,13 +6696,17 @@
        if (!tid) throw new Error('Sanbao 图片响应中没有任务 id：' + r1.text.slice(0, 200));
        const taskUrl = base + '/openapi/v1/images/' + encodeURIComponent(tid);
        if (o.onTask) { try { o.onTask(tid, taskUrl); } catch { /* 持久化失败不影响生成 */ } }
@@ -96,7 +96,7 @@
        return await downloadVideoWithRetry(url, {}, {
          windowMs: SANBAO_DOWNLOAD_RETRY_MS,
          stepMs: SANBAO_DOWNLOAD_RETRY_STEP_MS,
-@@ -6816,16 +6841,32 @@
+@@ -6890,16 +6915,32 @@
        async sanbao(prompt, frameBlob, s, o) {
          const base = vendorBase(s.url, VIDEO_VENDORS.sanbao.base);
          const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (s.apiKey || '') };
@@ -132,7 +132,7 @@
          // 扩展参数：逃生舱；uploadKey 专用上传 key 只用于 /uploads/raw，绝不进任务请求体
          let uploadKey = s.apiKey || '';
          try {
-@@ -6837,6 +6878,7 @@
+@@ -6911,6 +6952,7 @@
            }
          } catch (e) { throw new Error('三宝扩展参数配置有误：' + ((e && e.message) || e)); }
          const submit = (b, label) => fetchViaProxy(base + '/openapi/v1/videos', { headers, body: b, timeoutMs: 120000, label });
@@ -140,7 +140,7 @@
          let r1 = await submit(body, 'Sanbao 提交');
          // 兜底：图片/素材格式或 URL 类错误 → 用专用 uploadKey 把本地素材传 /uploads/raw 转公网 URL 后重试一次
          // （余额/鉴权/限流/账号限制类错误绝不重试——needsSanbaoMediaRetry 排除）
-@@ -6846,7 +6888,7 @@
+@@ -6920,7 +6962,7 @@
              const refUrls = [];
              for (const b of rawRefs) refUrls.push(await sanbaoUploadRaw(base, uploadKey, b, 'image'));
              const audioUrls = [];
@@ -149,7 +149,7 @@
              const body2 = buildSanbaoVideoBody(baseSpec, { frameDataUrl: frameUrl, refDataUrls: refUrls, audioDataUrls: audioUrls });
              const ex2 = parseExtraParams(s.extra);
              if (ex2) { const rest2 = { ...ex2 }; delete rest2.uploadKey; Object.assign(body2, rest2); }
-@@ -7214,7 +7256,7 @@
+@@ -7288,7 +7330,7 @@
        let vendorDowngraded = false; // IC-03：识别到厂商但无适配器 → 降级走 OpenAI 兼容通用链（节点上可见）
        // 参考素材上限检查：超出即告警（截断发生在各 runner 内，这里先把事实说清楚）。
        // 未知厂商兜底 8 = IC-03 降级后的 OpenAI 兼容链实际发送上限。
@@ -158,7 +158,7 @@
          const caps = VIDEO_REF_CAPS[vendor] || { img: 8 };
          const refCount = o.hardFrame ? 0 : (Array.isArray(o.refs) ? o.refs.length : 0);
          if (refCount > (caps.img || 0)) {
-@@ -10604,11 +10646,12 @@
+@@ -10689,11 +10731,12 @@
            const mcfg = resolveImageModelCfg(settings, nodeImageModelRef(n));
            if (!mcfg) throw new Error(T('errNoImageModel'));
            // 张数（1–4）：同一提示词一次生成多张；历史条保留全部结果，节点显示最后一张
@@ -173,7 +173,7 @@
                size: n.data.size, ratio: n.data.ratio, nodeExtra: n.data.imgExtra, warn: addWarn,
                // 任务式厂商（三宝图片）：任务 id 就是凭证——代理超时/页面关闭后仍可凭 id 回查（与视频同口径）
                onTask: (tid, qurl) => {
-@@ -10616,6 +10659,7 @@
+@@ -10701,6 +10744,7 @@
                  flushSave();
                },
              });
@@ -181,7 +181,7 @@
              const rec = await saveAssetRecord(S.activeId, 'image', blob, {
                name: assetNameFor(n, entities, 'image'),
                prompt: stripMentionMarks(prompt), effectivePrompt: p,
-@@ -10628,6 +10672,7 @@
+@@ -10713,6 +10757,7 @@
              });
              cases.push(rec.id);
              commitGenResult(n.id, rec.id, false, 'image');
@@ -189,7 +189,7 @@
            }
            update((s) => { const nd = s.graph.nodes[n.id]; if (nd) nd.data.progress = null; });
            if (!cases.length) throw new Error(T('noResult'));
-@@ -10772,7 +10817,7 @@
+@@ -10857,7 +10902,7 @@
            if (!mcfg) throw new Error(T('errNoVideoModel'));
            if (sbUp && !durationPlan.value) addWarn('已连接分镜但暂无镜头时长：视频时长回退 5s（先生成分镜镜头后重跑）');
            const blob = await apiVideo(p, useFrame ? frameBlob : null, mcfg, {
@@ -198,7 +198,7 @@
              frameMode, // auto=尾帧降级为参考图（保留实体参考图）/ hard=硬首帧（放弃参考图）/ off=忽略首帧
              hardFrame,
              refs: refs.map((r) => r.blob),
-@@ -12370,19 +12415,34 @@
+@@ -12457,19 +12502,34 @@
              for (const m of (p.models || [])) opts.push({ value: p.id + '|' + m.id, label: m.name, sub: p.name, title: p.name + ' · ' + m.name });
            }
          } else if (isImage) {
@@ -235,7 +235,7 @@
        });
        const setData = (key, v) => update((s) => { const nd = s.graph.nodes[n.id]; if (nd) nd.data[key] = v; });
        // 比例变化：媒体节点立即按「预览区比例 + 固定栏」重排外框（有结果才有操作栏；空态不加操作栏）
-@@ -12499,9 +12559,9 @@
+@@ -12586,9 +12646,9 @@
            try { if (ta) { ta.focus(); ta.selectionStart = ta.selectionEnd = caretAt; } } catch { /* 忽略 */ }
          }, 0);
        };
@@ -248,7 +248,7 @@
        // 视频分辨率：H3（V2 协议）扩展档位 480P/768P/1080P/2K/4K（大小写敏感），其余用标准三档；
        // 当前值不在列表里（历史数据/厂商自定义）也要能显示与保留。
        const videoModelName = (() => {
-@@ -12516,10 +12576,10 @@
+@@ -12603,10 +12663,10 @@
        const resList = baseRes.includes(String(n.data.resolution))
          ? baseRes
          : baseRes.concat([String(n.data.resolution || '720P')]);
@@ -261,7 +261,7 @@
        const canRun = kind !== 'text';
        // 是否还有高级项可折叠：没有就不渲染「更多」开关（文本类节点默认只剩提示词 + 控件行）
        const hasAdvanced = isImage || isVideo || !!(
-@@ -12664,23 +12724,23 @@
+@@ -12751,23 +12811,23 @@
                })
              : null,
            (isImage || isVideo || isFinalCut)
@@ -292,7 +292,7 @@
                })
              : null,
            h('button', {
-@@ -19497,7 +19557,34 @@
+@@ -19656,7 +19716,34 @@
              ],
        );
      }
@@ -327,7 +327,7 @@
        const [s, setS] = useState(loadSettings);
        const apply = (fn) => {
          setS((prev) => {
-@@ -19525,6 +19612,7 @@
+@@ -19684,6 +19771,7 @@
              h('option', { value: 'en' }, T('langEn'))),
          ),
          h(DataRootCard, { key: 'dataroot' }),
@@ -335,7 +335,7 @@
          h(CraftCard, { key: 'craft' }),
          // 「技能增强」已升级为右侧独立「技能」页（SkillsTab）：四层图标瓦片 + 预览/写设定集
          // 文本模型卡：只选模型，参数全用 Harness 默认；紧挨图片/视频/TTS 模型卡片
-@@ -19536,8 +19624,8 @@
+@@ -19695,8 +19783,8 @@
            ),
            h(LlmModelSelect),
          ),

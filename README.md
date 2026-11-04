@@ -1,6 +1,6 @@
 # DeepSeek Harness 可迁移配置
 
-固定匹配 DSH **0.2.1-rc.5**。保留原生 Standard/PTC、官方 computer-use、上游 Mnemon，以及按需 Workflow、浏览器批注、dynamic-ui、LiClick 接入和桌面辅助功能。
+安装时跟随 npm `latest` 发布通道，不固定上游包版本。桌面与全局 CLI 必须同步升级并保持一致。保留原生 Standard/PTC、官方 computer-use、上游 Mnemon，以及按需 Workflow、浏览器批注、dynamic-ui、LiClick 接入和桌面辅助功能。
 
 仓库不保存凭据、个人绝对路径、会话或记忆。安装器在目标电脑生成路径，并备份受管理文件。修改模板后需要重新部署才能生效。
 
@@ -9,7 +9,7 @@
 准备匹配版本的 Harness 桌面程序、Node.js 22.19+（22 系列）或 24+、浏览器和 RTK。RTK 安装及 Windows 自检见 [技能与环境](docs/SKILLS-ALIGNMENT.md)。
 
 ```powershell
-rtk npm install --global @deepseek-ai/dsh@0.2.1-rc.5
+rtk npm install --global @deepseek-ai/dsh@latest
 ```
 
 将 `config/local.example.json` 复制到 `.local/settings.json`，填写 proxy 地址、默认模型和权限预设。API key 使用 `OPENAI_API_KEY` 或 Harness 凭据配置，不写入 Git。默认模型必须存在于配置模型目录。
@@ -63,11 +63,12 @@ rtk proxy node scripts/harness.mjs install --dry-run
 
 ```powershell
 rtk npm test
-rtk proxy node scripts/harness.mjs install --home <隔离测试目录> --refresh-lock
-rtk proxy node scripts/harness.mjs lock --home <隔离测试目录>
+rtk proxy node scripts/harness.mjs install --home <隔离测试目录> --settings <隔离设置文件>
 ```
 
-修改依赖后在隔离目录刷新锁模板。真实宿主测试见 `scripts/test-external-workflow.cjs`，需要隔离 `DSH_HOME` 与匹配的 `DSH_NATIVE_ROOT`；它使用固定模型输出验证子代理生命周期，不发送真实模型请求。
+每次安装通过原生插件管理器更新声明为 `latest` 的上游包；已有本机固定版本和本地修改版不被强制替换。官方 `@deepseek-ai/*` 插件声明为 `${DSH_RUNTIME_VERSION}`，安装时自动跟随最新版 DSH 的实际版本：部分官方插件的 npm `latest` 标签仍指向旧 alpha，不能独立用它升级。没有写死 rc.5 数字。锁文件只在目标电脑生成，用于记录实际安装和回滚，不再从仓库分发；`lock` 命令仅检查本地锁文件，不写回固定模板。`latest` 不等于 `next` 或 `alpha`，也不绕过供应链、发布时间与兼容性检查。
+
+本地修改版仍由仓库构建，保留版本元数据、来源及已验证的宿主兼容范围；这不是上游版本锁。带补丁的上游包保留补丁，若最新版不再适用则安装失败并保留备份，不能静默丢掉修复。宿主升级后仍须通过实际加载与功能验收。真实宿主测试见 `scripts/test-external-workflow.cjs`，需要隔离 `DSH_HOME` 与匹配的 `DSH_NATIVE_ROOT`；它使用固定模型输出验证子代理生命周期，不发送真实模型请求。
 
 退出 Harness 后，恢复最近一次安装备份：
 

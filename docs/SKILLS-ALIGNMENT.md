@@ -1,167 +1,69 @@
 # 技能与部署环境对齐
 
-> 日常精简配置：除内联卡片所需的一份 dynamic-ui 外，整套额外技能仅由 enhanced profile 按需加载，日常 desktop 不列出该技能库。详见 [日常精简 PTC](DAILY-PTC.md)。
+本文按当前安装器维护。只生成 desktop 和原生 headless，不再使用 enhanced profile。完整包、技能来源和外部服务前置条件见 [安装对齐说明](INSTALLATION-PARITY.md)。
 
-这份文档是给 AI agent 执行的对齐手册：读完即可把一台机器上的 Harness 部署、插件和技能副本对齐到本仓库状态。仓库是唯一来源，本机不保留第二份可编辑副本，也不再使用目录联接。技能只落 DSH 的 `agent-capabilities/skills/`，不写入 `~/.claude/skills`、`~/.agents/skills`、`~/.codex/skills` 等 agent 全局目录，避免被其他 agent 发现。
+## 权威来源与实际落点
 
-## 一、执行须知
+| 项目 | 来源 | 部署位置或检查 |
+|---|---|---|
+| 桌面与 CLI | [README](../README.md)、安装器 | 最新发布通道，桌面与 CLI 同版 |
+| 社区插件 | `config/desktop.package.json` | 跟随 latest；本机锁文件记录实际解析版本 |
+| 本地修改版 | `plugins/`、`provenance.json` | 构建为内容哈希命名的 tarball，不替换成上游原版 |
+| 日常工作规则 | `presets/daily/AGENTS.md` | `DSH_HOME/AGENTS.md`，经配置合并保留个人修改 |
+| dynamic-ui | `skills/dynamic-ui/` | `profiles/desktop/agent-capabilities/inline-skills/dynamic-ui/` |
+| 通用技能和六项官方 OpenSpec 技能 | `skills/`、`.dsh/skills/` | `profiles/desktop/agent-capabilities/inline-skills/catalog/` |
+| 新增共享技能 | `config/skill-sources.json` 对应目录 | `DSH_HOME/skills/<名称>/`，同时复制附带资源 |
+| RTK 参考技能 | `skills/rtk-reference/` | `DSH_HOME/skills/rtk-reference/`，优先使用受管修正版 |
 
-- 只按本文和仓库文件操作；发现本机有仓库没有的文件时停下报告，不要删除或覆盖。
-- 不建立软链接或目录联接；技能一律复制成真实文件。
-- 不提交 `.local/`、会话、记忆、凭据和展开后的本机路径。
-- 技能只进 DSH：`scripts/harness.mjs install` 把 `skills/<名称>/` 整棵复制到 `DSH_HOME/profiles/enhanced/agent-capabilities/skills/`。
-- 不把技能复制到 `~/.claude/skills`、`~/.agents/skills`、`~/.codex/skills`：这些是各 agent 的全局目录，会被其他 agent 发现；DSH 的外部技能 provider 优先级还高于桌面 `customSkillDirs`，同名会互相覆盖。
-- `scripts/align-skills.mjs` 只维护文档附录；本机确实需要额外副本时，才显式传 `--target`。
+以 `scripts/harness.mjs` 的生成计划为准。技能正文按需加载，不把整套手册注入每轮提示。DSH 用户技能目录不等于其他 agent 的全局目录；部署不会修改 `~/.claude/skills`、`~/.agents/skills` 或 `~/.codex/skills`。外部技能来源仍可能产生同名覆盖，验收时应检查实际解析路径。
 
-## 二、对齐清单
+技能复制为真实文件，不建立目录联接。既有 DSH 同名技能若不受本仓库管理且内容不同，安装器会停止，不能擅自覆盖。会话、记忆、凭据、个人图库和本机展开路径不提交。
 
-### 2.1 运行时与插件
+## Ponytail
 
-| 项 | 权威来源 | 目标 | 校验 |
-|---|---|---|---|
-| Node 与 CLI | `README.md`、`provenance.json` | 全局 npm 的 `@deepseek-ai/dsh@0.2.1-rc.3`，与桌面运行时一致 | `dsh --version` |
-| 本机 proxy / 模型 / 权限 | `config/local.example.json` 复制为 `.local/settings.json` | 仓库内 `.local/`（不入 Git） | `install --dry-run` 不报缺字段 |
-| 桌面 profile | `config/desktop.patch.json`、`config/desktop.package.json` | `DSH_HOME/profiles/desktop` | `harness status` 无漂移 |
-| 无头 profile | `config/headless*.json` | `DSH_HOME/profiles/headless` | 同上 |
-| 依赖锁 | `config/desktop.lock.yaml`、`config/headless.lock.yaml` | 对应 profile 目录 | 安装使用 `--frozen-lockfile` |
-| 本地插件（12 个） | `plugins/`、`provenance.json` | `DSH_HOME/local-plugins/*.tgz` | 打包文件名含内容哈希，`status` 比对 |
-| 全局工作规则 | `config/AGENTS.md` | `DSH_HOME/AGENTS.md` | 安装器备份后覆盖 |
+仓库已包含 [ponytail](../skills/ponytail/SKILL.md)，上游为 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)。正常部署后在日常桌面会话按需调用，不需要启动 enhanced，也不需要另装 Claude/Codex 插件。正文与附属技能作为已审阅资源分发；更新上游时须核对差异和许可证。
 
-插件清单不在此处复制，`config/desktop.package.json` 的 `dependencies` 与 `dsh.profile.bundles` 是唯一权威。
+## RTK
 
-### 2.2 技能
-
-| 技能 | 仓库来源 | DSH 目标 | 附带文件 |
-|---|---|---|---|
-| `dynamic-ui` | [`skills/dynamic-ui`](../skills/dynamic-ui/) | `agent-capabilities/skills/dynamic-ui` | `preview.py` + `patterns/` 20 个 |
-| `think` | [`skills/think`](../skills/think/) | 同上 | `references/` 3 个 |
-| `pua` | [`skills/pua`](../skills/pua/) | 同上 | 无 |
-| RTK：`rtk-reference` | [`skills/rtk-reference`](../skills/rtk-reference/)；官方来源 [`rtk-ai/rtk`](https://github.com/rtk-ai/rtk) | 同上 | 仅命令参考；RTK CLI 另装，见 2.2.2。`disable-model-invocation: true`，用户按需调用 |
-| `ponytail` | [`skills/ponytail`](../skills/ponytail/)；官方来源 [`DietrichGebert/ponytail`](https://github.com/DietrichGebert/ponytail)，上游路径 `skills/ponytail/SKILL.md` | 同上 | MIT；部署仓库内已审阅副本，不自动追随上游最新版 |
-| `check`、`handoff`、`implement`、`grill-me`、`grill-with-docs`、`grilling`、`domain-modeling` | [`skills/`](../skills/)（自本机 `~/.claude/skills`、`~/.agents/skills` 入仓） | 同上 | 见各自目录；`grill-me` 依赖 `grilling`，`grill-with-docs` 依赖 `grilling` + `domain-modeling`，四项必须同时部署 |
-| 其余 DSH 专用技能 | [`skills/`](../skills/) | 同上 | 见各自目录 |
-
-完整技能库目标在 `DSH_HOME/profiles/enhanced/agent-capabilities/skills/<名称>/`，由安装器整棵复制，不需要单独登记。日常 desktop 另只部署 `agent-capabilities/inline-skills/dynamic-ui/`，由卡片插件通过原生技能注册表按需提供，包含 patterns 与 preview.py 资源。技能不再复制到 agent 全局目录。目标机若在 `~/.claude/skills`、`~/.agents/skills`、`~/.codex/skills` 已有同名技能，DSH 的外部 provider 可能优先加载那些副本；本仓库不写入也不删除这些目录，需要时由机器所有者自行处理。附录只内联自维护的 `dynamic-ui` 全文；`think`、`pua` 及其余下载技能只写仓库链接。
-
-### 2.2.1 Ponytail 安装与使用
-
-Ponytail 用于约束过度设计：先理解调用链，再优先复用已有代码、标准库和原生能力；不能省略输入验证、安全边界及必要验收。官方仓库与安装说明分别是 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) 和 [INSTALL.md](https://github.com/DietrichGebert/ponytail/blob/main/INSTALL.md)（2026-10-26 核对）。
-
-本仓库已包含此技能，无需再安装一份第三方插件：按第三节运行部署预览、安装和状态检查，即会复制到 `DSH_HOME/profiles/enhanced/agent-capabilities/skills/ponytail/SKILL.md`。使用 `dsh --profile enhanced`，在新会话中通过技能菜单选择 `ponytail`，或明确要求加载该技能；确认实际解析的是上述受管路径。日常精简 desktop 不加载这份额外技能库。若加载到全局同名副本，先报告来源差异，不自动覆盖全局目录。
-
-上游还提供 Claude Code / Codex 插件安装方式，但其插件命令和生命周期 hooks 不等同于 DSH 技能安装；不要把这些命令直接用于 DSH。需要更新本仓库副本时，先审阅上游技能与许可证差异，再更新 `skills/ponytail/`、运行技能对齐检查和部署验证。本次仅补安装文档，不替换现有技能版本，也不把上游宣传的性能数字当作本仓库的实测结果。
-
-### 2.2.2 RTK 工具与参考技能安装
-
-官方仓库是 [rtk-ai/rtk](https://github.com/rtk-ai/rtk)，安装方法见上游 [INSTALL.md](https://github.com/rtk-ai/rtk/blob/develop/INSTALL.md)（2026-10-26 核对）。这里的 RTK 是 Rust Token Killer，不能与其他同名项目混淆。
-
-先检查工具是否已安装；以下检查不改配置：
+RTK 是 Rust Token Killer，来源为 [rtk-ai/rtk](https://github.com/rtk-ai/rtk)。先检查：
 
 ```sh
 rtk --version
 rtk gain
 ```
 
-若能显示版本和用量统计，直接复用，不重复安装。若未安装，Windows 可使用上游列出的 WinGet 包：
+未安装时，macOS 使用 `brew install rtk`；Windows 使用 `winget install --id rtk-ai.rtk --exact`。RTK 尚不存在时，首次安装命令不加 rtk 前缀。安装后重开终端和 Harness，使新进程获得 PATH。Windows 还需要可发现的 PowerShell 7（`pwsh.exe`），不能只设置 shell alias。
 
 ```powershell
-winget install rtk-ai.rtk
+rtk proxy node scripts/check-rtk.mjs
 ```
 
-macOS（或已配置 Homebrew 的 Linux）优先使用 `brew install rtk`。已有 Rust 工具链的机器也可使用上游 Git 安装方式；其他预编译安装方式见上游文档：
+若 RTK 尚不能启动，可直接运行 `node scripts/check-rtk.mjs` 获得诊断。此脚本检查 CLI、JSON hook、含空格路径和 Windows PowerShell 调用；不调用模型、不修改生产配置。`RTK_CHECK_PASS` 只证明该层检查通过，不等于所有操作系统的 Harness 权限边界已验收。
 
-```sh
-cargo install --git https://github.com/rtk-ai/rtk rtk
-```
+当前通过 **设置 → 钩子** 或 `/hooks` 管理两条 `dsh-codex-hooks` 定义。旧 `@local/dsh-rtk-shell`、命令分类面板与透明 Shell 改写已删除，不再使用。前置检查调用 RTK 自带的映射器，支持的裸命令会在执行前被阻止，由 Agent 按提示提交 RTK 命令；不是执行失败后重跑。复杂脚本、机器格式和已包装命令保持原样；精确输出使用 `rtk proxy`。不为 DSH 安装其他宿主的 `rtk init -g` Hook。
 
-这些是首次安装命令，RTK 尚不存在时不要给安装命令加 `rtk` 前缀。安装后重新运行 `rtk --version` 和 `rtk gain`，再执行本仓库部署步骤。不要仅执行 `cargo install rtk` 并假定取得的是同一个项目。
+隔离宿主可运行现存的 `scripts/test-runtime-compatibility.cjs desktop` 检查 RTK 阻断和正常执行。加载当前完整配置时须设置独立 `DSH_MEME_HOME`，并关闭外部 Orca Hook；见 [兼容性说明](RC5-COMPATIBILITY.md)。旧的专用 RTK 模型测试脚本已移除，不能照历史手册直接执行。
 
-**CLI、日常规则、按需技能分开验证：** 安装器不静默下载或安装 RTK；正式安装在写配置前检查 PATH 中的 `rtk --version`，缺失时停止并提示安装命令。安装 CLI 后重开终端和 Harness，确保桌面进程也获得新 PATH。`clean` 原生回退不要求 RTK。
+## 执行顺序
 
-日常 `presets/daily/AGENTS.md` 与完整 `config/AGENTS.md` 均包含相同的短 RTK 规则，要求 Standard、PTC 经 Bash/PowerShell 执行支持的输出密集命令时默认使用 RTK。`rtk-reference` 在日常与增强配置中按需提供完整参考，不把整份命令表塞进每轮。原生 read/grep/edit 等工具继续使用；精确输出通过 `rtk proxy` 获取，内建命令、管道和脚本不机械添加前缀。
-
-**自动执行适配与设置：** `@local/dsh-rtk-shell`通过本地环境插件的公开Bash/PowerShell执行器子类复用原生执行链。进入 **设置 → Hooks** 可控制总开关与Git/日志/搜索/测试分类，添加精确排除项、自定义精确命令，并选择Bash或PowerShell进行不执行命令的预览。配置通过原生ConfigForms保存；关闭总开关只是透传，不卸载Shell或环境服务。
-
-| 类别 | 自动支持的安全子集 | 输出方式 |
-|---|---|---|
-| Git | status；diff可选stat/cached/staged；log可选条数/oneline/stat/all；show可选stat | RTK Git过滤 |
-| 日志 | Bash单文件cat；PowerShell单参数Get-Content/cat/gc/type；文件为.log或.txt，不含通配符 | RTK log去重并保留错误标记 |
-| 搜索 | rg普通文本匹配/文件列表及受限筛选参数；Bash find的name/type/depth子集 | 原搜索工具与参数不变，由RTK summary汇总；不替换成忽略行为不同的grep |
-| 测试 | npm/pnpm test及run test:*；Node --test与字面文件路径；pytest/cargo/go的受限参数 | RTK err保留错误警告和退出码，不推断通过数量 |
-| 自定义 | UI精确匹配的常用外部程序命令 | summary汇总或err错误过滤；已识别测试必须用err |
-
-字面引用路径可含空格；参数先解析为保守字面子集，再序列化交给RTK，避免RTK再次拼接时丢失引号。变量/命令替换、管道、重定向、脚本片段、控制符、stdin依赖、机器格式等不改写；已加`rtk`/`rtk proxy`不重复包装。自定义规则不是任意Shell hook：不新增命令、不支持正则替换或额外脚本，不改变权限。
-
-**范围与保真：**这是面向模型阅读的压缩，不是字节等价输出。`rg --files`等结果会汇总，不应用于机器解析；成功测试仅据原退出码报告无错误，不代表保留了每个测试名或数量。需要完整结果时使用`rtk proxy`。当前RTK0.38的通用test过滤丢失Node失败名称、summary误报测试通过数，实测后没有将这两种组合用于自动测试规则。
-
-原工具历史保留模型输入，验收在原生confine入口核实真实命令。所有命令只执行一次；RTK缺失、失败、超时、拒绝或停止都不会再执行裸命令。预览只使用同一纯规则引擎，不运行命令、不读取目标文件。运行中的命令保持其开始时的规则，不因开关变化重启。
-
-
-只部署 DSH 时，不执行 `rtk init -g` 或其他宿主的 hook 安装；“No hook installed”提醒不代表显式RTK命令未生效，不应为消除提示擅自修改Claude/Codex配置。
-
-### 2.2.3 Windows 拉取后自检
-
-首次安装RTK按上游使用 `winget install --id rtk-ai.rtk --exact`。安装后关闭并重开PowerShell和Harness，避免旧进程继续使用旧PATH；不要仅把RTK设为PowerShell profile中的alias/function。DSH需要PATH可发现的真实`rtk.exe`，Windows Shell还需要PowerShell 7（`pwsh.exe`）。本仓库不自动改全局PATH或安装其他宿主hook。
-
-在仓库根目录执行（若RTK尚不能运行，直接用Node检查，才能得到诊断）：
+按 [README](../README.md) 准备同版宿主与 CLI，以及本机 `.local/settings.json`。所有部署必须在 Harness 任务结束并完全退出后进行：
 
 ```powershell
-node scripts/check-rtk.mjs
-```
-
-该命令检查真实RTK可执行文件、proxy子命令、无profile的PowerShell调用，并在名称带空格的临时Git仓库中实际执行`rtk.exe git status`，最后清理自己的临时目录。不调用模型，不改生产配置或用户仓库。也可运行 `npm run check:rtk`。
-
-看到`RTK_CHECK_PASS`后再按安装章节执行dry-run与install。安装器在Windows也会执行RTK与PowerShell预检；失败在修改配置前停止，并给出对应原因。不要把`rtk gain`因统计库访问被拒绝误判成RTK版本错误。
-
-**验证层次：**此自检证明普通终端能够运行，不证明Windows的DSH文件沙箱已经验收。`scripts/test-rtk.cjs`是下一层隔离宿主真实模型验证，覆盖Standard/PTC、实际叶子pwsh/bash命令、退出码与完整保护状态，结果包含运行平台；按原生运行时测试环境设置DSH_HOME/DSH_NATIVE_ROOT及模型凭据后执行，不在生产会话试写。Windows原生工具说明指出，受限环境中的子进程捕获可能遇到命名管道EPERM；若RTK在此处失败，保留错误，不切到无保护模式或以原生命令的成功冒充RTK成功。
-
-本轮在Mac通过实际自检，并通过模拟Windows参数/失败分支的自动回归；**尚无Windows实机结果**。PC用户应先运行上面的自检，不能将本节视为Windows宿主已验证通过。
-
-### 2.3 不纳入
-
-- `~/.claude/skills` 下的 Lark、视频、抓取类技能：体积可达数十 MB，且与本仓库能力无关，只在需要的机器上单独安装。
-- 任何插件专属的内部状态、会话、记忆和快照。
-
-## 三、执行顺序
-
-```powershell
-rtk proxy node --test test/align-skills.test.mjs
 rtk proxy node scripts/align-skills.mjs --check
 rtk proxy node --test test/portable.test.mjs
 rtk proxy node scripts/harness.mjs install --dry-run
+# 完全退出 Harness 后：
 rtk proxy node scripts/harness.mjs install
 rtk proxy node scripts/harness.mjs status
 ```
 
-`align-skills.mjs` 不带 `--target` 时只刷新或检查附录，不复制技能；技能落点由安装器决定。安装结束后完全退出 Harness 再打开，新会话才会加载新技能。
+重开后验证技能来源和实际入口。仅无漂移不等于全部功能通过；`test-installed-parity.cjs` 与 `test-preset-loading.cjs` 可在隔离目录核对来源、Hook 和 Standard/PTC 加载，不在生产会话运行测试。
 
-### 3.1 `align-skills.mjs` 的行为
+`align-skills.mjs` 不带 `--target` 时仅维护下方生成附录，不安装技能。显式 `--target` 才复制到指定目录：拒绝目标中的额外未知文件，替换链接本身为真实目录，`--check` 只读比较。正常部署使用安装器；不能运行脚本时先报告限制，不手工重建配置、信任记录或忽略合并冲突。
 
-| 目标状态 | 动作 |
-|---|---|
-| 不存在 | 全量复制 |
-| 是目录联接或符号链接 | 删除链接本身，写入真实副本 |
-| 是真实目录，文件内容不同 | 覆盖为仓库版本 |
-| 含仓库没有的文件 | 跳过该技能，列出文件名，退出码 1 |
-| `--check` | 只读比较，不写任何文件 |
+## 生成附录
 
-不带 `--target` 时只刷新或检查附录，不复制任何文件。显式传入 `--target <目录>` 才按上表复制；该参数只供本机维护，正规部署不要使用，更不要指向 agent 全局目录。
-
-### 3.2 文档附录
-
-第五节由脚本生成：自维护的 `dynamic-ui` 内联全文，其余下载技能只写仓库链接；`--check` 会一并比较。修改技能后重新运行脚本，不要手改附录。
-
-## 四、不能运行脚本时
-
-WorkBuddy 等只能读写的 agent 按此逐项核对；目标一律是 `DSH_HOME/profiles/enhanced/agent-capabilities/skills/`，不要写 agent 全局目录：
-
-1. 打开 `skills/<名称>/`，记录相对路径清单。
-2. 在目标目录按相同相对路径逐个比较内容；内容相同即视为已对齐。
-3. 目标不存在则复制整棵目录；目标里多出文件则停止并报告。
-4. 目标若是链接（`readlink` / `dir /AL` / `Get-Item | Select-Object LinkType`），先删除链接，再复制真实目录。
-5. 核对文件数：`dynamic-ui` 22、`think` 4、`pua` 1；`SKILL.md` 首行必须是 `---` 且 `name:` 与目录名一致。
-
-## 五、附录：技能全文与仓库链接
+由 `scripts/align-skills.mjs` 维护，dynamic-ui 内联正文，其余列出仓库链接。修改对应技能后运行生成脚本，不手改附录。
 
 <!-- annex:begin -->
 

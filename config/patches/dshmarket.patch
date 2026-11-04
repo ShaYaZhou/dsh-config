@@ -1,0 +1,12 @@
+--- a/lib/verify.js
++++ b/lib/verify.js
+@@ -457,6 +457,9 @@
+         const moreEn = carried.length > 3 ? ` and ${carried.length - 3} more` : '';
+         return {
+             state: 'inert',
++            // Non-plugin dependencies (including stdio MCP servers) have no loader activation.
++            // Do not infer runtime health or hide an observed but inactive loader entry.
++            library: carried.length === 0 && !loaderObserved,
+             reasons: [carried.length > 0
+                     ? `这是集合仓库的根包,本身不是插件。可安装的子包：${shown}${more}。请装子包而不是它(仓库地址后加 #path:/子包目录) / this is a collection repository's root package, not a plugin itself; install one of its plugins instead — ${shownEn}${moreEn} — by adding #path:/<subdirectory> to the repository URL`
+                     : '普通依赖(未声明 dsh 元数据),不是 profile 层插件;若它由某个 bundle patch 按名加载,启动后会显示为已加载 / a plain dependency with no dsh metadata — not a profile-layer plugin; if some bundle patch loads it by name it will read as live once running'],

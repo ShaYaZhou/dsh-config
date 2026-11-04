@@ -1,8 +1,8 @@
 # 桌面配置
 
-本文记录截至 2026-11-03 的配置选择，不是永久要求或禁止清单。后续是否采用某个插件、工作流或配置，以当次需求和评估为准。
+本文记录截至 2026-11-04 的配置选择，不是永久要求或禁止清单。后续是否采用某个插件、工作流或配置，以当次需求和评估为准。
 
-安装器维护一个 desktop profile，以及原生 headless 基线。Standard 和 PTC 使用官方预设。原先的 enhanced、Ultracode、独立 Workflow 和空闲压缩定时器已退役，不再生成或加载。
+安装器维护一个 desktop profile，以及原生 headless 基线。Standard 和 PTC 使用官方预设。原先的 enhanced、Ultracode、自建 Workflow 引擎和空闲压缩定时器已退役，不再生成或加载。
 
 ## 功能
 
@@ -12,9 +12,11 @@
 - computer-use：安装与宿主版本一致的官方注册组件和原生驱动，使用原生工具与权限机制。不再注入自定义指引或 computer-use 技能。
 - 浏览器截图/批注、Rewind、旁问、代码审查、文件预览、插件市场、LiClick 无限画布功能继续保留。
 
+鲸鱼挂件、表情包、ComfyUI、Ego Browser 和官方可选 bundle 已加入安装清单；完整列表与前置条件见 [安装对齐说明](INSTALLATION-PARITY.md)。
+
 ## 记忆
 
-dsh-mnemon@0.5.39 提供分层记忆和管理界面，@mnemon-dev/mnemon@0.2.13 提供本地 CLI。安装器使用当前电脑的 profile 路径定位 CLI；数据位于当前 DSH_HOME 下的 mnemon 目录，测试配置不会共享正式记忆目录。不自动连接第三方记忆服务。
+dsh-mnemon 提供分层记忆和管理界面，@mnemon-dev/mnemon 提供本地 CLI，均随安装跟随 latest。最近验收分别为 0.5.39 和 0.2.13，不是固定安装约束。安装器使用当前电脑的 profile 路径定位 CLI；数据位于当前 DSH_HOME 下的 mnemon 目录，测试配置不会共享正式记忆目录。不自动连接第三方记忆服务。
 
 按用户最新要求，Mnemon 使用未修改的上游发布包，不再加载本地禁写服务或父子会话禁写补丁。记忆行为由 Mnemon 原生能力和用户设置决定。旧 dsh-memory 文件保留，不自动导入或删除；它们不会因此自动出现在 Mnemon 召回中。
 

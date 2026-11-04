@@ -5,6 +5,13 @@ import os from 'node:os';
 import path from 'node:path';
 import {compareInstalledManifest,auditInstalledManifests} from '../scripts/installation-audit.mjs';
 
+test('native versions follow the recorded host, not stale npm latest tags',()=>{
+ const expected={dependencies:{'@deepseek-ai/example':'${DSH_RUNTIME_VERSION}',community:'latest'}};
+ const installed={dependencies:{'@deepseek-ai/example':'9.0.0',community:'latest'}};
+ assert.deepEqual(compareInstalledManifest(expected,installed,{},'9.0.0').differentPins,[]);
+ assert.deepEqual(compareInstalledManifest(expected,installed,{},'9.0.1').differentPins,['@deepseek-ai/example']);
+});
+
 test('preserved market installs are reported even when their deployed file hash is current',()=>{
  const expected={dependencies:{'@local/example':'@artifact/example',shared:'1.0.0'},dsh:{profile:{bundles:['shared']}}};
  const installed={dependencies:{'@local/example':'file:../../local-plugins/example.tgz',shared:'2.0.0','dsh-meme':'0.1.76','dsh-whale-widget':'0.4.2'},dsh:{profile:{bundles:['shared','dsh-meme','dsh-whale-widget']}}};

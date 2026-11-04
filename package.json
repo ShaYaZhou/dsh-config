@@ -11,7 +11,7 @@
     "test:installation-audit": "node --test test/installation-audit.test.mjs",
     "test:liclick-canvas": "node scripts/test-liclick-canvas.mjs",
     "test:liclick-gateway": "node scripts/test-liclick-gateway.mjs",
-    "test": "node --test test/installation-audit.test.mjs test/portable.test.mjs test/desktop-commands.test.mjs test/migration.test.cjs test/browser.test.mjs test/browser-review.test.mjs test/test-home.test.cjs test/idle-settings.test.mjs test/delete-session.test.mjs test/enhancement-settings.test.cjs test/workflow-replacement.test.mjs test/btw-shortcut.test.cjs test/claude-context.test.mjs test/security-scan.test.mjs test/file-links-client.test.cjs test/align-skills.test.mjs test/dynamic-ui-view.test.mjs test/shared.test.mjs test/daily-profile.test.mjs test/deployment-state.test.mjs test/rtk-hooks.test.mjs test/liclick-adapter.test.mjs test/codex-hooks.test.mjs",
+    "test": "node --test test/installation-audit.test.mjs test/portable.test.mjs test/desktop-commands.test.mjs test/migration.test.cjs test/browser.test.mjs test/browser-review.test.mjs test/test-home.test.cjs test/idle-settings.test.mjs test/delete-session.test.mjs test/enhancement-settings.test.cjs test/workflow-replacement.test.mjs test/btw-shortcut.test.cjs test/claude-context.test.mjs test/security-scan.test.mjs test/file-links-client.test.cjs test/align-skills.test.mjs test/dynamic-ui-view.test.mjs test/shared.test.mjs test/daily-profile.test.mjs test/deployment-state.test.mjs test/rtk-hooks.test.mjs test/liclick-adapter.test.mjs test/codex-hooks.test.mjs test/node-command.test.mjs",
     "scan:security": "node skills/security-review/scan.mjs . --fail-on high",
     "check": "npm test && npm run scan:security",
     "build": "node scripts/harness.mjs build",

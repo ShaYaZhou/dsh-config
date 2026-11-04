@@ -62,7 +62,8 @@
     "source": "larksuite/cli",
     "sourceUrl": "https://github.com/larksuite/cli.git",
     "localChanges": [
-      "references\\lark-apps-db-execute.md"
+      "references\\lark-apps-db-execute.md",
+      "references/lark-apps-local-dev.md"
     ],
     "licenseFile": "licenses/Lark-CLI-MIT.txt"
   },
@@ -107,7 +108,9 @@
   "lark-event": {
     "source": "larksuite/cli",
     "sourceUrl": "https://github.com/larksuite/cli.git",
-    "localChanges": [],
+    "localChanges": [
+      "references/lark-event-im.md"
+    ],
     "licenseFile": "licenses/Lark-CLI-MIT.txt"
   },
   "lark-im": {
@@ -119,7 +122,15 @@
   "lark-mail": {
     "source": "larksuite/cli",
     "sourceUrl": "https://github.com/larksuite/cli.git",
-    "localChanges": [],
+    "localChanges": [
+      "references/lark-mail-reply-all.md",
+      "references/lark-mail-send.md",
+      "references/lark-mail-reply.md",
+      "references/lark-mail-forward.md",
+      "references/lark-mail-watch.md",
+      "references/lark-mail-draft-edit.md",
+      "references/lark-mail-draft-create.md"
+    ],
     "licenseFile": "licenses/Lark-CLI-MIT.txt"
   },
   "lark-markdown": {
@@ -131,7 +142,10 @@
   "lark-minutes": {
     "source": "larksuite/cli",
     "sourceUrl": "https://github.com/larksuite/cli.git",
-    "localChanges": [],
+    "localChanges": [
+      "references/lark-minutes-speaker-replace.md",
+      "SKILL.md"
+    ],
     "licenseFile": "licenses/Lark-CLI-MIT.txt"
   },
   "lark-note": {

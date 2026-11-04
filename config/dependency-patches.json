@@ -1,4 +1,5 @@
 {
-  "dsh-better-sidebar@0.28.0": "patches/dsh-better-sidebar.patch",
-  "@ninkch/dsh-infinite-canvas@0.19.20": "patches/dsh-infinite-canvas.patch"
+  "dsh-better-sidebar": "patches/dsh-better-sidebar.patch",
+  "@ninkch/dsh-infinite-canvas": "patches/dsh-infinite-canvas.patch",
+  "dshmarket": "patches/dshmarket.patch"
 }

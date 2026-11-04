@@ -1,6 +1,6 @@
 # rc5 兼容性
 
-部署目标为 `0.2.1-rc.5`。桌面主程序、全局 `@deepseek-ai/dsh` 与官方插件必须匹配该版本；不要用版本豁免代替适配。
+本页记录已验证的 `0.2.1-rc.5` 接口，版本是兼容性证据而非安装锁。安装配置跟随 npm `latest`；桌面主程序和全局 `@deepseek-ai/dsh` 必须一致。新版宿主仍须重新验收，不用版本豁免代替适配。
 
 本地插件对已验证的 rc5 增加明确 peer 版本，保留原有兼容范围。原生依赖和锁文件由隔离安装重新生成；本地包沿用版本号，通过安装器的内容哈希区分构建。
 
@@ -17,7 +17,8 @@
 ## 验证
 
 - `npm test` 检查已有功能回归。
-- 先对隔离目录运行 `scripts/harness.mjs install --dry-run --home <隔离目录>`，再安装；需要更新锁时使用 `--refresh-lock`，完成后运行 `lock --home <隔离目录>` 保存可移植锁模板。
-- 在对应 Electron Node 运行时中运行 `scripts/test-runtime-compatibility.cjs desktop` 和 `enhanced`，设置隔离的 `DSH_HOME` 与匹配运行时的 `DSH_NATIVE_ROOT`（原生 `@deepseek-ai` 包目录）。测试使用真实宿主、会话和插件清单，不调用模型；检查异常插件、preset、命令及前端模块注册。
+- 先对隔离目录运行 `scripts/harness.mjs install --dry-run --home <隔离目录>`，再安装；安装会更新声明为 latest 的包。锁文件留在目标目录用于检查和回滚，不再分发固定锁模板。
+- 在对应 Electron Node 运行时中运行 `scripts/test-installed-parity.cjs` 和 `scripts/test-preset-loading.cjs`，设置隔离的 `DSH_HOME` 与匹配运行时的 `DSH_NATIVE_ROOT`（原生 `@deepseek-ai` 包目录）。两者会设置独立 `DSH_MEME_HOME` 并关闭外部 Orca Hook，核对新增插件/技能及 Standard/PTC 加载，不调用模型。只支持当前 desktop，不再运行 enhanced 参数。
+- `scripts/test-runtime-compatibility.cjs desktop` 还包含 RTK 和记忆写入检查；它未自行补齐 meme 与外部 Hook 的隔离覆盖，不应直接用于完整配置或生产 home。运行前须先在隔离测试载体中补齐这些条件。
 - headless 不提供 Web Host，使用其原生插件安装和版本校验，不能把 Web Host 测试参数套用到 headless。
 - 实际桌面部署前备份，重启后核对插件页；宿主启动通过不等于所有模型调用、浏览器操作及跨平台功能都已实机验收。
