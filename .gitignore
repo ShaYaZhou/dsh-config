@@ -13,3 +13,4 @@ backups/
 .DS_Store
 .deck/
 package-lock.json
+!skills/liclick/scripts/package-lock.json

@@ -260,6 +260,26 @@
         "computer-use"
       ],
       "notes": "dynamic-ui has its dedicated provider; computer-use follows official tool registration without a custom guidance skill"
+    },
+    "sharedSkills": {
+      "sourceManifest": "config/skill-sources.json",
+      "excluded": {
+        "computer-use": "Explicitly disabled; official desktop tools are retained instead.",
+        "orca-cli": "Explicitly disabled in DSH.",
+        "orchestration": "Explicitly disabled in DSH.",
+        "video-download": "Fixed Linux runtime paths and external token/delivery assumptions require a separate port.",
+        "sensortower-chart": "Fixed /root/.openclaw output directory requires a separate Windows port.",
+        "reverse-engineer-anything": "Requires REA tools which are not registered in this DSH profile."
+      },
+      "existing": [
+        "ponytail",
+        "rtk-reference"
+      ],
+      "notes": "RTK uses the repository corrected definition; nine OpenSpec wrappers are pinned to the managed CLI version."
+    },
+    "installedPlugins": {
+      "manifest": "config/desktop.package.json",
+      "notes": "Includes all desktop dependencies and enabled bundle declarations observed on the owner machine; credentials and runtime data are not distributed."
     }
   }
 }

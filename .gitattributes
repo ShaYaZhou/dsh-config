@@ -3,3 +3,6 @@
 *.woff2 binary
 # Unified diffs preserve upstream whitespace after their context marker.
 config/patches/*.patch -whitespace
+# Imported skill documentation/examples retain upstream Markdown hard breaks and formatting.
+skills/lark-*/** -whitespace
+skills/inline-figure/** -whitespace

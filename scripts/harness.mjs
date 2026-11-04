@@ -8,8 +8,9 @@ import {spawnSync} from 'node:child_process';
 import {createRequire} from 'node:module';
 import testHome from './test-home.cjs';
 import {checkRtk} from './check-rtk.mjs';
+import {auditInstalledManifests} from './installation-audit.mjs';
 import {parseHooksFile, describeHooks, readStateFile, writeStateFile} from '../plugins/codex-hooks/lib/core.js';
-import {reconcileDeployment, deploymentInputs, baselinePath, preservedConfig, assertNoUncapturedCode} from './deployment-state.mjs';
+import {reconcileDeployment, deploymentInputs, baselinePath, preservedConfig, pluginPreferenceFiles, assertNoUncapturedCode, assertManagedSkillPath} from './deployment-state.mjs';
 
 export const repository=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const readJson=file=>JSON.parse(fs.readFileSync(file,'utf8'));
@@ -72,7 +73,6 @@ export function renderPlan(home,settings,artifacts={}, {clean=true}={}){
   '${PROXY_BASE_URL}':settings.proxyBaseUrl,'${DEFAULT_MODEL}':settings.defaultModel,'${BROWSER}':settings.browser,
   '${REASONING_EFFORT}':settings.reasoningEffort,'${PERMISSION_PRESET}':settings.permissionPreset,
   '${USER_HOME}':os.homedir(),
-  '${ORCA_HOOKS_DISABLED}':!fs.existsSync(path.join(os.homedir(),'.orca','agent-hooks','dsh-hooks.json'))
  };
  const files=new Map();
  for(const profile of ['desktop','headless']){
@@ -110,7 +110,8 @@ export function renderPlan(home,settings,artifacts={}, {clean=true}={}){
  files.set('profiles/desktop/agent-capabilities/manifest.json',json({managedBy:'deepseek-harness-config',flavor:clean?'native':provenance.flavor,runtime:provenance.runtime,modules:Object.fromEntries(moduleNames.map(name=>[name,digest(path.join(repository,'modules',name))])),artifacts}));
  return files;
 }
-const SKILL_RESOURCE_EXTENSIONS=new Set(['.mjs','.js','.json','.md','.py','.txt','.yaml','.yml']);
+const SKILL_RESOURCE_EXTENSIONS=new Set(['.mjs','.js','.json','.md','.py','.txt','.yaml','.yml','.html','.jsx','.xml','.png']);
+const skillContent=file=>fs.readFileSync(file,path.extname(file)==='.png'?undefined:'utf8');
 function skillResources(directory,prefix=''){
  const found=[];
  for(const entry of fs.readdirSync(directory,{withFileTypes:true})){
@@ -125,6 +126,10 @@ function skillResources(directory,prefix=''){
 // The desktop uses native presets plus individually managed capabilities.
 export function renderDailyPlan(home, settings, artifacts = {}) {
  const files = renderPlan(home, settings, {}, {clean:true});
+ for(const [file,value] of Object.entries(configuration('plugin-preferences.json'))){
+  assert(pluginPreferenceFiles.has(file),'Unsupported plugin preference file');
+  files.set(file,json(value));
+ }
  const oldPath = path.join(path.resolve(home),'profiles','desktop');
  files.set('hooks.json',json(renderRtkHooks(home)));
  files.set('profiles/desktop/agent-capabilities/rtk-hooks.mjs',fs.readFileSync(path.join(repository,'modules/rtk-hooks.mjs'),'utf8'));
@@ -147,8 +152,9 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
  for(const row of configuration('desktop.patch.json'))
   if(['ui-settings-account','locale','ui-theme'].includes(row.id))patch.push(row);
  patch.push({id:'agent-preset-registry',config:{default:'ptc',selectedDefault:'ptc'}});
- patch.push({id:'mnemon',config:{storageScope:'custom',dataDir:path.join(home,'mnemon'),runtimeUserScope:'storage',
+ patch.push({id:'mnemon',config:{...configuration('mnemon.json'),storageScope:'custom',dataDir:path.join(home,'mnemon'),runtimeUserScope:'storage',
   cliPath:path.join(oldPath,'node_modules','@mnemon-dev','mnemon','bin','mnemon.js')}});
+ for(const id of ['mnemon-strategy-scoped','mnemon-strategy-auto-capture','mnemon-strategy-light-context'])patch.push({id,disabled:false});
  patch.push({insert:[
   {id:'computer-use',name:'@deepseek-ai/dsh-computer-use'},
   {id:'computer-use-native',name:'@deepseek-ai/dsh-experimental-computer-use-cua-driver-native'},
@@ -179,10 +185,12 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
  // Restore on-demand skills without the removed automatic orchestration policy.
  // Dynamic UI has its own provider; optional computer-use guidance stays separate.
  const separateSkills = new Set(['dynamic-ui']);
+ const sharedSkills = new Set(Object.keys(configuration('skill-sources.json')));
  for(const [file,source] of Object.entries(desktopSkillSources())) {
   const skill=file.split('/')[4];
-  if(!separateSkills.has(skill))files.set(file.replace('/skills/','/inline-skills/catalog/'),fs.readFileSync(path.join(repository,source),'utf8'));
+  if(!separateSkills.has(skill))files.set(sharedSkills.has(skill)?source:file.replace('/skills/','/inline-skills/catalog/'),skillContent(path.join(repository,source)));
  }
+ files.set('skills/rtk-reference/SKILL.md',fs.readFileSync(path.join(repository,'skills/rtk-reference/SKILL.md'),'utf8'));
  patch.push({insert:[{id:'daily-managed-skills',name:'@deepseek-ai/dsh-skill-filesystem',config:{
   providerName:'daily-managed',includeDefaultRoots:false,
   bundledSkillDir:path.join(oldPath,'agent-capabilities','inline-skills','catalog'),
@@ -290,6 +298,7 @@ function backup(home,files){
 export function staleModulePaths(previous,next){
  const base='profiles/desktop/agent-capabilities/';
  return Object.keys(previous?.sources??{}).filter(relative=>{
+  if(relative.startsWith('skills/')&&previous.sources[relative]===relative&&!relative.split('/').includes('..'))return !next.has(relative);
   if(!relative.startsWith(base))return false;
   const rest=relative.slice(base.length).split('/');
   return ((rest.length===1&&rest[0].endsWith('.mjs'))||(rest.length>=3&&['skills','inline-skills'].includes(rest[0])))&&!next.has(relative);
@@ -337,6 +346,12 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
  };
  const existingArtifacts=path.join(repository,'build/artifacts.json');
  const preview=plan(fs.existsSync(existingArtifacts)?readJson(existingArtifacts):{});
+ if(!clean)for(const [file,content] of preview)if(file.startsWith('skills/')){
+  assertManagedSkillPath(home,file);
+  const target=path.join(home,file);
+  if(fs.existsSync(target)&&!previous?.files?.[file])
+   assert(fs.readFileSync(target).equals(Buffer.from(content)),'Existing DSH skill differs: '+file+'; retain it and resolve before deployment');
+ }
  if(!clean)assertNoUncapturedCode(home,previous,repository,preview);
  prepare(preview);
  if(dryRun){console.log('Would manage '+preview.size+' files in the selected DSH_HOME; source templates remain unchanged.');return preview;}
@@ -352,21 +367,26 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
  if(refreshLock)for(const profile of profiles)files.delete('profiles/'+profile+'/pnpm-lock.yaml');
  const extra=[...profiles.flatMap(profile=>['profiles/'+profile+'/pnpm-lock.yaml','profiles/'+profile+'/pnpm-workspace.yaml']),'.portable-harness/state.json','hooks.state.json'];
  const stale=[...staleModulePaths(previous,files),...Object.keys(previous?.files??{}).filter(file=>/^profiles\/(?:desktop|headless)\/patches\/[a-z0-9-]+\.patch$/.test(file)&&!files.has(file)),...Object.keys(previous?.files??{}).filter(file=>file.startsWith('profiles/enhanced/')&&!file.includes('/node_modules/'))];
+ for(const file of stale)if(file.startsWith('skills/'))assertManagedSkillPath(home,file);
  const saved=backup(home,[...new Set([...files.keys(),...baselines.keys(),...stale,...extra])]);
  write(path.join(home,'.portable-harness/state.json'),json({backup:path.relative(home,saved).split(path.sep).join('/'),files:{},sources:{},sourceHashes:{},pending:true}));
  try{
   fs.mkdirSync(path.join(home,'local-plugins'),{recursive:true});
   for(const data of Object.values(records))fs.copyFileSync(path.join(repository,'build',data.filename),path.join(home,'local-plugins',data.filename));
-  for(const [relative,content]of files)write(path.join(home,relative),content);
+  for(const [relative,content]of files){
+   if(relative.startsWith('skills/'))assertManagedSkillPath(home,relative);
+   write(path.join(home,relative),content);
+  }
   for(const relative of stale){const target=path.join(home,relative);const info=fs.lstatSync(target,{throwIfNoEntry:false});if(info){assert(info.isFile()||info.isSymbolicLink(),'Old module must be a file');fs.unlinkSync(target);}}
   linkRuntime(home,runtime);
   for(const profile of profiles)native(command,home,profile,['install',!refreshLock&&!customProfiles.has(profile)&&files.has('profiles/'+profile+'/pnpm-lock.yaml')?'--frozen-lockfile':'--no-frozen-lockfile']);
   if(!clean)configureRtkHook(home);
   for(const [relative,content]of baselines)write(path.join(home,relative),content);
-  const tracked={};for(const relative of files.keys())tracked[relative]=digest(path.join(home,relative));
+  const tracked={};for(const relative of files.keys())if(!pluginPreferenceFiles.has(relative))tracked[relative]=digest(path.join(home,relative));
   for(const profile of profiles)tracked['profiles/'+profile+'/pnpm-lock.yaml']=digest(path.join(home,'profiles',profile,'pnpm-lock.yaml'));
   const sources={};
   if(!clean)Object.assign(sources,desktopSkillSources());
+  if(!clean)for(const file of files.keys())if(file.startsWith('skills/'))sources[file]=file;
   if(!clean&&fs.existsSync(path.join(repository,'modules')))for(const name of fs.readdirSync(path.join(repository,'modules')).filter(x=>x.endsWith('.mjs')))sources['profiles/desktop/agent-capabilities/'+name]='modules/'+name;
   for(const plugin of clean?[]:provenance.plugins){
    const library=path.join(repository,'plugins',plugin.id,'lib');
@@ -420,6 +440,8 @@ export function status(home){
  console.log(changed.length?'Local deployment drift or unapplied source changes:\n'+changed.join('\n'):'Managed deployment has no local drift.');
  if(!state.inputHashes)console.log('Legacy deployment has no complete source baseline; latest-source status is unverified.');
  console.log('File/source consistency does not replace host and UI acceptance.');
+ const installed=auditInstalledManifests(home,repository,state.flavor);
+ console.log(installed.length?'Installed declarations differ from repository (local additions are preserved, not synchronized):\n'+json(installed):'Installed plugin dependencies and bundles match repository declarations.');
  return changed;
 }
 export function capture(home){
@@ -427,6 +449,7 @@ export function capture(home){
  const changes=[];
  const bySource=new Map();
  for(const [target,source]of Object.entries(state.sources)){
+  if(target.startsWith('skills/'))assertManagedSkillPath(home,target);
   const live=path.join(home,target),file=path.join(repository,source);
   if(digest(live)===state.files[target]||digest(live)===digest(file))continue;
   assert(fs.existsSync(live),'Cannot capture a missing runtime source: '+target);
@@ -443,6 +466,7 @@ export function rollback(home){
  const folder=path.resolve(home,state.backup);
  assert(folder.startsWith(path.join(path.resolve(home),'backups')+path.sep),'Backup must stay inside this DSH_HOME');
  const records=readJson(path.join(folder,'backup.json'));
+ for(const entry of records)if(entry.path.startsWith('skills/'))assertManagedSkillPath(home,entry.path);
  backup(home,records.map(x=>x.path));
  for(const entry of records){
   assert(!path.isAbsolute(entry.path)&&!entry.path.split('/').includes('..'),'Unsafe restore path');

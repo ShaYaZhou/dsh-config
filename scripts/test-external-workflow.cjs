@@ -7,6 +7,7 @@ const {withAgentTestHomeLock} = require('./test-home.cjs');
 async function main() {
   const home=process.env.DSH_HOME, native=process.env.DSH_NATIVE_ROOT;
   assert(home && native);
+  process.env.DSH_MEME_HOME=path.basename(home)==='.dsh'?path.dirname(home):path.join(home,'meme-home');
   process.env.OPENAI_API_KEY='isolated-workflow-fixture';
   const load=name=>import(pathToFileURL(path.join(native,name,'lib/index.js')));
   const boot=path.join(native,'dsh/lib/profile-boot.js');
@@ -14,6 +15,7 @@ async function main() {
   const {loadLayeredEnv}=await load('dsh-app-boot');
   const patch=path.join(home,'external-workflow-test.patch.json');
   fs.writeFileSync(patch,JSON.stringify([
+    {id:'orca-agent-hooks',disabled:true},
     {id:'desktop-product-telemetry',disabled:true},
     {id:'product-analytics',disabled:true},
     {id:'mnemon',config:{lifecycleEnabled:false,writeEnabled:false}},

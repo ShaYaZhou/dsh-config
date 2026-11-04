@@ -27,12 +27,13 @@ export function mergeManaged(base,live,next,label='managed configuration'){
    return value===ABSENT?[]:[[key,value]];
   }));
  }
- if(Array.isArray(base)&&Array.isArray(live)&&Array.isArray(next)){
-  if([...base,...live,...next].every(x=>typeof x==='string')){
-   const retained=next.filter(x=>!base.includes(x)||live.includes(x));
-   return [...new Set([...retained,...live.filter(x=>!base.includes(x))])];
+ if((base===ABSENT||Array.isArray(base))&&Array.isArray(live)&&Array.isArray(next)){
+  const before=base===ABSENT?[]:base;
+  if([...before,...live,...next].every(x=>typeof x==='string')){
+   const retained=next.filter(x=>!before.includes(x)||live.includes(x));
+   return [...new Set([...retained,...live.filter(x=>!before.includes(x))])];
   }
-  const rows=[base,live,next].map(items=>items.map(row=>[rowKey(row),row]));
+  const rows=[before,live,next].map(items=>items.map(row=>[rowKey(row),row]));
   if(rows.every(items=>items.every(([key])=>key!==undefined)&&new Set(items.map(([key])=>key)).size===items.length)){
    const [b,l,n]=rows.map(items=>Object.fromEntries(items));
    const merged=mergeManaged(b,l,n,label);
@@ -43,8 +44,19 @@ export function mergeManaged(base,live,next,label='managed configuration'){
  throw new Error('Local and template changes conflict in '+label+'; existing files were not overwritten');
 }
 
-export const preservedConfig=file=>file==='AGENTS.md'||file==='hooks.json'||file==='cordis.patch.yml'||/^profiles\/[^/]+\/(?:package\.json|cordis\.patch\.yml|pnpm-workspace\.yaml)$/.test(file);
+export const pluginPreferenceFiles=new Set(['.dshw-size.json','dsh-expression.json','skills-manager/state.json']);
+export const preservedConfig=file=>pluginPreferenceFiles.has(file)||file==='AGENTS.md'||file==='hooks.json'||file==='cordis.patch.yml'||/^profiles\/[^/]+\/(?:package\.json|cordis\.patch\.yml|pnpm-workspace\.yaml)$/.test(file);
 export const baselinePath=file=>'.portable-harness/generated/'+file;
+export function assertManagedSkillPath(home,relative){
+ assert(relative.startsWith('skills/')&&!relative.split('/').includes('..'),'Invalid managed skill path');
+ let current=path.resolve(home);
+ for(const part of relative.split('/')){
+  current=path.join(current,part);
+  const info=fs.lstatSync(current,{throwIfNoEntry:false});
+  if(!info)break;
+  assert(!info.isSymbolicLink(),'Linked DSH skill path must be resolved before deployment: '+relative);
+ }
+}
 const digest=file=>fs.existsSync(file)?createHash('sha256').update(fs.readFileSync(file)).digest('hex'):null;
 
 export function reconcileDeployment(home,files,previous,{parseYaml,emitYaml}){
@@ -58,6 +70,15 @@ export function reconcileDeployment(home,files,previous,{parseYaml,emitYaml}){
    continue;
   }
   const liveText=fs.readFileSync(target,'utf8');
+  // Adopt only these two data files; keep user material selections and private fields local.
+  if(pluginPreferenceFiles.has(file)&&!previous?.generatedHashes?.[baselinePath(file)]){
+   let live,defaults;
+   try{live=JSON.parse(liveText);defaults=JSON.parse(desiredText);}
+   catch{throw new Error('Cannot safely parse plugin preferences: '+file+'; no values printed');}
+   assert(object(live)&&object(defaults),'Plugin preferences must be objects: '+file);
+   files.set(file,JSON.stringify({...defaults,...live},null,2)+'\n');
+   continue;
+  }
   let baseText;
   const baseline=path.join(home,baselinePath(file));
   const baselineHash=previous?.generatedHashes?.[baselinePath(file)];

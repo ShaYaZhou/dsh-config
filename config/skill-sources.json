@@ -1,0 +1,288 @@
+{
+  "archiving-openspec-change": {
+    "source": "yu-iskw/openspec-skills",
+    "sourceUrl": "https://github.com/yu-iskw/openspec-skills.git",
+    "localChanges": [
+      "SKILL.md rewritten locally; fixed CLI version 1.14.3"
+    ],
+    "implementation": "Local wrapper using public OpenSpec CLI; upstream entry name retained for compatibility."
+  },
+  "checking-openspec-status": {
+    "source": "yu-iskw/openspec-skills",
+    "sourceUrl": "https://github.com/yu-iskw/openspec-skills.git",
+    "localChanges": [
+      "SKILL.md rewritten locally; fixed CLI version 1.14.3"
+    ],
+    "implementation": "Local wrapper using public OpenSpec CLI; upstream entry name retained for compatibility."
+  },
+  "creating-openspec-change": {
+    "source": "yu-iskw/openspec-skills",
+    "sourceUrl": "https://github.com/yu-iskw/openspec-skills.git",
+    "localChanges": [
+      "SKILL.md rewritten locally; fixed CLI version 1.14.3"
+    ],
+    "implementation": "Local wrapper using public OpenSpec CLI; upstream entry name retained for compatibility."
+  },
+  "find-skills": {
+    "source": "vercel-labs/skills",
+    "sourceUrl": "https://github.com/vercel-labs/skills.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Vercel-Skills-LICENSE.txt"
+  },
+  "getting-openspec-artifact-instructions": {
+    "source": "yu-iskw/openspec-skills",
+    "sourceUrl": "https://github.com/yu-iskw/openspec-skills.git",
+    "localChanges": [
+      "SKILL.md rewritten locally; fixed CLI version 1.14.3"
+    ],
+    "implementation": "Local wrapper using public OpenSpec CLI; upstream entry name retained for compatibility."
+  },
+  "initializing-openspec": {
+    "source": "yu-iskw/openspec-skills",
+    "sourceUrl": "https://github.com/yu-iskw/openspec-skills.git",
+    "localChanges": [
+      "SKILL.md rewritten locally; fixed CLI version 1.14.3"
+    ],
+    "implementation": "Local wrapper using public OpenSpec CLI; upstream entry name retained for compatibility."
+  },
+  "inline-figure": {
+    "source": "local skill installation",
+    "sourceUrl": null,
+    "localChanges": [
+      "tools/render.py: discover Windows browser roots from environment"
+    ]
+  },
+  "lark-approval": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-apps": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [
+      "references\\lark-apps-db-execute.md"
+    ],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-attendance": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-base": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-calendar": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-contact": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-doc": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [
+      "references/lark-doc-md.md: use relative paths in escaping examples"
+    ],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-drive": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-event": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-im": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-mail": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-markdown": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-minutes": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-note": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-okr": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-openapi-explorer": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-shared": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-sheets": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-skill-maker": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-slides": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-task": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-vc": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-vc-agent": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-whiteboard": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-wiki": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-workflow-meeting-summary": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "lark-workflow-standup-report": {
+    "source": "larksuite/cli",
+    "sourceUrl": "https://github.com/larksuite/cli.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Lark-CLI-MIT.txt"
+  },
+  "liclick": {
+    "source": "local skill installation",
+    "sourceUrl": null,
+    "localChanges": []
+  },
+  "listing-openspec-items": {
+    "source": "yu-iskw/openspec-skills",
+    "sourceUrl": "https://github.com/yu-iskw/openspec-skills.git",
+    "localChanges": [
+      "SKILL.md rewritten locally; fixed CLI version 1.14.3"
+    ],
+    "implementation": "Local wrapper using public OpenSpec CLI; upstream entry name retained for compatibility."
+  },
+  "ponytail-audit": {
+    "source": "DietrichGebert/ponytail",
+    "sourceUrl": "https://github.com/DietrichGebert/ponytail.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Ponytail-LICENSE.txt"
+  },
+  "ponytail-debt": {
+    "source": "DietrichGebert/ponytail",
+    "sourceUrl": "https://github.com/DietrichGebert/ponytail.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Ponytail-LICENSE.txt"
+  },
+  "ponytail-gain": {
+    "source": "DietrichGebert/ponytail",
+    "sourceUrl": "https://github.com/DietrichGebert/ponytail.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Ponytail-LICENSE.txt"
+  },
+  "ponytail-help": {
+    "source": "DietrichGebert/ponytail",
+    "sourceUrl": "https://github.com/DietrichGebert/ponytail.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Ponytail-LICENSE.txt"
+  },
+  "ponytail-review": {
+    "source": "DietrichGebert/ponytail",
+    "sourceUrl": "https://github.com/DietrichGebert/ponytail.git",
+    "localChanges": [],
+    "licenseFile": "licenses/Ponytail-LICENSE.txt"
+  },
+  "updating-openspec-instructions": {
+    "source": "yu-iskw/openspec-skills",
+    "sourceUrl": "https://github.com/yu-iskw/openspec-skills.git",
+    "localChanges": [
+      "SKILL.md rewritten locally; fixed CLI version 1.14.3"
+    ],
+    "implementation": "Local wrapper using public OpenSpec CLI; upstream entry name retained for compatibility."
+  },
+  "validating-openspec-items": {
+    "source": "yu-iskw/openspec-skills",
+    "sourceUrl": "https://github.com/yu-iskw/openspec-skills.git",
+    "localChanges": [
+      "SKILL.md rewritten locally; fixed CLI version 1.14.3"
+    ],
+    "implementation": "Local wrapper using public OpenSpec CLI; upstream entry name retained for compatibility."
+  },
+  "viewing-openspec-item-details": {
+    "source": "yu-iskw/openspec-skills",
+    "sourceUrl": "https://github.com/yu-iskw/openspec-skills.git",
+    "localChanges": [
+      "SKILL.md rewritten locally; fixed CLI version 1.14.3"
+    ],
+    "implementation": "Local wrapper using public OpenSpec CLI; upstream entry name retained for compatibility."
+  }
+}

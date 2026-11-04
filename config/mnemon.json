@@ -1,0 +1,16 @@
+{
+  "embedding": {
+    "enabled": true,
+    "endpoint": "http://127.0.0.1:11434",
+    "model": "nomic-embed-text",
+    "protocol": "auto"
+  },
+  "memoryView": {
+    "strategyTypeId": "default-three-tier",
+    "entries": {
+      "include:mnemon-strategy-auto-capture": {"config": {}},
+      "include:mnemon-strategy-scoped": {"config": {}},
+      "include:mnemon-strategy-light-context": {"config": {}}
+    }
+  }
+}

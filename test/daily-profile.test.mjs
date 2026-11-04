@@ -28,7 +28,7 @@ test('daily profile uses native PTC, private browsers and the requested enhancem
  const home=path.join(os.tmpdir(),'daily profile with spaces');
  const plan=renderDailyPlan(home,settingsFrom(path.join(repository,'config/local.example.json'),{}));
  const daily=JSON.parse(plan.get('profiles/desktop/package.json'));
- for(const name of ['dsh-mnemon','dsh-codex-hooks','@local/dsh-idle-settings']) {
+ for(const name of ['dsh-mnemon','dsh-codex-hooks','@local/dsh-idle-settings','dsh-meme','dsh-whale-widget','dsh-comfyui','dsh-ego-browser']) {
   assert(daily.dependencies[name]); assert(daily.dsh.profile.bundles.includes(name));
  }
  assert(![...plan.keys()].some(file=>file.startsWith('profiles/enhanced/')));
@@ -48,11 +48,15 @@ test('daily profile uses native PTC, private browsers and the requested enhancem
   assert(!plan.has('profiles/desktop/agent-capabilities/inline-skills/catalog/'+name+'/SKILL.md'));
  assert.deepEqual([...plan.keys()].filter(p=>p.startsWith('profiles/desktop/agent-capabilities/skills/')),
   []);
- const optional=patch.flatMap(p=>p.insert??[]).filter(p=>typeof p.disabled==='boolean');
+ const optional=patch.flatMap(p=>p.insert??[]).filter(p=>typeof p.disabled==='boolean'&&p.name?.startsWith('file:'));
  assert.deepEqual(optional.filter(p=>p.disabled).map(p=>p.id),[]);
  assert.deepEqual(optional.filter(p=>!p.disabled).map(p=>p.id),['claude-context']);
  for(const row of optional) assert(plan.has('profiles/desktop/agent-capabilities/'+path.basename(new URL(row.name).pathname)));
- assert.equal(plan.get('cordis.patch.yml').trim(),'[]');
+ assert.deepEqual(JSON.parse(plan.get('cordis.patch.yml')),[]);
+ assert.equal(patch.find(p=>p.id==='mnemon').config.embedding.model,'nomic-embed-text');
+ assert(!Object.hasOwn(patch.find(p=>p.id==='mnemon').config.embedding,'apiKey'));
+ for(const id of ['mnemon-strategy-scoped','mnemon-strategy-auto-capture','mnemon-strategy-light-context'])assert.equal(patch.find(p=>p.id===id).disabled,false);
+ assert.deepEqual(JSON.parse(plan.get('dsh-expression.json')),{sendGear:'active',pickerSendOnClick:false});
 });
 
 test('browser boundary rejects privileged code and custom export destinations', () => {
@@ -64,6 +68,25 @@ test('browser boundary rejects privileged code and custom export destinations', 
  assert(scope.guard({name:'mcp__playwright__browser_take_screenshot',arguments:{filename:'../escape'}}));
  assert(scope.guard({name:'mcp__playwright__browser_run_code_unsafe',arguments:{}}));
  assert(scope.guard({name:'mcp__playwright__browser_snapshot',arguments:{sandbox_permissions:'require_escalated'}}));
+});
+
+test('shared skills include binary and template resources without UTF-8 corruption',()=>{
+ const plan=renderDailyPlan(path.join(os.tmpdir(),'shared skills home'),settingsFrom('/nonexistent'));
+ const manifest=JSON.parse(fs.readFileSync(path.join(repository,'config/skill-sources.json'),'utf8'));
+ const seen=new Set();
+ function verify(dir,prefix){
+  for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
+   const file=path.join(dir,entry.name),relative=prefix+'/'+entry.name;
+   if(entry.isDirectory()){verify(file,relative);continue;}
+   const deployed=plan.get('skills/'+relative);
+   assert.notEqual(deployed,undefined,'Missing skill resource: '+relative);
+   assert.deepEqual(Buffer.from(deployed),fs.readFileSync(file),relative);
+   seen.add(path.extname(entry.name));
+  }
+ }
+ for(const name of Object.keys(manifest))verify(path.join(repository,'skills',name),name);
+ for(const extension of ['.html','.jsx','.xml','.png'])assert(seen.has(extension));
+ assert(plan.has('skills/rtk-reference/SKILL.md'));
 });
 
 test('native stop remains blocked after later completed turns and cleanup markers survive folding', () => {

@@ -9,6 +9,7 @@ const {withAgentTestHomeLock} = require('./test-home.cjs');
 
 async function main() {
   const home = process.env.DSH_HOME;
+  process.env.DSH_MEME_HOME=path.basename(home)==='.dsh'?path.dirname(home):path.join(home,'meme-home');
   if(process.env.DSH_VERIFY_MANAGED_SKILLS==='1') {
     process.env.DSH_AGENTS_HOME=path.join(home,'empty-shared-agent-home');
     fs.mkdirSync(process.env.DSH_AGENTS_HOME,{recursive:true});
@@ -22,6 +23,7 @@ async function main() {
   fs.mkdirSync(output, {recursive: true});
   const patch = path.join(output, 'patch.json');
   fs.writeFileSync(patch, JSON.stringify([
+    {id:'orca-agent-hooks',disabled:true},
     {id: 'desktop-product-telemetry', disabled: true},
     {id: 'product-analytics', disabled: true},
     ...(process.env.DSH_VERIFY_MANAGED_SKILLS==='1'?[{id:'skills-manager',disabled:true}]:[]),

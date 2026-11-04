@@ -1,0 +1,43 @@
+# 本机安装与仓库对齐
+
+2026-11-04 对比 desktop/headless 的包、bundle、生成配置与实际覆盖、AGENTS、技能来源、有效 Hook 和插件偏好。`status` 的文件哈希只证明受管文件一致，不能证明个人安装已纳入仓库；现在同时报告包和 bundle 声明差异。
+
+## 补入的安装项
+
+| 包 | 固定版本 | 前置条件 |
+|---|---|---|
+| dsh-meme | 0.1.76 | 包含上游默认图库；个人导入图库不分发 |
+| dsh-whale-widget | 0.4.2 | 包含上游素材；个人角色、账本与音效文件不分发 |
+| dsh-comfyui | 0.5.5 | 实际生成需要自己的 ComfyUI 服务 |
+| dsh-ego-browser | 0.9.8 | 浏览器登录态与任务空间各自保留 |
+| @deepseek-ai/dsh-subagent-claude-code | 0.2.1-rc.5 | 自行安装并授权对应 CLI |
+| @deepseek-ai/dsh-subagent-codex | 0.2.1-rc.5 | 自行安装并授权对应 CLI |
+
+同时补入本机已启用的官方 bundle：会话搜索、持久终端、智能体团队、Ralph、插件市场、徽章技能、Inspector、自动授权审查、语音输入、Git worktree 和思考翻译。加上上表六项，共补齐 17 个 bundle 声明。这些是本机原有的官方功能，不是恢复已删除的自建 Team/worktree。
+
+## 配置与 Hook
+
+- Mnemon：`config/mnemon.json` 保存三层策略及本地 embedding 配置。对应环境需要 Ollama 在本机 11434 端口服务并准备 `nomic-embed-text`；没有该服务时，应在 Mnemon 设置关闭 embedding 或改为自己的服务。不会同步 API key 或记忆数据。
+- 表情包和 Whale：`config/plugin-preferences.json` 保存通用显示默认值；首次接管已有设置时保留本机字段，后续三方合并保留个人更改。角色、图库路径、订阅、账本和浏览器位置不上传。
+- RTK：同步两条 dsh-codex-hooks 定义和 `rtk-hooks.mjs`。路径按目标电脑生成，精确信任在安装时生成，不复制本机信任记录。
+- Orca：按用户要求不加入共享 DSH Hook 配置，不复制或分发外部应用生成的文件。本机原有、非受管的外部应用配置不代表仓库依赖。
+- 旧 `claude-hooks.json`、`hooks/rtk-gate.js` 当前未挂载，不重新启用；已卸载插件的兼容豁免不同步。
+- 全局 AGENTS 已与模板一致，无额外个人段落需要导出。
+
+## 技能
+
+`config/skill-sources.json` 记录新增 44 项技能的来源和必要修改：27 项 lark 技能、LiClick、find-skills、5 项 Ponytail 附属技能、inline-figure、9 项兼容旧入口名的自写 OpenSpec CLI 包装。自写包装固定调用 1.14.3，未复制缺少独立许可文本的旧包装原文；原有 6 项官方 OpenSpec 技能保留。HTML、JSX、XML、PNG 和 LiClick 脚本锁文件一起分发，PNG 按二进制复制。
+
+- lark 技能需安装 `@larksuite/cli` 并使用自己的飞书授权；本机核对版本为 1.0.84。来源为 larksuite/cli，许可文本保留在 `licenses/Lark-CLI-MIT.txt`。
+- LiClick 需 Atlas CLI 与自己的登录态；3D 缩略图辅助脚本首次使用时按其 package-lock 安装依赖。生成能力本身由 Atlas/LiClick 服务提供。
+- inline-figure 可降级为 HTML；不因此宣称 DSH 已注册 visualize MCP。其 Windows 浏览器路径改为按环境变量发现。
+- 新增共享技能及 RTK 修正版受管部署到 DSH 用户技能根，避免共享目录里的旧规则胜出；不修改其他应用的共享技能。若已有不同的 DSH 同名文件，安装会停止要求解决冲突。
+- skills-manager 的来源开关和禁用名单可复用；分类、排序等用户数据保留。
+
+未原样复制的 6 项均有明确理由：computer-use、orca-cli、orchestration 已在本机 DSH 禁用；video-download、sensortower-chart 依赖固定 Linux 路径或其他应用的 token/发送逻辑；reverse-engineer-anything 需要尚未接入本 DSH 的 REA 工具。它们不是未发现的遗漏。
+
+## 安装边界
+
+拉取后仍需运行 `install --dry-run`，任务结束并完全退出 Harness 后再 `install`。安装器不自动登录第三方服务，也不安装系统级 Ollama、Atlas、Lark、Claude 或 Codex CLI。
+
+隔离测试必须给 dsh-meme 设置 `DSH_MEME_HOME`：上游在该目录下拼接 `.dsh`，不采用普通 `DSH_HOME`。建议隔离 home 使用 `测试目录/.dsh`。任意自定义 DSH_HOME 使用者也须配置匹配的 meme 数据根；默认用户目录安装不受影响。

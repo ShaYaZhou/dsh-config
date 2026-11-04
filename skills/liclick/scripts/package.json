@@ -1,0 +1,14 @@
+{
+  "name": "liclick-skill-render",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "3D model thumbnail renderer for the liclick skill (pure Node, no GL).",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "^1.0.0",
+    "three": "^0.184.0"
+  }
+}

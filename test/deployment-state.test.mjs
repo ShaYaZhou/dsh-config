@@ -4,7 +4,40 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {mergeManaged,reconcileDeployment,baselinePath,deploymentInputs,assertNoUncapturedCode} from '../scripts/deployment-state.mjs';
+import {mergeManaged,reconcileDeployment,baselinePath,deploymentInputs,assertNoUncapturedCode,assertManagedSkillPath} from '../scripts/deployment-state.mjs';
+
+test('managed skill writes refuse junctions into shared directories even with identical content',()=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'dsh-skill-path-'));
+ try{
+  const home=path.join(root,'dsh-home'),outside=path.join(root,'shared-skill');
+  fs.mkdirSync(path.join(home,'skills'),{recursive:true});fs.mkdirSync(outside);
+  fs.writeFileSync(path.join(outside,'SKILL.md'),'same content');
+  const link=path.join(home,'skills','sample');fs.symlinkSync(outside,link,process.platform==='win32'?'junction':'dir');
+  assert.throws(()=>assertManagedSkillPath(home,'skills/sample/SKILL.md'),/Linked DSH skill path/);
+  assert.equal(fs.readFileSync(path.join(outside,'SKILL.md'),'utf8'),'same content');
+  fs.unlinkSync(link);fs.mkdirSync(link);fs.writeFileSync(path.join(link,'SKILL.md'),'same content');
+  assert.doesNotThrow(()=>assertManagedSkillPath(home,'skills/sample/SKILL.md'));
+  assert.throws(()=>assertManagedSkillPath(home,'skills/../../outside'),/Invalid managed skill path/);
+ }finally{fs.rmSync(root,{recursive:true,force:true});}
+});
+
+test('adopting plugin defaults retains private material selections outside the baseline',()=>{
+ const home=fs.mkdtempSync(path.join(os.tmpdir(),'dsh-preferences-'));
+ try{
+  const file='dsh-expression.json',live={sendGear:'quiet',memeRoot:'/private/art',remoteSubs:['private-reference']};
+  fs.writeFileSync(path.join(home,file),JSON.stringify(live));
+  const defaults={sendGear:'active',pickerSendOnClick:false};
+  const files=new Map([[file,JSON.stringify(defaults)]]);
+  const result=reconcileDeployment(home,files,undefined,{parseYaml:JSON.parse,emitYaml:JSON.stringify});
+  assert.deepEqual(JSON.parse(files.get(file)),{...defaults,...live});
+  assert.deepEqual(JSON.parse(result.baselines.get(baselinePath(file))),defaults);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(home,file),'utf8')),live);
+  fs.writeFileSync(path.join(home,file),'[]');
+  assert.throws(()=>reconcileDeployment(home,new Map([[file,JSON.stringify(defaults)]]),undefined,{parseYaml:JSON.parse,emitYaml:JSON.stringify}),/must be objects/);
+  fs.writeFileSync(path.join(home,file),'{"private-value":"broken');
+  assert.throws(()=>reconcileDeployment(home,new Map([[file,JSON.stringify(defaults)]]),undefined,{parseYaml:JSON.parse,emitYaml:JSON.stringify}),error=>error.message.includes('Cannot safely parse')&&!error.message.includes('private-value'));
+ }finally{fs.rmSync(home,{recursive:true,force:true});}
+});
 
 test('three-way deployment preserves market additions, model edits and user removals',()=>{
  const base={dependencies:{owned:'1'},bundles:['owned','removed'],providers:{a:{model:'old'}}};
@@ -19,6 +52,13 @@ test('native keyed patch rows preserve local overrides while updating independen
  const merged=mergeManaged(base,live,next);
  assert.equal(merged.find(r=>r.id==='one').disabled,false);
  assert.equal(merged[0].config.providers.local.model,'custom');assert.equal(merged[1].insert[0].disabled,false);
+});
+
+test('adopting an existing inserted hook merges new fields and refuses conflicting paths',()=>{
+ const live=[{insert:[{id:'bridge',config:{configPath:'local-hooks.json'}}]}];
+ const next=[{insert:[{id:'bridge',disabled:false,config:{configPath:'local-hooks.json'}}]}];
+ assert.deepEqual(mergeManaged([],live,next),next);
+ assert.throws(()=>mergeManaged([],live,[{insert:[{id:'bridge',config:{configPath:'different.json'}}]}]),/conflict/);
 });
 test('conflicting edits and ambiguous arrays refuse without echoing values',()=>{
  assert.throws(()=>mergeManaged({value:'base'},{value:'private-local'},{value:'private-template'},'profile'),e=>e.message.includes('profile')&&!e.message.includes('private-'));
