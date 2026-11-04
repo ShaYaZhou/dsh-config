@@ -1,6 +1,6 @@
 # 浏览器批注与桌面控制
 
-桌面配置使用现有 Playwright MCP `0.0.83`，开启可见 Chromium、`vision,devtools` 和快照坐标。新增同版本官方 `dsh-computer-use` 注册服务及 CUA Driver native provider `0.2.1-rc.2`，其 SDK 固定为 `0.28.0`。没有额外安装第三方批注或浏览器插件。
+桌面配置使用现有 Playwright MCP `0.0.83`，开启可见 Chromium、`vision,devtools` 和快照坐标。新增同版本官方 `dsh-computer-use` 注册服务及 CUA Driver native provider `0.2.1-rc.5`，其 SDK 固定为 `0.28.0`。没有额外安装第三方批注或浏览器插件。
 
 安装后需等当前任务结束，从菜单真正退出 Harness 再打开。Harness 右侧内置浏览器仍使用原生载体，工具栏新增“批注”；Playwright 的独立浏览器与 Dashboard 是另一条自动化链路，不应混为同一页面。
 
@@ -32,7 +32,7 @@
 
 原生桌面控制使用 `cua_driver_native__*`。先发现准确应用与窗口，再获取 UIA 元素/截图；使用当前元素 token 或截图坐标操作，最后读取新状态验证。优先后台投递；遇到明确拒绝不能擅自切换前台或另一个窗口。
 
-此 profile 为每个 Agent 注册自己的 `computer-use` runtime skill，优先于共享用户技能中的同名 LiWork 入口；本机共享技能文件和其他应用配置不改写。这样换电脑后即使存在共享 LiWork 技能，也会解析到当前 Harness 的原生工具。用户在技能管理器中关闭旧入口的设置同样保留。
+computer-use 使用官方注册服务与原生驱动；自定义指导模块和同名 runtime skill 已删除。
 
 ## 选择依据与验证
 

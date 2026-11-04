@@ -17,6 +17,12 @@ export function checkRtk({platform=process.platform, run=spawnSync}={}) {
     assert(help.status===0&&new RegExp('\\b'+filter+'\\b','i').test(help.stdout??''),
       'Required RTK filter unavailable: '+filter+'. Verify or upgrade the official rtk-ai/rtk package.');
   }
+  const hook=run(executable,['hook','claude'],{...options,
+    input:JSON.stringify({tool_name:'Bash',tool_input:{command:'git status'}})});
+  let replacement;
+  try { replacement=JSON.parse(hook.stdout??'').hookSpecificOutput?.updatedInput?.command; } catch {}
+  assert(hook.status===0&&replacement==='rtk git status',
+    'Required RTK hook JSON interface unavailable. Upgrade rtk-ai/rtk before installing the managed hooks. No command was executed.');
   if(platform==='win32') {
     const shell=run('pwsh.exe',['-NoLogo','-NoProfile','-NonInteractive','-Command',
       "$ErrorActionPreference='Stop'; Get-Command rtk.exe -CommandType Application -ErrorAction Stop | Out-Null; & rtk.exe --version; exit $LASTEXITCODE"],options);

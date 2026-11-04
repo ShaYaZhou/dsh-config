@@ -8,6 +8,7 @@ import {spawnSync} from 'node:child_process';
 import {createRequire} from 'node:module';
 import testHome from './test-home.cjs';
 import {checkRtk} from './check-rtk.mjs';
+import {parseHooksFile, describeHooks, readStateFile, writeStateFile} from '../plugins/codex-hooks/lib/core.js';
 import {reconcileDeployment, deploymentInputs, baselinePath, preservedConfig, assertNoUncapturedCode} from './deployment-state.mjs';
 
 export const repository=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
@@ -18,7 +19,7 @@ const digest=file=>fs.existsSync(file)?createHash('sha256').update(fs.readFileSy
 const configuration=name=>readJson(path.join(repository,'config',name));
 const provenance=readJson(path.join(repository,'provenance.json'));
 const stamp=()=>new Date().toISOString().replaceAll(':','-').replaceAll('.','-');
-const dailyArtifactIds=new Set(Object.values(readJson(path.join(repository,'presets/daily/desktop.package.json')).dependencies).filter(spec=>spec.startsWith('@artifact/')).map(spec=>spec.slice(10)));
+const dailyArtifactIds=new Set(Object.values(configuration('desktop.package.json').dependencies).filter(spec=>spec.startsWith('@artifact/')).map(spec=>spec.slice(10)));
 
 function dependencyPatches(manifest){
  return Object.fromEntries(Object.entries(configuration('dependency-patches.json')).filter(([key])=>Object.entries(manifest.dependencies??{}).some(([name,version])=>key===name+'@'+version||key===name)));
@@ -58,20 +59,18 @@ export function settingsFrom(file,env=process.env){
  assert(providers[value.defaultProvider]?.models?.some(x=>x.id===value.defaultModel),'Configure the selected provider/model before deploying');
  return value;
 }
-export function renderPlan(home,settings,artifacts={}, {clean=false}={}){
+export function renderPlan(home,settings,artifacts={}, {clean=true}={}){
  home=path.resolve(home);
- const directory=clean?path.join(repository,'presets/native'):path.join(repository,'config');
+ const directory=path.join(repository,'presets/native');
  const config=name=>readJson(path.join(directory,name));
- const plugins=clean?[]:provenance.plugins;
- const moduleNames=!clean&&fs.existsSync(path.join(repository,'modules'))?fs.readdirSync(path.join(repository,'modules')).filter(x=>x.endsWith('.mjs')):[];
+ const plugins=[];
+ const moduleNames=[];
  const desktop=path.join(home,'profiles','desktop');
  const tokens={
   '${DSH_HOME}':home,'${DESKTOP_DIR}':desktop,'${NODE_EXECUTABLE}':process.execPath,
   '${MODULE_URL}':pathToFileURL(path.join(desktop,'agent-capabilities')).href,
-  '${MEMORY_URL}':pathToFileURL(path.join(desktop,'node_modules','@dsh-external','dsh-memory','lib','index.js')).href,
   '${PROXY_BASE_URL}':settings.proxyBaseUrl,'${DEFAULT_MODEL}':settings.defaultModel,'${BROWSER}':settings.browser,
   '${REASONING_EFFORT}':settings.reasoningEffort,'${PERMISSION_PRESET}':settings.permissionPreset,
-  '${HOOKS_DISABLED}':!fs.existsSync(path.join(home,'claude-hooks.json')),
   '${USER_HOME}':os.homedir(),
   '${ORCA_HOOKS_DISABLED}':!fs.existsSync(path.join(os.homedir(),'.orca','agent-hooks','dsh-hooks.json'))
  };
@@ -92,21 +91,6 @@ export function renderPlan(home,settings,artifacts={}, {clean=false}={}){
   if(modelAdapter)Object.assign(modelAdapter.config.providers,settings.additionalProviders);
   const defaultModel=patch.find(row=>row.id==='agent-default-model');
   if(defaultModel){defaultModel.config.provider=settings.defaultProvider;if(settings.reasoningEffort===null)delete defaultModel.config.reasoningEffort;}
-  if(!clean&&profile==='desktop'){
-   // PTC reuses the standard capability composition; only model-facing transport differs.
-   const standard=patch.find(row=>row.id==='preset-standard')?.config;
-   if(standard){
-    const ptc=structuredClone(standard);
-    ptc.id='ptc';
-    ptc.order=2;
-    ptc.plugins.push({
-     id:'tool-presentation',
-     name:'@deepseek-ai/dsh-agent-tool-presentation',
-     config:{mode:'ptc'}
-    });
-    patch.push({id:'preset-ptc',config:ptc});
-   }
-  }
   files.set('profiles/'+profile+'/cordis.patch.yml',emitYaml(patch));
   const lock=path.join(directory,profile+'.lock.yaml');
   if(fs.existsSync(lock)){
@@ -123,7 +107,6 @@ export function renderPlan(home,settings,artifacts={}, {clean=false}={}){
  for(const name of moduleNames){
   files.set('profiles/desktop/agent-capabilities/'+name,fs.readFileSync(path.join(repository,'modules',name),'utf8'));
  }
- if(!clean)for(const [target,source]of Object.entries(desktopSkillSources()))files.set(target,fs.readFileSync(path.join(repository,source),'utf8'));
  files.set('profiles/desktop/agent-capabilities/manifest.json',json({managedBy:'deepseek-harness-config',flavor:clean?'native':provenance.flavor,runtime:provenance.runtime,modules:Object.fromEntries(moduleNames.map(name=>[name,digest(path.join(repository,'modules',name))])),artifacts}));
  return files;
 }
@@ -139,20 +122,13 @@ function skillResources(directory,prefix=''){
  return found;
 }
 
-// Keep the complete profile available without loading it into everyday sessions.
+// The desktop uses native presets plus individually managed capabilities.
 export function renderDailyPlan(home, settings, artifacts = {}) {
- const enhanced = renderPlan(home, settings, artifacts);
  const files = renderPlan(home, settings, {}, {clean:true});
  const oldPath = path.join(path.resolve(home),'profiles','desktop');
- const newPath = path.join(path.resolve(home),'profiles','enhanced');
- for (const [file, content] of enhanced) {
-  if (!file.startsWith('profiles/desktop/')) continue;
-  files.set(file.replace('profiles/desktop/','profiles/enhanced/'), content
-   .replaceAll(pathToFileURL(oldPath).href,pathToFileURL(newPath).href)
-   .replaceAll(JSON.stringify(oldPath).slice(1,-1),JSON.stringify(newPath).slice(1,-1))
-   .replaceAll(oldPath,newPath));
- }
- const daily = readJson(path.join(repository,'presets/daily/desktop.package.json'));
+ files.set('hooks.json',json(renderRtkHooks(home)));
+ files.set('profiles/desktop/agent-capabilities/rtk-hooks.mjs',fs.readFileSync(path.join(repository,'modules/rtk-hooks.mjs'),'utf8'));
+ const daily = configuration('desktop.package.json');
  for(const [pkg,spec]of Object.entries(daily.dependencies))if(spec.startsWith('@artifact/')){
   const id=spec.slice(10);daily.dependencies[pkg]='file:../../local-plugins/'+(artifacts[id]?.filename??id+'-preview.tgz');
  }
@@ -171,8 +147,18 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
  for(const row of configuration('desktop.patch.json'))
   if(['ui-settings-account','locale','ui-theme'].includes(row.id))patch.push(row);
  patch.push({id:'agent-preset-registry',config:{default:'ptc',selectedDefault:'ptc'}});
+ patch.push({id:'mnemon',config:{storageScope:'custom',dataDir:path.join(home,'mnemon'),runtimeUserScope:'storage',
+  cliPath:path.join(oldPath,'node_modules','@mnemon-dev','mnemon','bin','mnemon.js')}});
+ patch.push({insert:[
+  {id:'computer-use',name:'@deepseek-ai/dsh-computer-use'},
+  {id:'computer-use-native',name:'@deepseek-ai/dsh-experimental-computer-use-cua-driver-native'},
+ ]});
+ patch.push({id:'compaction-basic',name:pathToFileURL(path.join(oldPath,'agent-capabilities','compaction-basic.mjs')).href});
+ files.set('profiles/desktop/agent-capabilities/compaction-basic.mjs',fs.readFileSync(path.join(repository,'modules/compaction-basic.mjs'),'utf8'));
+
  const widgetSkill=path.join(oldPath,'agent-capabilities','inline-skills','dynamic-ui');
  patch.push({id:'dynamic-ui-view',config:{skillDirectory:widgetSkill}});
+ patch.push({id:'liclick-adapter',config:{stateDirectory:path.join(oldPath,'liclick-adapter')}});
  for(const file of ['SKILL.md',...skillResources(path.join(repository,'skills/dynamic-ui'))])
   files.set('profiles/desktop/agent-capabilities/inline-skills/dynamic-ui/'+file,
    fs.readFileSync(path.join(repository,'skills/dynamic-ui',file),'utf8'));
@@ -183,27 +169,19 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
  // Daily defaults follow the selected management switches; native
  // pluginManager still controls each entry after deployment.
  const optionalModules = {
-  'agent-team-local':'team.mjs', 'tool-agent-team-local':'team-tools.mjs',
-  'tool-worktree':'worktree-tools.mjs', 'browser-guidance':'browser-guidance.mjs',
-  'session-bus':'session-bus.mjs', 'claude-context':'claude-context.mjs', 'usage-report':'usage-report.mjs',
+  'claude-context':'claude-context.mjs',
  };
- // Team and the independently switchable worktree tool share this service.
- patch.push({insert:[{id:'worktree',name:pathToFileURL(path.join(oldPath,'agent-capabilities','worktree.mjs')).href}]});
  patch.push({insert:Object.entries(optionalModules).map(([id,file])=>({id,
   name:pathToFileURL(path.join(oldPath,'agent-capabilities',file)).href,
-  disabled:['agent-team-local','tool-agent-team-local','browser-guidance'].includes(id)}))});
+  disabled:false}))});
  for(const file of Object.values(optionalModules))
   files.set('profiles/desktop/agent-capabilities/'+file,fs.readFileSync(path.join(repository,'modules',file),'utf8'));
- files.set('profiles/desktop/agent-capabilities/worktree.mjs',fs.readFileSync(path.join(repository,'modules/worktree.mjs'),'utf8'));
- files.set('profiles/desktop/agent-capabilities/skills/computer-use/SKILL.md',
-  fs.readFileSync(path.join(repository,'skills/computer-use/SKILL.md'),'utf8'));
  // Restore on-demand skills without the removed automatic orchestration policy.
- // Dynamic UI has its own provider; desktop control and spec orchestration need
- // capabilities that remain explicitly outside the daily composition.
- const enhancedOnlySkills = new Set(['dynamic-ui','computer-use','workflow-orchestration','dsh-spec-delivery']);
+ // Dynamic UI has its own provider; optional computer-use guidance stays separate.
+ const separateSkills = new Set(['dynamic-ui']);
  for(const [file,source] of Object.entries(desktopSkillSources())) {
   const skill=file.split('/')[4];
-  if(!enhancedOnlySkills.has(skill))files.set(file.replace('/skills/','/inline-skills/catalog/'),fs.readFileSync(path.join(repository,source),'utf8'));
+  if(!separateSkills.has(skill))files.set(file.replace('/skills/','/inline-skills/catalog/'),fs.readFileSync(path.join(repository,source),'utf8'));
  }
  patch.push({insert:[{id:'daily-managed-skills',name:'@deepseek-ai/dsh-skill-filesystem',config:{
   providerName:'daily-managed',includeDefaultRoots:false,
@@ -212,8 +190,8 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
  files.set('profiles/desktop/cordis.patch.yml',emitYaml(patch));
  files.set('profiles/desktop/agent-capabilities/isolated-browser.mjs',fs.readFileSync(path.join(repository,'modules/isolated-browser.mjs'),'utf8'));
  files.set('profiles/desktop/agent-capabilities/manifest.json',json({managedBy:'deepseek-harness-config',flavor:'daily',runtime:provenance.runtime,
-  modules:Object.fromEntries(['isolated-browser.mjs','worktree.mjs',...Object.values(optionalModules)].map(file=>[file,digest(path.join(repository,'modules',file))])),artifacts:{}}));
- const lock=path.join(repository,'presets/daily/desktop.lock.yaml');
+  modules:Object.fromEntries(['isolated-browser.mjs','compaction-basic.mjs','rtk-hooks.mjs',...Object.values(optionalModules)].map(file=>[file,digest(path.join(repository,'modules',file))])),artifacts:{}}));
+ const lock=path.join(repository,'config/desktop.lock.yaml');
  if(fs.existsSync(lock)){
   let text=fs.readFileSync(lock,'utf8');
   for(const id of dailyArtifactIds){
@@ -317,6 +295,27 @@ export function staleModulePaths(previous,next){
   return ((rest.length===1&&rest[0].endsWith('.mjs'))||(rest.length>=3&&['skills','inline-skills'].includes(rest[0])))&&!next.has(relative);
  });
 }
+export function renderRtkHooks(home) {
+ const quote=value=>{
+  if(process.platform==='win32'){
+   assert(!/["%\r\n]/.test(value),'Unsupported characters in the RTK hook path');
+   return '"'+value+'"';
+  }
+  return "'"+value.replaceAll("'", "'\"'\"'")+"'";
+ };
+ const script=path.join(path.resolve(home),'profiles','desktop','agent-capabilities','rtk-hooks.mjs');
+ const command=quote(process.execPath)+' '+quote(script);
+ return substitute(configuration('rtk-hooks.json'),{'${RTK_CONTEXT_COMMAND}':command+' context','${RTK_CHECK_COMMAND}':command+' check'});
+}
+export function configureRtkHook(home) {
+ const file=path.join(home,'hooks.json');
+ const options={sourceKey:file,platform:process.platform};
+ const expected=new Set(describeHooks(parseHooksFile(json(renderRtkHooks(home))),options).map(hook=>hook.hash));
+ const hooks=describeHooks(parseHooksFile(fs.readFileSync(file,'utf8')),options);
+ const stateFile=path.join(home,'hooks.state.json'),state=readStateFile(stateFile);
+ for(const hook of hooks)if(expected.has(hook.hash))state.states[hook.key]={...state.states[hook.key],trustedHash:hook.hash};
+ writeStateFile(stateFile,state);
+}
 export function install(home,settings,{dryRun=false,refreshLock=false,clean=false,settings:settingsFile}={}){
  const plan = records => clean ? renderPlan(home,settings,records,{clean:true}) : renderDailyPlan(home,settings,records);
  const stateFile=path.join(home,'.portable-harness/state.json');
@@ -351,8 +350,8 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
  const {baselines,customProfiles}=prepare(files);
  const profiles=plannedProfiles(files);
  if(refreshLock)for(const profile of profiles)files.delete('profiles/'+profile+'/pnpm-lock.yaml');
- const extra=[...profiles.flatMap(profile=>['profiles/'+profile+'/pnpm-lock.yaml','profiles/'+profile+'/pnpm-workspace.yaml']),'.portable-harness/state.json'];
- const stale=staleModulePaths(previous,files);
+ const extra=[...profiles.flatMap(profile=>['profiles/'+profile+'/pnpm-lock.yaml','profiles/'+profile+'/pnpm-workspace.yaml']),'.portable-harness/state.json','hooks.state.json'];
+ const stale=[...staleModulePaths(previous,files),...Object.keys(previous?.files??{}).filter(file=>/^profiles\/(?:desktop|headless)\/patches\/[a-z0-9-]+\.patch$/.test(file)&&!files.has(file)),...Object.keys(previous?.files??{}).filter(file=>file.startsWith('profiles/enhanced/')&&!file.includes('/node_modules/'))];
  const saved=backup(home,[...new Set([...files.keys(),...baselines.keys(),...stale,...extra])]);
  write(path.join(home,'.portable-harness/state.json'),json({backup:path.relative(home,saved).split(path.sep).join('/'),files:{},sources:{},sourceHashes:{},pending:true}));
  try{
@@ -361,7 +360,8 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
   for(const [relative,content]of files)write(path.join(home,relative),content);
   for(const relative of stale){const target=path.join(home,relative);const info=fs.lstatSync(target,{throwIfNoEntry:false});if(info){assert(info.isFile()||info.isSymbolicLink(),'Old module must be a file');fs.unlinkSync(target);}}
   linkRuntime(home,runtime);
-  for(const profile of profiles)native(command,home,profile,['install',...(!refreshLock&&!customProfiles.has(profile)&&files.has('profiles/'+profile+'/pnpm-lock.yaml')?['--frozen-lockfile']:[])]);
+  for(const profile of profiles)native(command,home,profile,['install',!refreshLock&&!customProfiles.has(profile)&&files.has('profiles/'+profile+'/pnpm-lock.yaml')?'--frozen-lockfile':'--no-frozen-lockfile']);
+  if(!clean)configureRtkHook(home);
   for(const [relative,content]of baselines)write(path.join(home,relative),content);
   const tracked={};for(const relative of files.keys())tracked[relative]=digest(path.join(home,relative));
   for(const profile of profiles)tracked['profiles/'+profile+'/pnpm-lock.yaml']=digest(path.join(home,'profiles',profile,'pnpm-lock.yaml'));
@@ -370,13 +370,11 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
   if(!clean&&fs.existsSync(path.join(repository,'modules')))for(const name of fs.readdirSync(path.join(repository,'modules')).filter(x=>x.endsWith('.mjs')))sources['profiles/desktop/agent-capabilities/'+name]='modules/'+name;
   for(const plugin of clean?[]:provenance.plugins){
    const library=path.join(repository,'plugins',plugin.id,'lib');
+   const pluginRoot=path.join(repository,'plugins',plugin.id);
+   for(const name of fs.readdirSync(pluginRoot).filter(name=>/\.m?js$/.test(name)))sources['profiles/desktop/node_modules/'+plugin.package+'/'+name]='plugins/'+plugin.id+'/'+name;
    for(const entry of fs.readdirSync(library,{withFileTypes:true}))if(entry.isFile()&&/\.m?js$/.test(entry.name))sources['profiles/desktop/node_modules/'+plugin.package+'/lib/'+entry.name]='plugins/'+plugin.id+'/lib/'+entry.name;
   }
   if(!clean){
-   for(const key of Object.keys(sources)){
-    sources[key.replace('profiles/desktop/','profiles/enhanced/')]=sources[key];
-    delete sources[key];
-   }
    for(const name of fs.readdirSync(path.join(repository,'modules')).filter(name=>name.endsWith('.mjs'))){
     const target='profiles/desktop/agent-capabilities/'+name;
     if(files.has(target))sources[target]='modules/'+name;
@@ -388,11 +386,12 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
    }
    for(const file of ['SKILL.md',...skillResources(path.join(repository,'skills/dynamic-ui'))])
     sources['profiles/desktop/agent-capabilities/inline-skills/dynamic-ui/'+file]='skills/dynamic-ui/'+file;
-   for(const [target,source]of Object.entries(sources))
-    if(target.startsWith('profiles/enhanced/node_modules/')&&[...dailyArtifactIds].some(id=>source.startsWith('plugins/'+id+'/')))
-     sources[target.replace('profiles/enhanced/','profiles/desktop/')]=source;
+
   }
-  for(const relative of Object.keys(sources))tracked[relative]=digest(path.join(home,relative));
+  for(const relative of Object.keys(sources)){
+   if(!fs.existsSync(path.join(home,relative))){delete sources[relative];continue;}
+   tracked[relative]=digest(path.join(home,relative));
+  }
   write(path.join(home,'.portable-harness/state.json'),json({
    at:new Date().toISOString(),flavor:clean?'native':'daily',runtime:provenance.runtime,
    backup:path.relative(home,saved).split(path.sep).join('/'),files:tracked,sources,
@@ -458,17 +457,15 @@ export function rollback(home){
 }
 export function saveLocks(home){
  const artifacts=readJson(path.join(repository,'build/artifacts.json'));
- const daily=fs.existsSync(path.join(home,'profiles/enhanced/package.json'));
- for(const profile of daily?['desktop','headless','enhanced']:['desktop','headless']){
-  if(daily&&profile==='headless')continue; // unchanged official native profile
+ for(const profile of ['desktop','headless']){
   let text=fs.readFileSync(path.join(home,'profiles',profile,'pnpm-lock.yaml'),'utf8');
-  for(const plugin of provenance.plugins.filter(p=>profile===(daily?'enhanced':'desktop')||(daily&&profile==='desktop'&&dailyArtifactIds.has(p.id)))){
+  for(const plugin of profile==='desktop'?provenance.plugins:[]){
    const packed=artifacts[plugin.id];assert(text.includes(packed.filename),'Lock does not match the current built sources: '+plugin.id);
    assert(typeof packed.integrity==='string'&&text.includes(packed.integrity),'Lock integrity does not match the built package: '+plugin.id);
    text=text.replaceAll(packed.filename,'${'+plugin.id.toUpperCase()+'_TGZ}').replaceAll(packed.integrity,'${'+plugin.id.toUpperCase()+'_INTEGRITY}');
   }
   assert(!/(?<![A-Za-z])[A-Za-z]:[\\/]/.test(text),'Lock contains a drive-absolute path');
-  const target=daily&&profile==='desktop'?'presets/daily/desktop.lock.yaml':'config/'+(profile==='enhanced'?'desktop':profile)+'.lock.yaml';
+  const target='config/'+profile+'.lock.yaml';
   write(path.join(repository,target),text);
  }
  console.log('Saved portable lock templates for desktop and headless.');
@@ -495,23 +492,8 @@ function runtimeCheck(home,script,marker,logFile='automatic-session-runtime.log'
 }
 export function smoke(home){runtimeCheck(home,'smoke.cjs','PORTABLE_SMOKE_PASS','smoke-runtime.log');}
 const RUNTIME_TESTS={
- 'workflow-coordinator-test':['test-workflow-coordinator.cjs','WORKFLOW_COORDINATOR_PASS','workflow-coordinator-runtime.log'],
- 'workflow-boundaries-test':['test-workflow-boundaries.cjs','WORKFLOW_BOUNDARIES_PASS','workflow-boundaries-runtime.log'],
- 'workflow-parallel-test':['test-workflow-parallel.cjs','WORKFLOW_PARALLEL_PASS','workflow-parallel-runtime.log'],
- 'linked-workflow-test':['test-linked-workflow-lifecycle.cjs','LINKED_WORKFLOW_LIFECYCLE_PASS','linked-workflow-runtime.log'],
- 'mandatory-workflow-test':['test-mandatory-workflow.cjs','MANDATORY_WORKFLOW_PASS','mandatory-workflow-runtime.log'],
- 'ultracode-routing-test':['test-ultracode-routing.cjs','ULTRACODE_ROUTING_PASS','ultracode-routing-runtime.log'],
- 'workflow-recovery-test':['test-workflow-recovery.cjs','WORKFLOW_RECOVERY_PASS','workflow-recovery-runtime.log'],
- 'orchestration-test':['test-orchestration-policy.cjs','ORCHESTRATION_ACCEPTANCE_PASS','orchestration-runtime.log'],
- 'automatic-test':['test-automatic-sessions.cjs','AUTOMATIC_SESSIONS_PASS'],
- 'spec-test':['test-spec-delivery.cjs','SPEC_DELIVERY_PASS','spec-delivery-runtime.log'],
- 'idle-test':['test-idle-compaction.cjs','IDLE_COMPACTION_PASS','idle-compaction-runtime.log'],
- 'worktree-test':['test-worktree-delivery.cjs','WORKTREE_DELIVERY_PASS','worktree-delivery-runtime.log'],
- 'lifecycle-test':['test-session-lifecycle.cjs','SESSION_LIFECYCLE_PASS','session-lifecycle-runtime.log'],
+ 'workflow-test':['test-external-workflow.cjs','EXTERNAL_WORKFLOW_PASS','external-workflow-runtime.log'],
  'btw-test':['test-btw-concurrency.cjs','BTW_CONCURRENCY_PASS','btw-concurrency-runtime.log'],
- 'attention-test':['test-global-attention.cjs','GLOBAL_ATTENTION_PASS','global-attention-runtime.log'],
- 'environment-execution-test':['test-local-environment-execution.cjs','LOCAL_ENVIRONMENT_EXECUTION_PASS','local-environment-execution-runtime.log'],
- 'follow-ups-test':['test-follow-ups.cjs','FOLLOW_UPS_PASS','follow-ups-runtime.log'],
 };
 function runtimeTest(home,command){testHome.assertIsolatedHome(home);runtimeCheck(home,...RUNTIME_TESTS[command]);}
 export function migrateLiangshen(home,{dryRun=false}={}){

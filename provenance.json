@@ -1,37 +1,8 @@
 {
-  "runtime": "0.2.1-rc.3",
+  "runtime": "0.2.1-rc.5",
   "date": "2026-10-20",
   "nativeSource": "Official installed DeepSeek Harness desktop package",
   "plugins": [
-    {
-      "id": "follow-ups",
-      "package": "@local/dsh-follow-ups",
-      "version": "0.1.0",
-      "license": "UNLICENSED",
-      "localChanges": {
-        "unpublishedLocalBuild": true,
-        "changes": [
-          "Model offers bounded optional tasks without executing them; only owner confirmation admits isolated workspaces or a human queue request.",
-          "Ignorable session records preserve admission identities; cold dismissal and persistent prompt preferences use the native storage domain without activating agents.",
-          "Native composer cards and opt-out ghost prompts adopt through revision-guarded input actions without auto-send or background suggestion inference."
-        ]
-      }
-    },
-    {
-      "id": "local-environments",
-      "package": "@local/dsh-local-environments",
-      "version": "0.1.2",
-      "license": "UNLICENSED",
-      "localChanges": {
-        "unpublishedLocalBuild": true,
-        "changes": [
-          "Owner-only saved local environments with portable definitions, machine-scoped folder bindings and write-only credential-backed variables.",
-          "Public workspace preparation helpers share native preflight, permission inheritance and reserved setup identities with confirmed follow-ups.",
-          "Session-scoped native Bash/PowerShell/PTY overlays, native worktree preparation and fresh conversations with independent repository sandbox roots.",
-          "Recent folders and environment management in native settings and a sidebar footer dialog; preserves existing drafts and histories."
-        ]
-      }
-    },
     {
       "id": "idle-settings",
       "package": "@local/dsh-idle-settings",
@@ -40,8 +11,7 @@
       "localChanges": {
         "unpublishedLocalBuild": true,
         "changes": [
-          "Native settings section for the separate idle maintenance capability; uses ConfigForms and Switch without a second settings store.",
-          "Same page sets the compaction threshold percentage (default 80, range 20-100) with a reset-to-default action and a hint showing the default; compaction-basic reads it through the public compactionThreshold service and keeps the native 0.8 when unset."
+          "Expose a live context compaction threshold without an idle model or background timer."
         ]
       }
     },
@@ -53,12 +23,7 @@
       "localChanges": {
         "unpublishedLocalBuild": true,
         "changes": [
-          "Native settings section that gathers local enhancement pages behind one entry and exposes feature toggles through ConfigForms.",
-          "Hosts the feature switches for Team, worktree, browser guidance, session bus, Claude context and usage report, plus the ultracode default, through the public enhancementSettings service; modules fall back to enabled when the plugin is absent.",
-          "Ultracode has its own page tab with three atomic switches, all default off: forced workflow orchestration, coordinator read-only lock (tool allowlist and literal-JSON transport), and the linked-worker default.",
-          "The coordinator lock is independent of forced orchestration, and execution boundaries (server-side browser code, unbounded browser_evaluate, post-admission sandbox drift) stay enforced regardless of these switches.",
-          "Keep management UI available in daily profile; absent features stay disabled and missing Ultracode policy never exposes active-looking switches.",
-          "Expose the full capability inventory with current load status and real entry points; optional enhanced features no longer disappear without explanation."
+          "Manage independently enabled desktop capabilities through native settings and pluginManager."
         ]
       }
     },
@@ -72,36 +37,6 @@
         "changes": [
           "Native chat file mentions also resolve plain workspace paths from assistant markdown, opening the existing sidebar preview; produced or delivered matches still win.",
           "Wraps the pinned host 0.2.1-rc.2 chatFileMentions.forClosing surface without registering a second service or touching styles."
-        ]
-      }
-    },
-    {
-      "id": "team-view",
-      "package": "@local/dsh-team-view",
-      "version": "1.0.0",
-      "license": "UNLICENSED",
-      "localChanges": {
-        "unpublishedLocalBuild": true,
-        "changes": [
-          "Sidebar footer panel listing Team members and pending plans from the durable agentTeam projection.",
-          "Opens a member beside the current conversation through the native subagent chat resource, falling back to the main view."
-        ]
-      }
-    },
-    {
-      "id": "memory",
-      "package": "@dsh-external/dsh-memory",
-      "version": "0.5.1-local.1",
-      "license": "MIT",
-      "upstream": "https://github.com/haitang1/dsh-memory",
-      "localChanges": {
-        "unpublishedLocalBuild": true,
-        "upstream": "https://github.com/haitang1/dsh-memory",
-        "baseCommit": "15de1c791bbcb5be2c9b0c2096eddedcaa61cc17",
-        "changes": [
-          "Await one-shot headless write-back before disposal.",
-          "Remove the hardcoded ten-minute gate on summary updates.",
-          "Enforce session memory-write restrictions across automatic capture, explicit tools and inherited linked sessions."
         ]
       }
     },
@@ -124,7 +59,7 @@
           "Native Ctrl+Alt+Shift+B side-question dialog preserves the main composer draft.",
           "Child-scoped prompt assembly removes inherited and child-local tools from answer-only requests.",
           "Merge 1.0.8 structured quotes, native Modal, input safeguards and bounded output; retain tool-free side-answer assembly, so exact upstream prompt-cache equivalence is not claimed.",
-          "Native shortcut also has macOS defaults; background promotion inherits parent permissions and public memory-write restrictions even without a prior parent turn."
+          "Native shortcut also has macOS defaults; background promotion inherits parent permissions even without a prior parent turn."
         ]
       }
     },
@@ -161,37 +96,6 @@
       }
     },
     {
-      "id": "nested-sessions",
-      "package": "@local/dsh-nested-sessions",
-      "version": "1.3.7",
-      "license": "UNLICENSED",
-      "localChanges": {
-        "unpublishedLocalBuild": true,
-        "changes": [
-          "Linked task roles for independent implementation/review; native sidebar hierarchy and conversation-level progress, with the redundant global panel removed.",
-          "Native status Map drives pending-interaction precedence and attention counts; stopped tasks retain their lifecycle state.",
-          "Parallel writer guidance pins the delivery checkout/base, returns before each native worktree allocation, and requires reviewed integration before acceptance.",
-          "Explicit messages queue at the next turn; native cancellation and user ingress fence stopped-state races, with sender/recipient checks after async resolution and bounded terminal-report guards.",
-          "On-demand task and recent-turn recap reads exact native projections without activating agents or duplicating task storage; remains accessible while the native question card replaces the todo dock.",
-          "Side-by-side linked conversations reuse native retained session references, SessionProvider and embedded Conversation factory in a native right-sidebar tab; independent drafts and native permissions remain scoped to each session.",
-          "Background completion notices use ephemeral actual-turn records, existing access/stop/archive checks, an additive native overlay and already-authorized Web Notifications; local mute preference, initial-history suppression and per-turn deduplication preserve user control.",
-          "Explicit per-caller transient authorization enables bounded cross-workspace local history roster/read tools without inheriting grants, activating targets or widening family controls; grant versions fence asynchronous revocation.",
-          "Global session status groups use a native terminal-event projection and bounded read-only metadata RPC; a native sidebar footer popover preserves the workspace hierarchy without restoring a global collaboration page or making model calls.",
-          "Trusted linked dispatch propagates caller cancellation across queued admission and target resolution; remote send keeps its existing wire schema.",
-          "Cross-cwd sidebar lineage uses disposable navigation aliases and native status/navigation; native workspace ownership and history remain unchanged, with archive/view-switch restoration.",
-          "Alias row menus reuse live native registered components, business injections, locale and shortcuts through an owned slot and native Menu portal; original entry lifecycle is respected without duplicating CRUD.",
-          "Fresh and forked workers inherit the parent's memory-write boundary through the memory plugin's public service before dispatch.",
-          "Inline subagent entry in the main transcript: the native subagent/subagent_fork tool call renders its description, live child status and buttons that open the child beside the conversation or in the main view, resolving the child id from the tool result and reusing native subagent chat resources.",
-          "Expose linked delegation intent through a public read-only method and clarify orchestration preference precedence.",
-          "Expose a workflow-owned linked-session activation with retained history, caller-owned result delivery, cancellation joining and no duplicate parent wakeups.",
-          "Workflow-owned fresh sessions accept a prepared cwd and pre-prompt capability validation without changing inherited permissions.",
-          "Honor reasoning-only overrides on the inherited model, including Workflow-owned linked sessions, without changing parent selections.",
-          "Session composer exposes 嵌套会话 auto/on/off through existing collaborate policy; on routes new delegation consistently while retaining existing Team communication.",
-          "Animated nested-session composer capsule uses CSS-only gradient/sheen states with native accessible mode selection and reduced-motion support."
-        ]
-      }
-    },
-    {
       "id": "browser-review",
       "package": "@local/dsh-browser-review",
       "version": "1.2.0",
@@ -200,57 +104,6 @@
         "unpublishedLocalBuild": true,
         "changes": [
           "Viewport-contained annotation send controls and independent region screenshot cropping; native click/drag and input regression."
-        ]
-      }
-    },
-    {
-      "id": "workflow-ptc",
-      "package": "@local/dsh-workflow-ptc",
-      "version": "0.2.1-rc.2-local.2",
-      "license": "MIT",
-      "upstream": "https://github.com/deepseek-ai/deepseek-harness",
-      "localChanges": {
-        "unpublishedLocalBuild": true,
-        "baseVersion": "0.2.1-rc.2",
-        "baseCommit": "687f282e8625c6b8d11ff58211a90524be2e4317",
-        "changes": [
-          "Token and elapsed-time budgets per run, lowerable per call; an exhausted budget refuses further agent() calls while the script still returns gathered results.",
-          "Size-guideline warning when a run starts more agents than the deployment's threshold.",
-          "One-level nesting guard: a workflow child session may not start another workflow.",
-          "Per-run JSONL journal and prefix replay behind resume_from_run_id, stopping at the first changed agent() call.",
-          "schemaRetries (default 5) is limited to read-only runs with missing structured output. Writable, failed and cancelled child executions are not automatically retried; token usage accumulates across allowed read-only attempts.",
-          "Fail-closed v2 journals bind execution identity, claim one successor, persist stop/failure locks, retain replayed checkpoints and wait for cleanup. Writable schema failures are not automatically retried.",
-          "Preserve configured parallelism; enforce overlapping writable-root and shared-browser admission, retain uncertain leases, use native read-only workers and fresh linked sessions for genuinely isolated cwd; bind per-call execution capabilities to replay.",
-          "Confine the orchestration process to the native read-only sandbox independently of admitted worker permissions; node:vm is not a filesystem security boundary.",
-          "Retain a failed writable result's directory lease until the current script settles, rejecting replacement writers without blocking unrelated isolated work.",
-          "Forward optional per-worker reasoning_effort through native subagent and linked-session model options, and bind it to checkpoint replay without changing parent preferences or permissions.",
-          "Fail a script that throws before its first agent with an authoring-error hint instead of an engine-defect signal."
-        ]
-      }
-    },
-    {
-      "id": "tool-workflow",
-      "package": "@local/dsh-tool-workflow",
-      "version": "0.2.1-rc.2-local.1",
-      "license": "MIT",
-      "upstream": "https://github.com/deepseek-ai/deepseek-harness",
-      "localChanges": {
-        "unpublishedLocalBuild": true,
-        "baseVersion": "0.2.1-rc.2",
-        "baseCommit": "687f282e8625c6b8d11ff58211a90524be2e4317",
-        "changes": [
-          "sizeGuideline config states the expected agent scale in the tool description and forwards the matching warning threshold to the engine.",
-          "resume_from_run_id, budget_tokens, and budget_ms parameters forwarded to the engine on both foreground and background starts.",
-          "Persist native workflow records for PTC transport sub-dispatches as well as direct model calls; preserve existing sandbox and cancellation handling.",
-          "Expose recovery run IDs on failures and cancellations, reusing native jobs and workflow records.",
-          "Honor mandatory Ultracode orchestration, remove contradictory explicit-only guidance, and expose worker_mode for ordinary or persistent linked workers.",
-          "Document per-agent readonly, cwd, persistence and browser options without forcing every phase into a persistent session.",
-          "PTC workflows default to existing native background jobs even with a dispatch budget; retain explicit short foreground calls and collect completion rather than extending run_code timeouts.",
-          "Describe native per-worker reasoning effort, one independent acceptance owner with batched page observations, same-script chaining for already-determined stages, single start/collect dispatch, and one bounded retry for an empty read-only result while retaining full acceptance coverage.",
-          "Keep a PTC foreground workflow in its native background job so a transport-deadline abort returns the jobId instead of cancelling completed work; short calls still return inline.",
-          "Document the browser_evaluate promise bound and the authoring-error diagnosis for a script that throws before its first agent.",
-          "Describe the cwd option as a coordinator-prepared native worktree; workers must not create worktrees with git.",
-          "Bind the optional Workflow tool adapter through native service lifecycle injection; unavailable engines disable the tool without invalidating Standard or PTC."
         ]
       }
     },
@@ -268,33 +121,14 @@
       }
     },
     {
-      "id": "ultracode-control",
-      "package": "@local/dsh-ultracode-control",
-      "version": "1.0.0",
-      "license": "UNLICENSED",
-      "localChanges": {
-        "unpublishedLocalBuild": true,
-        "changes": [
-          "Composer pill left of the model selector toggles the current session's ultracode mode, reading the native ultracode projection and falling back to the Harness enhancement default.",
-          "Writes only through the existing /ultracode on|off command; no new record type, remote method or settings store.",
-          "Clarify that the switch records preference; /ultracode status reports effective orchestration state.",
-          "Query owner-scoped host capability and effective mode; unavailable modes cannot display an enabled switch; ignore cancelled or stale session responses.",
-          "Show linked workflow execution as enabled Ultracode, not a competing collaboration override.",
-          "Retired from the desktop bundle list: the Harness enhancement page now owns the Ultracode switches, so the composer pill no longer loads even though the package stays resolvable."
-        ]
-      }
-    },
-    {
       "id": "dynamic-ui-view",
       "package": "@local/dsh-dynamic-ui-view",
-      "version": "1.0.1",
+      "version": "1.1.0",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
         "changes": [
-          "render_widget tool renders a model-authored HTML fragment inline in the conversation as a sandboxed card instead of a standalone .html file.",
-          "The frame document adds a CSP that blocks all network access and its sandbox withholds same-origin, so the fragment cannot reach the app or its storage.",
-          "Daily profile restores render_widget and one explicitly bundled on-demand dynamic-ui skill without loading the full skill library; tool scope excludes full websites and dashboards."
+          "Render existing durable widget calls as native turn-level chat nodes, outside tool disclosure; retain iframe isolation and sizing without DOM reparenting."
         ]
       }
     },
@@ -312,32 +146,48 @@
       }
     },
     {
-      "id": "sidebar-layout",
-      "package": "@local/dsh-sidebar-layout",
-      "version": "1.0.2",
+      "id": "liclick-adapter",
+      "package": "@local/dsh-liclick-adapter",
+      "version": "0.1.0",
       "license": "UNLICENSED",
       "localChanges": {
         "unpublishedLocalBuild": true,
         "changes": [
-          "Presentation-only footer utility grid using the native rc.3 footer slot and public wide property, independent of platform CSS module hashes. No cross-plugin DOM mutation, tools, prompts or storage.",
-          "Use the native footer slot container as the grid; the wide billing control spans a full row and compact controls use two columns."
+          "Loopback authenticated LiClick adapter using Atlas CLI, durable idempotent async jobs and native canvas provider configuration."
         ]
       }
     },
     {
-      "id": "rtk-shell",
-      "package": "@local/dsh-rtk-shell",
-      "version": "0.2.1",
-      "license": "UNLICENSED",
+      "id": "codex-hooks",
+      "package": "dsh-codex-hooks",
+      "version": "0.6.0-local.1",
+      "license": "MIT",
+      "upstream": "https://github.com/matata2017/dsh-codex-hooks",
       "localChanges": {
         "unpublishedLocalBuild": true,
+        "baseCommit": "c890a41",
         "changes": [
-          "Compose public local-environment shell executors with a conservative read-only Git RTK prefix transform; pinned native runtime 0.2.1-rc.3.",
-          "One native execution only, retaining policy, signal, cwd, environment, timeout and background handles; no execution-error retry.",
-          "Complex shell syntax, machine-readable options, explicit RTK/proxy and mutations pass through unchanged.",
-          "Literal log/search/test adapters plus exact owner-configured external-command filters; complex syntax and stdin passthrough.",
-          "Native ConfigForms settings section and owner-only non-executing preview use the same validated backend rules.",
-          "Hooks settings groups actual Shell-before-execution entries into collapsible rows; preserves native config keys and exposes no inert lifecycle switches."
+          "Use the rc5 public Remote service, owner-only management and scoped project hook execution."
+        ]
+      }
+    },
+    {
+      "id": "external-workflow",
+      "package": "@dsh-external/workflow",
+      "version": "0.1.2-local.rc5.1",
+      "license": "MIT",
+      "upstream": {
+        "type": "git",
+        "url": "https://github.com/omdsh-dev/dsh_workflow",
+        "commit": "44b83c182aa02d1be8a0803e8446cb495f93cd8f"
+      },
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "baseVersion": "0.1.2",
+        "changes": [
+          "Pin DSH peer requirements to verified 0.2.1-rc.5; omit development-only snapshot dependencies.",
+          "Adapt native startActivation and messaging through rc5-subagents.js; preserve read-only tool restrictions before execution and on cold resume using ignorable session records.",
+          "Use native snapshotEvents for session reads. Keep upstream workflow, storage, approvals and retry policy."
         ]
       }
     }
@@ -352,13 +202,11 @@
       "profile": "core",
       "skillsSource": ".dsh/skills",
       "license": "MIT",
-      "localChanges": false,
-      "deliverySkill": "dsh-spec-delivery",
-      "localWorkflowSource": "skills/dsh-spec-delivery/SKILL.md"
+      "localChanges": false
     },
     "dailyBrowser": {
       "source": "modules/isolated-browser.mjs",
-      "runtime": "0.2.1-rc.3",
+      "runtime": "0.2.1-rc.5",
       "nativeCapability": "@deepseek-ai/dsh-mcp-client agent-scoped registration and lifecycle",
       "browserPackage": "@playwright/mcp",
       "version": "0.0.83",
@@ -370,21 +218,12 @@
     },
     "dailyOptionalFeatures": {
       "modules": [
-        "team.mjs",
-        "team-tools.mjs",
-        "worktree.mjs",
-        "worktree-tools.mjs",
-        "browser-guidance.mjs",
-        "session-bus.mjs",
-        "claude-context.mjs",
-        "usage-report.mjs"
+        "claude-context.mjs"
       ],
-      "default": "worktree tool, session bus, Claude context and usage report enabled; Team and browser guidance disabled",
+      "default": "Claude context enabled",
       "activation": "native pluginManager entries",
       "notes": [
-        "Selected daily defaults load their tools and context; opening the management page does not activate the disabled Team or browser guidance entries.",
-        "Browser guidance does not install desktop providers; native skill discovery remains conditional on enabling its module.",
-        "Local Team tools validate the extended service and public native plugin ownership before registering; conflicting native Team entries cannot duplicate prompt contexts."
+        "Optional context is managed through native pluginManager. Official desktop tools and Git capabilities remain native."
       ]
     },
     "dailyInteraction": {
@@ -397,15 +236,12 @@
         "better-sidebar",
         "code-review",
         "skills-manager",
-        "subagent-workspace-ui",
-        "local-environments",
-        "follow-ups",
-        "team-view",
         "archive-manager",
         "simplify",
-        "init"
+        "init",
+        "external-workflow"
       ],
-      "policy": "Restore user-facing controls without enabling Team, browser guidance, automatic memory or Ultracode by default."
+      "policy": "Independent desktop capabilities; native presets with optional Workflow."
     },
     "dependencyPatches": {
       "dsh-better-sidebar@0.28.0": {
@@ -423,7 +259,7 @@
         "dsh-spec-delivery",
         "computer-use"
       ],
-      "notes": "dynamic-ui uses its own dedicated provider; computer-use remains controlled by browser guidance"
+      "notes": "dynamic-ui has its dedicated provider; computer-use follows official tool registration without a custom guidance skill"
     }
   }
 }

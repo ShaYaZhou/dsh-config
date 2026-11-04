@@ -36,7 +36,7 @@ function client() {
   const code = fs.readFileSync(new URL('../plugins/dynamic-ui-view/lib/client.js', import.meta.url), 'utf8')
     .replace(
       'return { inject, apply };',
-      'return { inject, apply, documentFor, clampHeight, clampReportedHeight, outerHidden, requestMeasure };',
+      'return { inject, apply, documentFor, clampHeight, clampReportedHeight, widgetDefinition, requestMeasure };',
     );
   vm.runInNewContext(code, {
     Event: class { constructor(type) { this.type = type; } },
@@ -114,19 +114,19 @@ test('height clamping matches the host', () => {
   assert.equal(clampHeight(5000), 900);
 });
 
-test('the outermost folded ancestor is picked as the portal anchor', () => {
-  const { outerHidden } = client();
-  const folded = (parent) => ({
-    getAttribute: (name) => (name === 'hidden' ? 'until-found' : null),
-    parentElement: parent,
-  });
-  const root = { getAttribute: () => null, parentElement: null };
-  const outer = folded(root);
-  const inner = folded(outer);
-  const seat = { getAttribute: () => null, parentElement: inner };
-  const card = { parentElement: seat };
-  assert.equal(outerHidden(card), outer);
-  assert.equal(outerHidden(root), null);
+test('ordinary and PTC widgets render as stable native turn rows, outside tool disclosure',()=>{
+  const {widgetDefinition:d}=client();
+  const location={kind:'step',turn:{turn:1},step:{step:1}};
+  const start={event:{type:'tool/call',seq:2,data:{name:'render_widget',callId:'one',arguments:JSON.stringify({html:'<button>one</button>'})}},location};
+  const context={key:'widget:one',id:'one',start,matches:[start]};
+  context.state=d.start(context,start);
+  assert.equal(d.buildViewNode(context),null);
+  context.state=d.update(context,{event:{type:'tool/result',seq:3,data:{message:{isError:false}}}});
+  const node=d.buildViewNode(context);assert.equal(node.groupTree,'turn');assert.equal(node.key,'widget:one');assert.equal(node.data.html,'<button>one</button>');
+  const ptc={event:{type:'tool/ptc-dispatch',seq:4,data:{name:'render_widget',subCallId:'nested',arguments:{html:'<b>PTC</b>'},isError:false}},location};
+  assert.equal(d.match(ptc.event).id,'nested');
+  context.state=d.start(context,ptc);assert.equal(d.buildViewNode(context).data.html,'<b>PTC</b>');
+  context.state=d.start(context,{...ptc,event:{...ptc.event,data:{...ptc.event.data,isError:true}}});assert.equal(d.buildViewNode(context),null);
 });
 
 test('a measure request is posted into the frame and a missing frame is ignored', () => {
@@ -141,22 +141,26 @@ test('a measure request is posted into the frame and a missing frame is ignored'
   assert.equal(requestMeasure({}), undefined);
 });
 
-test('the card is keyed by the render_widget wire name', () => {
+test('the native card renderer is separate from its tool detail', () => {
   const { inject, apply } = client();
-  assert.deepEqual([...inject], ['slots']);
-  let registered;
+  assert.deepEqual([...inject], ['slots','uiConversation']);
+  const registered=[];let definition;
   const ctx = {
+    effect: run=>run(),
+    uiConversation:{events:{register:value=>{definition=value;}}},
     slots: {
       inject: (name, run) => {
-        assert.equal(name, 'tool.call.toolview');
+        assert(['tool.call.toolview','conversation.chat.node'].includes(name));
         return run();
       },
       register: (entry) => {
-        registered = entry;
+        registered.push(entry);
       },
     },
   };
   apply(ctx);
-  assert.equal(registered.name, 'tool.call.toolview');
-  assert.equal(registered.key, 'render_widget');
+  assert.equal(definition.kind,'dynamic-ui-widget');
+  assert.equal(registered[0].name,'conversation.chat.node');
+  assert.equal(registered[0].key,'dynamic-ui-widget');
+  assert.equal(registered[1].key,'render_widget');
 });

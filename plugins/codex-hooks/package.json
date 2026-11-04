@@ -1,0 +1,63 @@
+{
+  "name": "dsh-codex-hooks",
+  "version": "0.6.0-local.1",
+  "description": "Codex-style hook management for DeepSeek Harness: hooks.json discovered from config, plugins and projects, each hook pinned to a sha256 fingerprint you approve before it runs, with a review dialog in the composer, a /hooks browser and per-hook run stats.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/matata2017/dsh-codex-hooks.git"
+  },
+  "homepage": "https://github.com/matata2017/dsh-codex-hooks#readme",
+  "bugs": {
+    "url": "https://github.com/matata2017/dsh-codex-hooks/issues"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "hooks",
+    "codex",
+    "lifecycle"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "lib/index.js",
+  "icon": "./icon.svg",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./client.js"
+    },
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "client.js",
+    "cordis.patch.yml",
+    "locale",
+    "icon.svg",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-commands",
+        "@deepseek-ai/dsh-client-ui-chat"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-typert-protocol": "0.2.1-rc.5"
+  }
+}

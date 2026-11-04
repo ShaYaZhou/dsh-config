@@ -62,12 +62,8 @@ function find(node, type) {
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 const PANEL_ROWS = [
-  { options: { name: PANEL, id: "follow-ups", order: 29, label: "后续建议" } },
   {
     options: { name: PANEL, id: "idle-compaction", order: 25, label: "上下文压缩" },
-  },
-  {
-    options: { name: PANEL, id: "local-environments", order: 28, label: "本地环境" },
   },
 ];
 
@@ -136,13 +132,13 @@ function setup({ plugins = [], writes = [], toggles = [] } = {}) {
       },
       whileServed: (names, register) => {
         assert.deepEqual([...names], ["enhancement-settings"]);
-        return register();
+        // An empty Config has no served form in the real host.
+        return () => {};
       },
     },
     remote: {
       pluginManager: {
         listPlugins: async () => ({ ok: true, value: plugins }),
-        listBundles: async () => ({ok:true,value:[]}),
         setPluginEnabled: async (entryId, enabled) => {
           toggles.push([entryId, enabled]);
           const row = plugins.find((entry) => entry.entryId === entryId);
@@ -186,15 +182,12 @@ test("Harness enhancement is one settings section owning the panel slot", () => 
   });
 });
 
-test('daily management UI stays visible without activating missing execution features', async () => {
-  const f=setup();f.draw();await settle();
-  let tree=f.draw();
-  assert(find(tree,'native-switch').every(row=>row.props.disabled));
-  const tab=find(tree,'button').find(row=>row.props.role==='tab'&&row.children[0]==='Ultracode');
-  tab.props.onClick();tree=f.draw();
-  assert(find(tree,'native-switch').every(row=>row.props.disabled));
-  assert.equal(f.writes.length,0);assert.equal(f.toggles.length,0);
-  assert(JSON.stringify(tree).includes('未加载 Ultracode'));
+test('daily management UI has no retired strategy or profile switch',async()=>{
+ const f=setup(); f.draw(); await settle(); const tree=f.draw();
+ assert(!JSON.stringify(tree).includes('Ultracode'));
+ assert(!JSON.stringify(tree).includes('功能清单'));
+ assert(!JSON.stringify(tree).includes('--profile enhanced'));
+ assert.equal(f.writes.length,0);assert.equal(f.toggles.length,0);
 });
 
 test("the section exposes its child pages as ordered tabs", () => {
@@ -203,24 +196,17 @@ test("the section exposes its child pages as ordered tabs", () => {
     props.hooks.tabs.getSnapshot().map((row) => [row.id, row.label]),
     [
       ["idle-compaction", "上下文压缩"],
-      ["local-environments", "本地环境"],
-      ["follow-ups", "后续建议"],
     ],
   );
   const tabs = find(draw(), "button").filter((node) => node.props.role === "tab");
   assert.deepEqual(
     tabs.map((node) => node.children[0]),
-    ["Harness增强", "Ultracode", "功能清单", "上下文压缩", "本地环境", "后续建议"],
+    ["Harness增强", "上下文压缩"],
   );
   assert.equal(tabs[0].props["aria-selected"], true);
   assert.equal(find(draw(), "panel-slot").length, 0);
 
   tabs[1].props.onClick();
-  assert.equal(find(draw(), "panel-slot").length, 0, "Ultracode is a built-in page, not a slot");
-  tabs[2].props.onClick();
-  assert(JSON.stringify(draw()).includes('回退与文件还原'));
-  assert(JSON.stringify(draw()).includes('完整增强入口'));
-  tabs[3].props.onClick();
   draw();
   const slot = find(draw(), "panel-slot");
   assert.equal(slot.length, 1);
@@ -228,59 +214,24 @@ test("the section exposes its child pages as ordered tabs", () => {
   assert.equal(slot[0].props.only, "idle-compaction");
 });
 
-test("feature switches drive native plugin entries and ultracode owns atomic switches", async () => {
-  const plugins = [
-    { entryId: "include:agent-team-local", enabled: true },
-    { entryId: "include:tool-agent-team-local", enabled: true },
-    {
-      entryId: "include:tool-worktree",
-      enabled: true,
-      readOnlyReason: "unaddressable",
-    },
-    { entryId: "include:browser-guidance", enabled: true },
-    { entryId: "include:session-bus", enabled: true },
-    { entryId: "include:claude-context", enabled: true },
-    { entryId: "include:usage-report", enabled: true },
-  ];
+test("feature switches drive native plugin entries without an orchestration policy", async () => {
+  const plugins = [{entryId:"include:claude-context",enabled:true}];
   const writes = [],
     toggles = [];
   const { draw } = setup({ plugins, writes, toggles });
   draw();
   await settle();
   const switches = find(draw(), "native-switch");
-  assert.equal(switches.length, 6);
+  assert.equal(switches.length, 1);
   assert.equal(switches[0].props.checked, true);
   assert.equal(switches[0].props.disabled, false);
-  assert.equal(
-    switches[1].props.disabled,
-    true,
-    "read-only entries cannot be toggled",
-  );
 
   await switches[0].props.onChange(false);
   await settle();
   assert.deepEqual(toggles, [
-    ["include:agent-team-local", false],
-    ["include:tool-agent-team-local", false],
+    ["include:claude-context", false],
   ]);
   assert.equal(find(draw(), "native-switch")[0].props.checked, false);
 
-  find(draw(), "button")
-    .filter((node) => node.props.role === "tab")[1]
-    .props.onClick();
-  draw();
-  const atomic = find(draw(), "native-switch").slice(6);
-  assert.equal(atomic.length, 3, "Ultracode page keeps its own switches out of the plugin list");
-  assert.equal(atomic[0].props.checked, false);
-  assert.equal(atomic[1].props.disabled, true, "coordinator lock depends on forced orchestration");
-  assert.equal(atomic[2].props.disabled, true);
-  await atomic[0].props.onChange(true);
-  assert.deepEqual(writes, [["ultracodeDefault", true]]);
-});
-
-test('native Team ownership refuses local enable before any writes',async()=>{
- const plugins=[{entryId:'include:agent-team-local',enabled:false},{entryId:'include:tool-agent-team-local',enabled:false},{entryId:'native:agent-team',enabled:true}];
- const f=setup({plugins});f.draw();await settle();
- const row=find(f.draw(),'native-switch')[0];await row.props.onChange(true);await settle();
- assert.equal(f.toggles.length,0);assert(JSON.stringify(f.draw()).includes('两套实现不能同时启用'));
+  assert.deepEqual(writes, []);
 });

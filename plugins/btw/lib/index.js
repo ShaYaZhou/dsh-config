@@ -508,7 +508,6 @@ function apply(ctx) {
     const resolved=await controller.resolveAgent(child.sessionId);
     if(!resolved.agent)throw new Error('Background session is unavailable');
     permissions.set(resolved.agent.session,permissions.current(inv.agent.session));
-    await ctx.get('memoryWritePolicy')?.inherit(inv.agent.session,resolved.agent.session);
     await ctx.get('sessions').flush(resolved.agent.session);
     inv.signal.throwIfAborted();
     await controller.prompt({sessionId:child.sessionId,requestId:globalThis.crypto.randomUUID(),mode:'queue',content:[{type:'text',text:'Side conversation reference data:\n'+JSON.stringify(history)+'\nTask:\n'+task}]},inv.signal);

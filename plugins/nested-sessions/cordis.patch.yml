@@ -1,3 +1,0 @@
-- insert:
-    - id: nested-sessions
-      name: '@local/dsh-nested-sessions'

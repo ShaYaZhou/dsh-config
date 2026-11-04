@@ -4,9 +4,8 @@ window.__ModuleLoader__.load({
   id: '@local/dsh-dynamic-ui-view',
   factory: (require) => {
     const React = require('react'),
-      { createPortal } = require('react-dom'),
       h = React.createElement;
-    const inject = ['slots'];
+    const inject = ['slots', 'uiConversation'];
     const MIN_HEIGHT = 200,
       MAX_HEIGHT = 900,
       DEFAULT_HEIGHT = 420,
@@ -66,16 +65,6 @@ window.__ModuleLoader__.load({
     function requestMeasure(frame) {
       frame?.contentWindow?.postMessage({ type: 'dsh-widget-measure' }, '*');
     }
-    // 宿主把完成的工具调用折进 hidden="until-found" 分组，卡片挂在里面必然跟着折叠。
-    // 取最外层折叠祖先前面的位置，把卡片搬出去放在该分组之后：分组照常折叠，卡片独立显示。
-    // 结构固定 DSH 0.2.1-rc.2，升级需重验。
-    function outerHidden(node) {
-      let outer = null;
-      for (let el = node.parentElement; el; el = el.parentElement) {
-        if (el.getAttribute('hidden') === 'until-found') outer = el;
-      }
-      return outer;
-    }
     function resultText(block) {
       const parts = Array.isArray(block?.content) ? block.content : [];
       const text = parts
@@ -88,126 +77,72 @@ window.__ModuleLoader__.load({
     }
     const STYLE = `
 .dyn-widget{display:block;margin:6px 0}
-.dyn-widget-host{display:block;margin:6px 0}
 .dyn-widget-title{margin:0 0 6px;font-size:12px;opacity:.72}
 .dyn-widget-frame{display:block;width:100%;border:1px solid #8883;border-radius:12px;background:transparent}
 .dyn-widget-note{margin:0;padding:10px 12px;border:1px dashed #8885;border-radius:12px;font-size:12px;opacity:.72}
 .dyn-widget-error{margin:0;padding:10px 12px;border:1px solid #e8463a55;border-radius:12px;font-size:12px;color:#e8463a;white-space:pre-wrap}
 `;
-    function WidgetView({ phase, block }) {
-      const args = block?.args;
-      const html = phase === 'preparing' ? undefined : args?.text('html');
-      const title = phase === 'preparing' ? undefined : args?.text('title');
-      const height = clampHeight(args?.value('height'));
-      const srcDoc = React.useMemo(() => documentFor(html), [html]);
-      const anchorRef = React.useRef(null);
-      const frameRef = React.useRef(null);
-      const [reportedHeight, setReportedHeight] = React.useState(null);
-      const [host, setHost] = React.useState(null);
-      // 换一份片段就等新文档重新上报，别拿上一条的高度垫着。
-      React.useEffect(() => setReportedHeight(null), [html]);
-      // 沙箱无同源，父文档不能直接读片段高度，只接受自己这帧上报的数字。
-      // 依赖 html 与 host：preparing 阶段还没有 iframe；搬到折叠区外时 iframe 会重新挂载，
-      // contentWindow 换了，不重建监听就会把新帧的上报全部当成外来消息丢掉。
-      React.useEffect(() => {
-        const frame = frameRef.current;
-        if (!frame) return undefined;
-        const onMessage = (event) => {
-          if (event.source !== frame.contentWindow) return;
-          const message = event.data;
-          if (!message || message.type !== 'dsh-widget-height') return;
-          setReportedHeight(clampReportedHeight(message.height));
+
+    // Project the existing durable calls into native turn-level rows. No DOM
+    // reparenting or extra session records; ordinary and PTC history both work.
+    const widgetDefinition = {
+      kind: 'dynamic-ui-widget', target: 'chat',
+      match(event) {
+        const data=event.data;
+        if(event.type==='tool/call'&&data.name==='render_widget')return {id:String(data.callId),role:'start'};
+        if(event.type==='tool/ptc-dispatch'&&data.name==='render_widget')return {id:String(data.subCallId),role:'start'};
+        if(event.type==='tool/result'&&data.message?.source?.callId)return {id:String(data.message.source.callId),role:'update'};
+        return null;
+      },
+      start(_context,match) {
+        const event=match.event,data=event.data;
+        let args;
+        try { args=typeof data.arguments==='string'?JSON.parse(data.arguments):data.arguments; } catch { return null; }
+        if(!args||typeof args.html!=='string'||args.html.length>200000)return null;
+        return {args,seq:event.seq,ready:event.type==='tool/ptc-dispatch',error:data.isError===true};
+      },
+      update(context,match) {
+        if(!context.state)return null;
+        return match.event.type==='tool/result'?{...context.state,ready:true,error:match.event.data.message.isError===true,seq:match.event.seq}:context.state;
+      },
+      buildViewNode(context) {
+        const state=context.state;
+        if(!state?.ready||state.error)return null;
+        return {key:context.key,id:context.id,kind:'dynamic-ui-widget',target:'chat',anchorSeq:state.seq,
+          location:context.start?.location??context.matches[0]?.location??{kind:'unresolved'},
+          visibility:'visible',groupTree:'turn',data:state.args};
+      },
+    };
+    function WidgetFrame({node}) {
+      const {html,title,height}=node.data;
+      const srcDoc=React.useMemo(()=>documentFor(html),[html]);
+      const frameRef=React.useRef(null);
+      const [reportedHeight,setReportedHeight]=React.useState(null);
+      React.useEffect(()=>setReportedHeight(null),[html]);
+      React.useEffect(()=>{
+        const frame=frameRef.current;
+        if(!frame)return undefined;
+        const onMessage=event=>{
+          if(event.source===frame.contentWindow&&event.data?.type==='dsh-widget-height')setReportedHeight(clampReportedHeight(event.data.height));
         };
-        window.addEventListener('message', onMessage);
-        return () => window.removeEventListener('message', onMessage);
-      }, [html, host]);
-      // 回合结束时宿主才折叠，时间点不固定；折叠一出现就把卡片搬到该分组之后。
-      // 监听 DOM 而不是轮询：折叠属性变化和宿主重建节点都会触发回调，
-      // 同一批变化由 MutationObserver 合并；搬移本身产生的 childList 变化
-      // 会在下一次回调里收敛（容器已在原位，不再移动）。
-      // 依赖 html：preparing 阶段还没有锚点。
-      React.useEffect(() => {
-        const node = anchorRef.current;
-        if (!node) return undefined;
-        const doc = node.ownerDocument;
-        let container = null;
-        const sync = () => {
-          const fold = outerHidden(node);
-          if (!fold) {
-            if (container) {
-              container.remove();
-              container = null;
-              setHost(null);
-            }
-            return;
-          }
-          if (!container) {
-            container = doc.createElement('div');
-            container.className = 'dyn-widget-host';
-            setHost(container);
-          }
-          if (container.previousSibling !== fold) fold.after(container);
-        };
-        sync();
-        const observer = new MutationObserver(sync);
-        observer.observe(doc.body ?? doc.documentElement, {
-          attributes: true,
-          attributeFilter: ['hidden'],
-          childList: true,
-          subtree: true,
-        });
-        const onResize = () => requestMeasure(frameRef.current);
-        doc.defaultView?.addEventListener('resize', onResize);
-        return () => {
-          observer.disconnect();
-          doc.defaultView?.removeEventListener('resize', onResize);
-          container?.remove();
-        };
-      }, [html]);
-      if (phase === 'result' && block.isError === true)
-        return h(
-          'p',
-          { className: 'dyn-widget-error', role: 'alert' },
-          resultText(block),
-        );
-      if (typeof html !== 'string' || html === '')
-        return h(
-          'p',
-          { className: 'dyn-widget-note' },
-          phase === 'preparing'
-            ? '正在准备可视化…'
-            : '无法读取可视化参数（调用已离开加载窗口）',
-        );
-      const card = h(
-        'div',
-        { className: 'dyn-widget' },
-        h('style', null, STYLE),
-        title ? h('p', { className: 'dyn-widget-title' }, title) : null,
-        h('iframe', {
-          className: 'dyn-widget-frame',
-          ref: frameRef,
-          title: title || '可视化',
-          srcDoc,
-          sandbox: 'allow-scripts allow-forms',
-          referrerPolicy: 'no-referrer',
-          onLoad: () => requestMeasure(frameRef.current),
-          style: { height: `${reportedHeight ?? height}px` },
-        }),
-      );
-      return h(
-        React.Fragment,
-        null,
-        h('div', { ref: anchorRef, style: { display: 'none' } }),
-        host ? createPortal(card, host) : card,
-      );
+        const measure=()=>requestMeasure(frame);
+        window.addEventListener('message',onMessage);
+        window.addEventListener('resize',measure);
+        return ()=>{window.removeEventListener('message',onMessage);window.removeEventListener('resize',measure);};
+      },[html]);
+      return h('div',{className:'dyn-widget'},h('style',null,STYLE),
+        h('p',{className:'dyn-widget-title'},title||'可视化'),
+        h('iframe',{className:'dyn-widget-frame',ref:frameRef,title:title||'可视化',srcDoc,
+          sandbox:'allow-scripts allow-forms',referrerPolicy:'no-referrer',
+          onLoad:()=>requestMeasure(frameRef.current),style:{height:`${reportedHeight??clampHeight(height)}px`}}));
+    }
+    function ToolNote({phase,block}) {
+      return h('p',{className:block?.isError?'dyn-widget-error':'dyn-widget-note'},block?.isError?resultText(block):phase==='preparing'?'正在准备可视化…':'可视化显示在会话正文中。');
     }
     function apply(ctx) {
-      ctx.slots.inject('tool.call.toolview', () =>
-        ctx.slots.register(
-          { name: 'tool.call.toolview', key: 'render_widget' },
-          WidgetView,
-        ),
-      );
+      ctx.effect(()=>ctx.uiConversation.events.register(widgetDefinition));
+      ctx.slots.inject('conversation.chat.node',()=>ctx.slots.register({name:'conversation.chat.node',key:'dynamic-ui-widget'},WidgetFrame));
+      ctx.slots.inject('tool.call.toolview',()=>ctx.slots.register({name:'tool.call.toolview',key:'render_widget'},ToolNote));
     }
     return { inject, apply };
   },

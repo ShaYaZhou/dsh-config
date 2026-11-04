@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "description": "RTK command guidance and pre-execution check. Managed in Settings → 钩子.",
+  "hooks": {
+    "agent/pre-step": [{
+      "id": "rtk-context",
+      "command": "${RTK_CONTEXT_COMMAND}",
+      "firstStepOnly": true,
+      "timeout": 5,
+      "statusMessage": "RTK 命令提示"
+    }],
+    "tools/pre-execute": [{
+      "id": "rtk-command",
+      "matcher": "bash|pwsh",
+      "command": "${RTK_CHECK_COMMAND}",
+      "timeout": 5,
+      "statusMessage": "RTK 执行前检查"
+    }]
+  }
+}

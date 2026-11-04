@@ -30,7 +30,7 @@ async function main(){
    const cwd=path.join(output,preset);fs.mkdirSync(cwd,{recursive:true});const file=path.join(cwd,'fixture.txt');fs.writeFileSync(file,'BEFORE\n');
    const w=await ctx.workspaceRegistry.create(cwd,'Rewind isolated '+preset),made=await ctx.sessionController.create({workspaceId:w.id,agentPreset:preset});
    const {agent}=await ctx.sessionController.resolveAgent(made.sessionId);assert(agent);ctx.permissionPresets.set(agent.session,'workspace-write');
-   assert(agent.ctx.tools.get('render_widget',agent));assert(agent.ctx.tools.get('create_worktree',agent));assert(!agent.ctx.tools.get('spawn_teammate',agent));
+   assert(agent.ctx.tools.get('render_widget',agent));assert(!agent.ctx.tools.get('spawn_teammate',agent));
    await ctx.sessionController.prompt({sessionId:agent.id,requestId:randomUUID(),mode:'queue',content:[{type:'text',text:'隔离文件回退验收：仅使用原生 write 工具把当前目录 fixture.txt 的内容改成 AFTER 加一个换行。PTC通过tools.write调用，不用原始fs或shell。不委派、不做其他操作，写入后回复完成。'}]},AbortSignal.timeout(120000));
    await agent.whenIdle();assert.equal(fs.readFileSync(file,'utf8').trim(),'AFTER');
    const userSeq=agent.session.snapshotEvents().find(e=>e.type==='user/message').seq;

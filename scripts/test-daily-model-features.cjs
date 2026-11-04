@@ -10,7 +10,7 @@ async function main() {
   fs.writeFileSync(patch, JSON.stringify([{ id: 'desktop-product-telemetry', disabled: true }, { id: 'product-analytics', disabled: true }]));
   const { runProfile } = await import(pathToFileURL(path.join(native, 'dsh/lib/profile-boot.js')));
   const { loadLayeredEnv } = await import(pathToFileURL(path.join(native, 'dsh-app-boot/lib/index.js')));
-  const { localGit } = await import(pathToFileURL(path.join(home, 'profiles/desktop/node_modules/@local/dsh-local-environments/lib/workspace.js')));
+  const localGit=async (_ctx,cwd,args,signal)=>(await require('node:util').promisify(require('node:child_process').execFile)('git',['--no-optional-locks','-C',cwd,...args],{signal,env:{...process.env,GIT_NO_LAZY_FETCH:'1',GIT_TERMINAL_PROMPT:'0'}})).stdout.trim();
   const { ctx, shutdown } = await runProfile({ environment: loadLayeredEnv('dsh'), profile: 'desktop', patchFiles: [patch], args: ['--port', '0', '--no-open'] });
   const signal = AbortSignal.timeout(300000), calls = [], result = {};
   ctx.on('tools/result', (exec, value) => calls.push({ sessionId: exec.agent?.id, name: exec.name, isError: value.isError }));

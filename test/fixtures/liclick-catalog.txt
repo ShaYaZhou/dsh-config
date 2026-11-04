@@ -1,0 +1,198 @@
+Found 8 tool(s):
+
+  generate_image(extra_params, height, model, prompt, width, workspace_id)
+    使用 AI 生成图片。提交任务后自动等待结果（最多 2 分钟），超时返回 task_id 可用 get_task_status 继续查询。
+
+可用模型（通过 model 参数指定，不传则默认 doubao-seedream-5-0-pro-260628）：
+- doubao-seedream-5-0-pro-260628：豆包（即梦）5.0 Pro，画质更强；不支持组图生成，支持 prompt、生成提示词；negative_prompt、负向提示词；name、任务名称；quality、可选值: high、默认: high、图片质量；name、任务名称；quality、可选值: high、默认: high、图片质量；aspect_ratio、可选值: auto/1:1/16:9/9:16/4:3/3:4、默认: 1:1、画面宽高比；auto 时由模型根据提示词/参考图自动判断。传入 aspect_ratio_w/h 时本字段被覆盖；aspect_ratio_w、自定义宽高比-宽，需与 aspect_ratio_h 同时传入；正整数，长短边比不超过 16:1；aspect_ratio_h、自定义宽高比-高，需与 aspect_ratio_w 同时传入；正整数，长短边比不超过 16:1；image_size、可选值: 1K/2K、默认: 2K、图像分辨率档位，按档位计费；n、范围: 1~4、默认: 1、生成数量；reference_images、图生图参考图列表，格式 [{"asset_id": "xxx", "type": "image"}]，每项必须带 type 字段，最多 10 张
+- gpt-image-2：OpenAI GPT-Image 2，支持 prompt、生成提示词；negative_prompt、负向提示词；model、可选值: gpt-image-2、模型 ID，必须为 gpt-image-2；name、任务名称；aspect_ratio、可选值: auto/1:1/4:3/3:4/3:2/2:3/16:9/9:16、默认: auto、画面宽高比；auto 由 OpenAI 自动决定。传入 aspect_ratio_w/h 时本字段被覆盖；aspect_ratio_w、自定义宽高比-宽，需与 aspect_ratio_h 同时传入；正整数，长短边比不超过 3:1；aspect_ratio_h、自定义宽高比-高，需与 aspect_ratio_w 同时传入；正整数，长短边比不超过 3:1；image_size、可选值: auto/1K/2K/4K、默认: auto、图像分辨率档位；aspect_ratio=auto 时必须为 auto，aspect_ratio 非 auto 时不能为 auto；quality、可选值: low/medium/high、默认: high、图片质量；使用显式档位以便提交前准确计费；n、范围: 1~4、默认: 1、生成数量；reference_images、图像编辑参考图列表，格式 [{"asset_id": "xxx", "type": "image"}]，每项必须带 type 字段，最多 5 张
+- gpt-image-2.5-sunburst：OpenAI 最强图片生成与精确编辑模型，支持 prompt、生成提示词；negative_prompt、负向提示词；model、可选值: gpt-image-2.5-sunburst、模型 ID，必须为 gpt-image-2.5-sunburst；name、任务名称；aspect_ratio、可选值: auto/1:1/4:3/3:4/3:2/2:3/16:9/9:16、默认: auto、画面宽高比；auto 由 OpenAI 自动决定。传入 aspect_ratio_w/h 时本字段被覆盖；aspect_ratio_w、自定义宽高比-宽，需与 aspect_ratio_h 同时传入；正整数，长短边比不超过 3:1；aspect_ratio_h、自定义宽高比-高，需与 aspect_ratio_w 同时传入；正整数，长短边比不超过 3:1；image_size、可选值: auto/1K/2K/4K、默认: auto、图像分辨率档位；aspect_ratio=auto 时必须为 auto，aspect_ratio 非 auto 时不能为 auto；quality、可选值: low/medium/high/xhigh/max、默认: high、图片质量；使用显式档位以便提交前准确计费；background、可选值: transparent/opaque/auto、默认: auto、输出背景类型；transparent 为透明背景，opaque 为不透明背景，auto 由 OpenAI 自动决定；n、范围: 1~4、默认: 1、生成数量；reference_images、图像编辑参考图列表，格式 [{"asset_id": "xxx", "type": "image"}]，每项必须带 type 字段，最多 5 张
+- gpt-image-2.5-flare：OpenAI 快速高质量日常图片生成模型，支持 prompt、生成提示词；negative_prompt、负向提示词；model、可选值: gpt-image-2.5-flare、模型 ID，必须为 gpt-image-2.5-flare；name、任务名称；aspect_ratio、可选值: auto/1:1/4:3/3:4/3:2/2:3/16:9/9:16、默认: auto、画面宽高比；auto 由 OpenAI 自动决定。传入 aspect_ratio_w/h 时本字段被覆盖；aspect_ratio_w、自定义宽高比-宽，需与 aspect_ratio_h 同时传入；正整数，长短边比不超过 3:1；aspect_ratio_h、自定义宽高比-高，需与 aspect_ratio_w 同时传入；正整数，长短边比不超过 3:1；image_size、可选值: auto/1K/2K/4K、默认: auto、图像分辨率档位；aspect_ratio=auto 时必须为 auto，aspect_ratio 非 auto 时不能为 auto；quality、可选值: low/medium/high/xhigh/max、默认: high、图片质量；使用显式档位以便提交前准确计费；background、可选值: transparent/opaque/auto、默认: auto、输出背景类型；transparent 为透明背景，opaque 为不透明背景，auto 由 OpenAI 自动决定；n、范围: 1~4、默认: 1、生成数量；reference_images、图像编辑参考图列表，格式 [{"asset_id": "xxx", "type": "image"}]，每项必须带 type 字段，最多 5 张
+- midjourney-7：Midjourney，支持 prompt、生成提示词；negative_prompt、负向提示词；name、任务名称；quality、可选值: high、默认: high、图片质量；model、可选值: midjourney-7/midjourney-8.2/midjourney-niji-6/midjourney-niji-7、模型 ID；aspect_ratio、可选值: 1:1/9:16/16:9/3:4/4:3、默认: 1:1、画面宽高比。传入 aspect_ratio_w/h 时本字段被覆盖；aspect_ratio_w、自定义宽高比-宽，需与 aspect_ratio_h 同时传入；正整数，最大 14:1；aspect_ratio_h、自定义宽高比-高，需与 aspect_ratio_w 同时传入；正整数，最大 14:1；n、可选值: 4、默认: 4、生成数量，固定 4 张；model_version、可选值: 7/8.2/niji 6/niji 7、Midjourney 指令版本号；reference_images、参考图列表，格式 [{"asset_id": "xxx", "type": "image", "image_type": "GENERAL"}]，每项必须带 type 字段；参考图总计最多 5 张；midjourney-7 支持 GENERAL/STYLE/OREF，其中 OREF 限 1 张；midjourney-8.2 / niji 6/7 支持 GENERAL/STYLE
+- midjourney-8.2：Midjourney 8.2，支持 prompt、生成提示词；negative_prompt、负向提示词；name、任务名称；model、可选值: midjourney-7/midjourney-8.2/midjourney-niji-6/midjourney-niji-7、模型 ID；aspect_ratio、可选值: 1:1/9:16/16:9/3:4/4:3、默认: 1:1、画面宽高比。传入 aspect_ratio_w/h 时本字段被覆盖；aspect_ratio_w、自定义宽高比-宽，需与 aspect_ratio_h 同时传入；正整数，最大 14:1；aspect_ratio_h、自定义宽高比-高，需与 aspect_ratio_w 同时传入；正整数，最大 14:1；n、可选值: 4、默认: 4、生成数量，固定 4 张；model_version、可选值: 7/8.2/niji 6/niji 7、Midjourney 指令版本号；reference_images、参考图列表，格式 [{"asset_id": "xxx", "type": "image", "image_type": "GENERAL"}]，每项必须带 type 字段；参考图总计最多 5 张；midjourney-7 支持 GENERAL/STYLE/OREF，其中 OREF 限 1 张；midjourney-8.2 / niji 6/7 支持 GENERAL/STYLE
+- midjourney-niji-6：Midjourney niji 6，支持 prompt、生成提示词；negative_prompt、负向提示词；name、任务名称；quality、可选值: high、默认: high、图片质量；model、可选值: midjourney-7/midjourney-8.2/midjourney-niji-6/midjourney-niji-7、模型 ID；aspect_ratio、可选值: 1:1/9:16/16:9/3:4/4:3、默认: 1:1、画面宽高比。传入 aspect_ratio_w/h 时本字段被覆盖；aspect_ratio_w、自定义宽高比-宽，需与 aspect_ratio_h 同时传入；正整数，最大 14:1；aspect_ratio_h、自定义宽高比-高，需与 aspect_ratio_w 同时传入；正整数，最大 14:1；n、可选值: 4、默认: 4、生成数量，固定 4 张；model_version、可选值: 7/8.2/niji 6/niji 7、Midjourney 指令版本号；reference_images、参考图列表，格式 [{"asset_id": "xxx", "type": "image", "image_type": "GENERAL"}]，每项必须带 type 字段；参考图总计最多 5 张；midjourney-7 支持 GENERAL/STYLE/OREF，其中 OREF 限 1 张；midjourney-8.2 / niji 6/7 支持 GENERAL/STYLE
+- midjourney-niji-7：Midjourney niji 7，支持 prompt、生成提示词；negative_prompt、负向提示词；name、任务名称；quality、可选值: high、默认: high、图片质量；model、可选值: midjourney-7/midjourney-8.2/midjourney-niji-6/midjourney-niji-7、模型 ID；aspect_ratio、可选值: 1:1/9:16/16:9/3:4/4:3、默认: 1:1、画面宽高比。传入 aspect_ratio_w/h 时本字段被覆盖；aspect_ratio_w、自定义宽高比-宽，需与 aspect_ratio_h 同时传入；正整数，最大 14:1；aspect_ratio_h、自定义宽高比-高，需与 aspect_ratio_w 同时传入；正整数，最大 14:1；n、可选值: 4、默认: 4、生成数量，固定 4 张；model_version、可选值: 7/8.2/niji 6/niji 7、Midjourney 指令版本号；reference_images、参考图列表，格式 [{"asset_id": "xxx", "type": "image", "image_type": "GENERAL"}]，每项必须带 type 字段；参考图总计最多 5 张；midjourney-7 支持 GENERAL/STYLE/OREF，其中 OREF 限 1 张；midjourney-8.2 / niji 6/7 支持 GENERAL/STYLE
+- nano_banana_2：Gemini 3.1 Flash Image，支持 prompt、生成提示词；negative_prompt、负向提示词；name、任务名称；quality、可选值: high、默认: high、图片质量；aspect_ratio、可选值: auto/1:1/9:16/16:9/3:4/4:3/1:8/8:1、默认: auto、画面宽高比；image_size、可选值: 1K/2K/4K、默认: 1K、图像尺寸；n、范围: 1~4、默认: 1、生成数量；reference_images、参考图列表，格式 [{"asset_id": "xxx", "type": "image"}]，每项必须带 type 字段，最多 14 张
+- nano_banana_2_1：Gemini Nano Banana 2.1，支持 prompt、生成提示词；negative_prompt、负向提示词；name、任务名称；quality、可选值: high、默认: high、图片质量；aspect_ratio、可选值: auto/1:1/9:16/16:9/3:4/4:3/1:8/8:1、默认: auto、画面宽高比；image_size、可选值: 1K/2K/4K、默认: 1K、图像尺寸；n、范围: 1~4、默认: 1、生成数量；reference_images、参考图列表，格式 [{"asset_id": "xxx", "type": "image"}]，每项必须带 type 字段，最多 14 张
+- nano_banana_pro：Gemini 3 Pro Image，支持 prompt、生成提示词；negative_prompt、负向提示词；name、任务名称；quality、可选值: high、默认: high、图片质量；aspect_ratio、可选值: auto/1:1/9:16/16:9/3:4/4:3、默认: auto、画面宽高比；image_size、可选值: 1K/2K/4K、默认: 1K、图像尺寸；n、范围: 1~4、默认: 1、生成数量；reference_images、参考图列表，格式 [{"asset_id": "xxx", "type": "image"}]，每项必须带 type 字段，最多 14 张
+
+也可直接传 backend 名（如 midjourney、openai、seedream、vertex_ai）作为 model。
+
+示例调用：
+- 简单生成：prompt="一只在月光下奔跑的猫"
+- OpenAI：prompt="赛博朋克城市", model="gpt-image-2", extra_params={"aspect_ratio": "1:1", "image_size": "1K", "quality": "high"}
+- Midjourney：prompt="fantasy castle", model="midjourney-7", extra_params={"aspect_ratio": "16:9"}
+- Seedream 图生图：prompt="变成卡通风格", model="seedream", extra_params={"reference_images": [{"asset_id": "abc123"}]}
+
+  generate_video(extra_params, model, negative_prompt, prompt, reference_images, request_type*, workspace_id)
+    使用 AI 生成视频。提交任务后自动等待结果（最多 3 分钟），超时返回 task_id 可用 get_task_status 继续查询。
+
+提交任务后自动等待结果（最多 3 分钟），视频生成通常需要 5~20 分钟，大概率会超时返回 task_id，之后用 get_task_status 轮询查询结果。
+
+生成方式（request_type）与模型支持矩阵：
+- text_prompt：文生视频（所有模型均支持）
+- first_frame：首帧图生视频（所有模型均支持，需 1 张 reference_images）
+- first_last_frame：首尾帧生视频（hailuo / kling / seedance 支持）
+- reference_images：参考素材生视频（google（image/video） / hailuo（audio/image/video） / kling（image/video） / seedance（audio/image/video） / vidu（audio/image））
+- video-enhancement：视频画质增强（需 1 个 video 类型资产）（enhancement 支持）
+- draft_to_video：Seedance 2.5 样片转 1080p 成片（需 draft_request_id，多条样片需 draft_task_id；不传提示词或素材）（seedance 支持）
+
+
+可用模型（通过 model 参数指定，必须指定）：
+- kling-v2-5-turbo：可灵 v2.5 Turbo，推荐通用场景；参考图/首帧/尾帧图片限制：≤10MB，宽高≥300px，宽高比 1:2.5~2.5:1，支持 duration、可选值: 5/10、默认: 5、视频时长（秒），仅 5 / 10（与前端选项一致）；count、可选值: 1/2/4、默认: 1、生成条数；resolution、可选值: 1080p、默认: 1080p、分辨率：1080p 对应可灵 pro；前端仅开放 1080p；sound、可选值: off、默认: off、是否生成声音；官方支持 on/off，当前后端仅开放 off（无声）；aspect_ratio、可选值: 16:9、默认: 16:9、输出画面宽高比；前端不开放选择，文生固定 16:9，首帧/首尾帧由输入图决定（仅 text_prompt）
+- kling-v3-omni：可灵 3.0 Omni，文生/参考素材生视频（参考图最多 7 张，参考视频至多 1 段）；参考图/首帧/尾帧图片限制：≤10MB，宽高≥300px，宽高比 1:2.5~2.5:1，支持 duration、范围: 3~15、默认: 5、视频时长（秒），范围 3~15；count、可选值: 1/2/4、默认: 1、生成条数；resolution、可选值: 720p/1080p/4k、默认: 1080p、分辨率；aspect_ratio、可选值: 16:9/9:16/1:1、默认: 16:9、画面宽高比（首帧/首尾帧模式由图片决定，无需传）；参考图/首帧/尾帧图片限制：≤10MB，宽高≥300px，宽高比 1:2.5~2.5:1（仅 text_prompt/reference_images）；sound、可选值: on/off、默认: off、是否生成声音：on=生成音频，off=无声；参考素材含视频时仅支持 off（仅 text_prompt/reference_images）；video_refer_type、可选值: feature/base、默认: feature、参考视频用法：feature=特征参考（风格/运镜/上下镜头），base=待编辑视频（输出时长与原视频一致）；仅参考素材含视频时生效（仅 reference_images）
+- MiniMax-H3：MiniMax H3，支持文生、首帧/首尾帧与图片/视频/音频多模态参考生视频，最高 2K，支持 duration、范围: 4~15、默认: 5、视频时长（秒），范围 4~15；resolution、可选值: 768P/2K、默认: 768P、视频分辨率；aspect_ratio、可选值: 21:9/16:9/4:3/1:1/3:4/9:16、默认: 16:9、输出画面宽高比；文生视频不可使用 adaptive；count、可选值: 1/2/4、默认: 1、生成条数；莉刻后端按数量循环调用 MiniMax；aigc_watermark、默认: False、是否添加 AIGC 标识水印
+- gemini-omni-flash-preview：Gemini Omni Flash，支持文生视频、图片/视频参考生视频；不用于首尾帧模块，分辨率固定 720p，支持 duration、范围: 3~10、默认: 5、输出视频时长（秒），提交给 Gemini Omni response_format.duration，格式为 "5s"；aspect_ratio、可选值: 16:9/9:16、默认: 16:9、输出视频宽高比；resolution、可选值: 720p、默认: 720p、分辨率；当前仅 720p；generateAudio、默认: False、是否同时生成音频；关闭时后端会剥离输出视频的音轨；count、可选值: 1/2/4、默认: 1、生成条数（后端循环提交参数，不透传给 Google）；reference_images、参考素材列表，格式 [{"asset_id":"xxx","type":"image|video|reference"}]；总素材最多 15 条，其中视频最多 3 条；视频会先转存 GCS 后以 gs:// URI 传给 Gemini Omni
+- video-enhancement：基于参考视频资产进行分辨率/帧率增强，支持 resolution、可选值: 720p/1080p/4k、默认: 1080p、增强目标分辨率；target_fps、可选值: 24/30/60、增强目标帧率；不传则仅按目标分辨率增强；reference_images、参考视频列表，格式 [{"asset_id":"xxx","type":"video"}]，首项必须为视频资产
+- topaz-iris-2：Topaz Iris MQ（iris-2），默认精修档，适合人脸劣化素材的修复与增强，支持 model、可选值: topaz-iris-2、默认: topaz-iris-2、Topaz Iris MQ 模型 ID；resolution、可选值: 1080p/4k、默认: 1080p、Topaz 输出分辨率档位：1080p=短边1080，4k=短边2160；details、范围: -50~50、默认: 0、细节增强偏移量；0 为自动；sharpen、范围: -50~50、默认: 0、锐化偏移量；0 为自动；denoise、范围: -50~50、默认: 0、降噪偏移量；0 为自动；compression_recovery、范围: -50~50、默认: 0、压缩修复偏移量；0 为自动；recover_original_detail、范围: 0~100、默认: 0、原片保留比例；0 表示不混回原片；grain、可选值: none/light/medium、默认: none、胶片颗粒：none=无，light=轻，medium=中；reference_images、参考视频列表，格式 [{"asset_id":"xxx","type":"video"}]，首项必须为视频资产
+- topaz-proteus-4：Topaz Proteus（prob-4），适合老旧、低清和重压缩素材的保守修复，支持 model、可选值: topaz-proteus-4、默认: topaz-proteus-4、Topaz Proteus 模型 ID；resolution、可选值: 1080p/4k、默认: 1080p、Topaz 输出分辨率档位：1080p=短边1080，4k=短边2160；details、范围: -50~50、默认: 0、细节增强偏移量；0 为自动；sharpen、范围: -50~50、默认: 0、锐化偏移量；0 为自动；denoise、范围: -50~50、默认: 0、降噪偏移量；0 为自动；compression_recovery、范围: -50~50、默认: 0、压缩修复偏移量；0 为自动；recover_original_detail、范围: 0~100、默认: 0、原片保留比例；0 表示不混回原片；grain、可选值: none/light/medium、默认: none、胶片颗粒：none=无，light=轻，medium=中；reference_images、参考视频列表，格式 [{"asset_id":"xxx","type":"video"}]，首项必须为视频资产
+- topaz-starlight-2-5：Topaz Starlight Precise 2.5（slp-2.5），生成式质感增强，首版仅开放 1080p，支持 model、可选值: topaz-starlight-2-5、默认: topaz-starlight-2-5、Topaz Starlight Precise 2.5 模型 ID；resolution、可选值: 1080p、默认: 1080p、Starlight Precise 2.5 首版仅开放 1080p；reference_images、参考视频列表，格式 [{"asset_id":"xxx","type":"video"}]，首项必须为视频资产
+- doubao-seedance-2-0-260128：豆包 Seedance 2.0，支持 duration、范围: 4~15、特殊值: -1、默认: 5、视频时长（秒），范围 4~15；-1 表示自动时长；aspect_ratio、可选值: adaptive/21:9/16:9/9:16/4:3/3:4/1:1、默认: adaptive、画面宽高比；adaptive 由模型自动选择（图生视频按首帧图比例，文生视频按提示词）；首帧、首尾帧模式下输出比例由首帧图决定，只能为 adaptive；generateAudio、默认: False、是否同时生成音频；target_fps、可选值: 60、补帧目标帧率；count、可选值: 1/2/4、默认: 1、生成条数；seed、范围: 0~4294967295、随机种子，相同 seed + 相同参数可复现近似画面，留空由后端随机；resolution、可选值: 480p/720p/1080p、默认: 720p、分辨率
+- doubao-seedance-2-0-fast-260128：豆包 Seedance 2.0 Fast，支持 duration、范围: 4~15、特殊值: -1、默认: 5、视频时长（秒），范围 4~15；-1 表示自动时长；aspect_ratio、可选值: adaptive/21:9/16:9/9:16/4:3/3:4/1:1、默认: adaptive、画面宽高比；adaptive 由模型自动选择（图生视频按首帧图比例，文生视频按提示词）；首帧、首尾帧模式下输出比例由首帧图决定，只能为 adaptive；generateAudio、默认: False、是否同时生成音频；target_fps、可选值: 60、补帧目标帧率；count、可选值: 1/2/4、默认: 1、生成条数；seed、范围: 0~4294967295、随机种子，相同 seed + 相同参数可复现近似画面，留空由后端随机；resolution、可选值: 480p/720p、默认: 720p、分辨率
+- doubao-seedance-2-5-260628：豆包 Seedance 2.5，支持 duration、范围: 4~30、特殊值: -1、默认: 5、视频时长（秒），范围 4~30；-1 表示自动时长（仅 text_prompt/first_frame/first_last_frame/reference_images）；aspect_ratio、可选值: adaptive/21:9/16:9/9:16/4:3/3:4/1:1、默认: adaptive、画面宽高比；adaptive 由模型自动选择（图生视频按首帧图比例，文生视频按提示词）；首帧、首尾帧模式下输出比例由首帧图决定，只能为 adaptive（仅 text_prompt/first_frame/first_last_frame/reference_images）；generateAudio、默认: False、是否同时生成音频（仅 text_prompt/first_frame/first_last_frame/reference_images）；target_fps、可选值: 60、补帧目标帧率（仅 text_prompt/first_frame/first_last_frame/reference_images）；count、可选值: 1/2/4、默认: 1、生成条数；seed、范围: 0~4294967295、随机种子，相同 seed + 相同参数可复现近似画面，留空由后端随机（仅 text_prompt/first_frame/first_last_frame/reference_images）；resolution、可选值: 480p/720p/1080p、默认: 720p、分辨率；draft=true 时默认且仅支持 480p，样片转正式视频仅支持 1080p；draft、默认: False、是否生成 480p 样片；仅 Seedance 2.5，样片可在 7 天内转为 1080p 正式视频；draft_request_id、已完成样片的 LiClick request_id；必须属于当前用户（仅 draft_to_video）；draft_task_id、选中样片的 result.videos[].task_id（厂商 ID）；多条样片时必填，单条时可省略（仅 draft_to_video）；omni_reference_task_type、可选值: auto/reference/edit/extend、全模态参考生视频子任务类型引导；不传时沿用上游自动识别行为。reference=参考生成，edit=视频编辑，extend=视频延长，auto=模型自动判定。edit/extend 可通过请求顶层 source_video_asset_id 指定待编辑视频；显式指定时比例必须为 adaptive，edit 的生成时长 duration 必须为 -1。edit 显式指定的源视频为 4~30 秒，额外参考视频每段为 2~30 秒；extend/reference 的输入视频每段为 2~30 秒；全部视频总时长不超过 30 秒（仅 reference_images）
+- viduq2：Vidu Q2，支持 duration、可选值: 5/10、默认: 5、视频时长（秒）；aspect_ratio、可选值: 16:9/9:16/4:3/3:4/1:1、默认: 16:9、画面宽高比；count、可选值: 1/2/4、默认: 1、生成条数；resolution、可选值: 720p、默认: 720p、分辨率；前端仅开放 720p
+- viduq3-pro：Vidu Q3 Pro，支持 duration、可选值: 4/8/12/16、默认: 4、视频时长（秒）；aspect_ratio、可选值: 16:9/9:16/4:3/3:4/1:1、默认: 16:9、画面宽高比；generateAudio、默认: False、是否同时生成音频；count、可选值: 1/2/4、默认: 1、生成条数；resolution、可选值: 720p、默认: 720p、分辨率；前端仅开放 720p
+- viduq4-preview：Vidu Q4 Preview：首帧或 1～15 张图片参考生视频；参考生可附 0～3 段 MP3 音频，支持 duration、范围: 3~16、默认: 5、视频时长（秒）；aspect_ratio、可选值: 16:9/9:16/4:3/3:4/1:1、默认: 16:9、参考生视频画面宽高比（仅 reference_images）；count、可选值: 1/2/4、默认: 1、生成条数；resolution、可选值: 540p/720p/1080p/2K/4K、默认: 720p、分辨率；generateAudio、默认: True、是否同步生成声音；is_rec、默认: True、是否使用系统推荐提示词（仅 first_frame）；seed、默认: 0、随机种子，0 表示随机
+
+也可直接传 backend 名（如 enhancement、google、hailuo、kling、seedance、vidu）作为 model。
+
+示例调用：
+- text_prompt：request_type="text_prompt", prompt="一只猫在弹钢琴", model="kling-v2-5-turbo", extra_params={"duration": 5}
+- first_frame：request_type="first_frame", reference_images=[{"asset_id":"xxx"}], model="kling-v2-5-turbo"（asset_id 通过 upload_image 获取）
+- Seedance 2.5 样片：extra_params={"draft": true, "resolution": "480p"}；确认样片后 request_type="draft_to_video", extra_params={"draft_request_id": "<LiClick 样片 request_id>", "draft_task_id": "<选中视频的厂商 task_id>"}，不传提示词、素材、时长、比例、种子或音频设置
+
+  generate_model_3d(back, bottom, extra_params, front, image, left, left_back, left_front, model*, model_asset_id, model_file, model_image, negative_prompt, prompt, ref_image, request_type*, right, right_back, right_front, top, unknown, workspace_id)
+    使用 AI 生成3D 模型。提交任务后自动等待结果（最多 3 分钟），超时返回 task_id 可用 get_task_status 继续查询。
+
+提交任务后自动等待结果（最多 3 分钟），3D 任务通常需要 3~10 分钟，大概率超时返回 task_id，之后用 get_task_status (task_type="model_3d") 轮询。
+
+request_type 与模型的支持矩阵：
+- generation：生成 3D —— Tripo P2 支持文生（必须传 prompt 且不能传图片）或单张 front 图生（不能同时传 prompt）；其他 Hunyuan/Tripo 必传 front；Hunyuan 额外可选 top/bottom/left_front/right_front；Rodin 标准视角为 front/back/left/right/top/bottom/left_front/right_front/left_back/right_back，最多 5 张（hunyuan-v3.1 / rodin-gen-2.5 / tripo-v3.1 / tripo-P1 / tripo-P2）
+- mesh_segmentation：组件拆分 —— 必传 model_file（或 model_asset_id）+ model_image；rodin 可选 image 参考图（tripo-v1.0 / tripo-segment-v2.0）
+- mesh_completion：网格补全 —— extra_params.task_id 必须来自已完成 Tripo 分割的 result.task_id；不上传模型，不可使用 LiClick request_id（tripo-v1.0）
+- reduce_face：低模拓扑 —— 必传 model_file + model_image（hunyuan-v1.5 / tripo-v2.0）
+- uv_unwrap：UV 展开 —— 必传 FBX/GLB/OBJ model_file（或 model_asset_id）；三角面少于 30000、组件少于 100（hunyuan-uv / tripo-uv）
+- texture：纹理绘制 —— 必传 model_file；hunyuan/meshy 还需 model_image，tripo/rodin 可选；tripo 图生必须传 front，支持 1～4 张 front/left/back/right，2/3 张按 [front, left, back, right] 四槽以 null 补齐；prompt 与图至少有其一（hunyuan-texture / rodin-texture / tripo-v3.0 / tripo-v3.5 / meshy-6）
+
+文件类参数（front/left/right/back/top/bottom/left_front/right_front/left_back/right_back/model_file/image/model_image）支持 4 种入参形式，unknown 仅作为旧客户端兼容字段保留。MCP 工具会自动解析后以 multipart 提交给后端：
+  1) 'asset:<asset_id>'（推荐，本地大文件唯一可靠通道：先调 upload_asset 拿 asset_id，再以此格式引用）
+  2) http(s):// URL（公网/内网可达的图片或 3D 模型链接）
+  3) data:<mime>;base64,<...> URI（小文件可直接 base64 内嵌）
+  4) 本地文件路径（仅 stdio 模式有效，且指 MCP server 进程的文件系统，远程 gateway 调用下不可用）
+UV 展开例外：支持 model_asset_id / 'asset:<asset_id>'，stdio 模式还支持本地 FBX/GLB/OBJ 路径；不接受 URL 或 data URI。
+
+可用模型（通过 model 参数指定，必须指定）：
+- hunyuan-v3.1：腾讯混元 3D 专业版，支持文/图生 3D 与多视角生 3D，支持 enable_pbr、默认: True、是否启用 PBR；face_count、范围: 10000~1500000、默认: 1500000、目标面数；generate_texture、默认: True、是否生成纹理；关闭时 PBR 不可用
+- hunyuan-v1.5：腾讯混元 3D 低模拓扑（Reduce Face），支持 GLB/OBJ 高模输入，支持 polygon_type、可选值: triangle/quadrilateral、默认: quadrilateral、多边形类型；face_level、可选值: high/medium/low、默认: high、面数等级
+- hunyuan-texture：腾讯混元 3D 纹理绘制（文生纹理 / 图生纹理），支持 GLB/OBJ 模型输入，支持 prompt、文生纹理提示词，最多 200 字符；enable_pbr、默认: True、是否启用 PBR
+- hunyuan-uv：腾讯混元 3D UV 展开，支持 FBX/GLB/OBJ，三角面少于 30000、组件少于 100
+- rodin-gen-2.5：Rodin Gen-2.5 文生 / 图生 3D；支持 F/FL/FR/L/R/B/BL/BR/U/D/? 方向标签，单次最多 5 张参考图，支持 prompt、模型生成提示词，可选，最多 500 字符；与参考图至少传一个；tier、可选值: Gen-2.5-High/Gen-2.5-Extreme-High、默认: Gen-2.5-High、Rodin Gen-2.5 生成档位；Extreme-High 更强调表面细节；geometry_file_format、可选值: glb/usdz/fbx/obj/stl、默认: glb、导出模型格式；mesh_mode=Quad 时固定使用原生 fbx，Raw 默认 glb；material、可选值: PBR/Shaded/None、默认: PBR、材质类型；high_pack、默认: False、启用 HighPack，生成 4K 纹理；hd_texture、默认: False、启用高清纹理后处理，提升纹理质量但可能降低与参考图的相似度；texture_delight、默认: False、去光照：生成材质前移除参考图中的高光与烘焙光照，默认关闭；texture_mode、可选值: legacy/extreme-low/low/medium/high、默认: high、纹理生成质量；更高档位会增加生成耗时；mesh_mode、可选值: Raw/Quad、默认: Raw、网格模式；Raw 输出三角面，Quad 输出四边面；face_count、范围: 1000~2000000、面数配置，透传 Rodin quality_override
+- rodin-texture：Rodin 纹理绘制（rodin_texture_only），支持 prompt、纹理描述，可选；geometry_file_format、可选值: glb/usdz/fbx/obj/stl、默认: glb、导出模型格式；material、可选值: PBR/Shaded、默认: PBR、材质类型；Rodin texture-only 仅支持 PBR / Shaded；hd_texture、默认: False、高清纹理开关；true 时 resolution 传 High，否则 Basic
+- tripo-v3.1：Tripo 文/图/多视图生 3D（v3.1-20260211），支持 enable_pbr、默认: True、是否启用 PBR；enable_image_autofix、默认: False、是否启用 AI 图片补全与 3D 增强；仅单视图图生模型有效；polygon_type、可选值: triangle、默认: triangle、多边形类型；generate_texture、默认: True、是否生成纹理；关闭时 PBR 不可用；texture_quality、可选值: standard/detailed/extreme、默认: standard、纹理质量：standard(2K) / detailed(4K) / extreme(8K)；mesh_mode、可选值: high_precision、默认: high_precision、网格模式；v3.1 仅支持高精度；face_count、范围: 500~2000000、默认: 2000000、目标面数；geometry_quality、可选值: detailed、默认: detailed、几何质量
+- tripo-P1：Tripo P1 智能网格生 3D（P1-20260311），支持 enable_pbr、默认: True、是否启用 PBR；enable_image_autofix、默认: False、是否启用 AI 图片补全与 3D 增强；仅单视图图生模型有效；polygon_type、可选值: triangle、默认: triangle、多边形类型；generate_texture、默认: True、是否生成纹理；关闭时 PBR 不可用；texture_quality、可选值: standard/detailed/extreme、默认: standard、纹理质量：standard(2K) / detailed(4K) / extreme(8K)；mesh_mode、可选值: smart_low_poly、默认: smart_low_poly、网格模式；P1 仅支持智能网格；face_count、范围: 500~20000、默认: 20000、目标面数
+- tripo-P2：Tripo P2 低面数/四边面生 3D（P2-20260801）；文生需 prompt（最多 1024 字符，negative_prompt 最多 255 字符）且不传图片，图生需 front 且不传 prompt：支持单张 front，或 front 加 left/back/right 中 1~3 张补充视图，支持 enable_pbr、默认: True、是否启用 PBR；enable_image_autofix、默认: False、是否自动优化输入图片；仅单视图图生模型有效；polygon_type、可选值: triangle/quadrilateral、默认: triangle、多边形类型；四边面时 face_count 上限为 25000；generate_texture、默认: True、是否生成纹理；关闭时 PBR 不可用；texture_quality、可选值: standard/detailed/extreme、默认: standard、纹理质量：standard / detailed / extreme(8K)；face_count、范围: 48~50000、最大面数；三角面 48~50000，四边面 48~25000；不传时自适应；image_seed、文生模型内部文生图阶段随机种子；model_seed、几何体生成随机种子；texture_seed、纹理生成随机种子；texture_alignment、可选值: original_image/geometry、默认: original_image、贴图对齐优先级；仅图生模型有效；orientation、可选值: default/align_image、默认: default、模型朝向；仅图生且生成纹理时有效；auto_size、默认: False、是否自动缩放至真实世界尺寸（米）；compress、可选值: geometry、geometry 表示启用 meshopt 几何压缩；export_uv、默认: True、是否展开 UV；关闭可加快生成并减小文件
+- tripo-v1.0：Tripo v3 组件拆分 / 网格补全（mesh/segment、mesh/complete v1.0-20250506），支持 task_id、已完成 Tripo 组件拆分结果中的 task_id；不可使用 LiClick request_id（仅 mesh_completion）；completion_mode、可选值: ai_completion/quick_cap、默认: ai_completion、补全方式：AI 生成缺失几何 / 快速封口（仅 mesh_completion）
+- tripo-v2.0：Tripo v3 低模拓扑（mesh/decimate v2.0），支持 polygon_type、可选值: triangle/quadrilateral、默认: quadrilateral、多边形类型；三角面输出 GLB，四边面输出 FBX；face_count、范围: 500~20000、默认: 10000、目标面数
+- tripo-segment-v2.0：Tripo v3 组件拆分（mesh/segment v2.0-20260430），支持 segmentation_granularity、可选值: simple/balanced/detailed、默认: balanced、组件拆分粒度；传入 ref_image 时无效；split_by_connectivity、默认: True、是否按连通性拆分；传入 ref_image 时无效
+- tripo-uv：Tripo 智能 UV 展开（mesh/uv，厂商 model=default），支持 bake、默认: True、是否烘焙纹理；export_orientation、可选值: +x/-x/+y/-y、模型导出朝向；不传则使用厂商默认值；compress、可选值: geometry、geometry 表示 meshopt 压缩；不传则使用厂商默认值
+- tripo-v3.0：Tripo v3 纹理绘制（models/texture v3.0-20250812）；图生需 front，支持 1～4 张视图，2/3 张按 [front, left, back, right] 四槽以 null 补齐，支持 prompt、文生纹理提示词，最多 200 字符；enable_pbr、默认: True、是否启用 PBR；texture_quality、可选值: standard/detailed/extreme、默认: standard、纹理质量：standard(2K) / detailed(4K) / extreme(8K)
+- tripo-v3.5：Tripo v3 纹理绘制（models/texture v3.5-20260815）；支持去除光照与 fast 纹理质量，支持 prompt、文生纹理提示词，最多 200 字符；enable_pbr、默认: True、是否启用 PBR；texture_quality、可选值: fast/standard/detailed/extreme、默认: standard、纹理质量：fast / standard(2K) / detailed(4K) / extreme(8K)；delight、默认: False、是否去除光照
+- meshy-6：Meshy 重新纹理（retexture，Meshy 6），支持 prompt、文生纹理提示词，最多 600 字符；enable_original_uv、默认: True、是否保留原始 UV；enable_pbr、默认: False、是否生成 PBR 贴图；hd_texture、默认: False、是否生成 4K 基础色贴图；remove_lighting、默认: True、是否去除基础色贴图中的光照
+
+也可直接传 backend 名（如 hunyuan、meshy、rodin、tripo）作为 model。
+
+示例调用：
+- generation：request_type="generation", model="hunyuan-v3.1", front="https://example.com/cat.png"
+- Tripo P2 文生：request_type="generation", model="tripo-P2", prompt="低多边形椅子"（不要同时传图片）
+- Tripo P2 图生：request_type="generation", model="tripo-P2", front="https://example.com/chair.png"（不要同时传 prompt）
+- generation 多视图：request_type="generation", model="hunyuan-v3.1", front=..., left_front=..., top=..., right_front=..., left=..., right=..., bottom=..., back=...
+- Rodin 多视图（最多 5 张）：request_type="generation", model="rodin-gen-2.5", front=..., left_front=..., right_front=..., left_back=..., right_back=...
+- mesh_segmentation：request_type="mesh_segmentation", model="rodin-gen-2", model_file=<已生成 3D URL>, model_image=<缩略图URL>, extra_params={"strength": 6}
+- mesh_completion：request_type="mesh_completion", model="tripo-v1.0", extra_params={"task_id": "task_<分割结果ID>", "completion_mode": "ai_completion"}
+- reduce_face：request_type="reduce_face", model="tripo-v2.0", model_file=..., model_image=..., extra_params={"face_count": 10000, "polygon_type": "quadrilateral"}
+- uv_unwrap：request_type="uv_unwrap", model="hunyuan-uv", model_asset_id="<已上传模型资产 ID>"
+- texture：request_type="texture", model="hunyuan-texture", model_file=..., model_image=..., image=<参考图>, prompt="石质材质"
+
+  generate_music(extra_params, model*, prompt, reference_images, workspace_id)
+    使用 AI 生成音乐。提交任务后自动等待结果（最多 3 分钟），超时返回 task_id 可用 get_task_status 继续查询。
+
+prompt 和 reference_images 至少提供一个；参考图最多 10 张，推荐先用 upload_asset 获取 asset_id。
+
+可用模型（通过 model 参数指定，必须指定）：
+- lyria-3-pro-preview：Google Lyria 音乐生成，支持提示词和参考图，支持 prompt、音乐提示词；与 reference_images 至少提供一个；model、可选值: lyria-3-pro-preview、默认: lyria-3-pro-preview、Lyria 模型 ID；count、范围: 1~4、默认: 1、生成条数；reference_images、参考图片列表，格式 [{"asset_id":"xxx"}]，最多 10 张
+
+也可直接传 backend 名（如 lyria）作为 model。
+
+示例调用：
+- prompt="lofi study beat with warm piano", model="lyria-3-pro-preview", extra_params={"count": 1}
+- 参考图生成：model="lyria-3-pro-preview", reference_images=[{"asset_id":"xxx"}], extra_params={"count": 2}
+
+  get_task_status(task_id*, task_type*)
+    查询图片/视频/3D 模型/音乐生成任务的状态和结果。
+
+使用场景：
+- generate_image / generate_video / generate_model_3d / generate_music 提交任务后，用此工具轮询直到完成
+- 查询之前提交的任务是否已完成
+
+task_type 取值：image / video / model_3d / music
+
+返回的 status 含义：
+- Pending：排队中，稍后再查
+- Processing：生成中，稍后再查
+- Finished：已完成，url 字段包含结果链接；err_msg 非空时表示部分成功
+- Failed：失败，err_msg 包含原因
+
+建议每隔 10~30 秒轮询一次，视频任务可能需要等待 5~20 分钟，3D 任务通常 3~10 分钟，音乐任务通常 1~5 分钟。
+
+  upload_asset(asset_type, file_path, thumbnail_path, url, workspace_id)
+    上传素材（图片/视频/音频/3D 模型）到 LiClick 平台，返回 asset_id。
+
+使用场景：
+- 上传参考图片，用于 generate_image（图生图）或 generate_video（图生视频）的 reference_images
+- 上传参考视频，用于 Seedance 2.0 的 reference_images 模式（视频生视频）
+- 上传参考音频，用于 Seedance 2.0 的 reference_images 模式（音频驱动）
+- 上传 3D 模型或视图图片，用于 generate_model_3d 的 model_file / front / left / ... 等参数
+  （远程调用场景下，本地大文件唯一可靠的传递方式：先 upload_asset 拿 asset_id，  再以 'asset:<asset_id>' 形式传给 generate_model_3d）
+
+支持两种输入方式（二选一）：
+- file_path：本地文件路径（仅 stdio 模式可用），也支持 data:<mime>;base64,... URI
+- url：网络资源 URL
+
+通过 asset_type 指定素材类型（默认 image）：
+- image：图片（jpg/png/webp 等）
+- video：视频（mp4/mov 等）
+- audio：音频（mp3/wav 等）
+- model_3d：3D 模型（glb/fbx/obj/stl/usdz 等）
+
+上传 model_3d 时可附带 thumbnail_path：3D 模型对应的封面图（jpg/png）。
+上传后会自动绑定到模型 asset，后续作为 model_image 使用时可省去单独传图。
+
+返回 asset_id：
+- 给 generate_image / generate_video 的 reference_images 用：[{"asset_id": "xxx", "type": "<image|video|audio>"}]
+- 给 generate_model_3d 的文件参数用：直接传字符串 'asset:<asset_id>'
+
+  list_workspaces(page, page_size)
+    拉取当前用户的工作区（workspace）列表。
+
+使用场景：
+- 用户想把生成任务 / 上传素材存到某个具体工作区时，先用本工具拿到 workspace_id
+- 返回的 workspace_id 可传给 generate_image / generate_video / generate_model_3d / upload_asset / list_tasks 的 workspace_id 参数
+
+不传 workspace_id 时，任务默认存入用户个人工作区（workspace_id = 用户名）。
+
+  list_tasks(end_date, keyword, page, page_size, start_date, statuses, task_types, workspace_id)
+    分页拉取某工作区下的历史生成任务列表，支持按时间区间、关键词、状态、类型过滤。
+
+使用场景：
+- 用户想回看之前提交过的图片/视频/3D/音乐任务
+- 按时间段或关键词检索历史任务
+
+参数：
+- workspace_id：不传则查用户个人工作区（用本工具前可先调 list_workspaces 选工作区）
+- page：页码，从 0 开始；page_size：每页条数（1~100，默认 20）
+- keyword：按任务名称模糊搜索
+- start_date / end_date：时间区间，格式 YYYY-MM-DD，按任务创建时间过滤
+- statuses：状态过滤，如 ["Finished", "Failed"]
+- task_types：类型过滤，如 ["image", "video", "model_3d", "music"]
+
+返回每条任务含 request_id / status / task_type / name / source（source=mcp 表示经本 skill 提交，前端提交为 null）。

@@ -1,4 +1,5 @@
 import test from 'node:test';
+const renderPlan=(home,settings,artifacts,options)=>options?.clean?renderBasePlan(home,settings,artifacts,options):renderDailyPlan(home,settings,artifacts);
 import {spawnSync} from 'node:child_process';
 import {checkRtk} from '../scripts/check-rtk.mjs';
 import assert from 'node:assert/strict';
@@ -6,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import {pathToFileURL} from 'node:url';
-import {repository,renderPlan,settingsFrom,emitYaml,parseArgs,status,capture,staleModulePaths} from '../scripts/harness.mjs';
+import {repository,renderPlan as renderBasePlan,renderDailyPlan,settingsFrom,emitYaml,parseArgs,status,capture,staleModulePaths} from '../scripts/harness.mjs';
 import {createHash} from 'node:crypto';
 import {deploymentInputs} from '../scripts/deployment-state.mjs';
 const hash=p=>createHash('sha256').update(fs.readFileSync(p)).digest('hex');
@@ -21,9 +22,9 @@ test('render to another home with spaces without changing source or creating fil
  assert.equal(fs.existsSync(target),false);
  assert.equal(before,hash(path.join(repository,'config/desktop.patch.json')));
  const patch=plan.get('profiles/desktop/cordis.patch.yml');
- if(plugins.length){assert(patch.includes(pathToFileURL(path.join(target,'profiles/desktop/agent-capabilities')).href));assert(patch.includes('!!js "process.platform'));}
+ if(plugins.length)assert(patch.includes(pathToFileURL(path.join(target,'profiles/desktop/agent-capabilities')).href));
  assert(!patch.includes('${'));
- if(plugins.length)assert(plan.get('profiles/headless/cordis.patch.yml').includes('"disabled": true'));
+ assert(!plan.get('profiles/headless/package.json').includes('dsh-mnemon'));
  for(const profile of ['desktop','headless'])assert.doesNotThrow(()=>JSON.parse(plan.get('profiles/'+profile+'/package.json')));
  fs.rmdirSync(base);
 });
@@ -34,28 +35,8 @@ test('only explicit expression nodes emit JS tags; scalar strings retain their t
  assert.throws(()=>parseArgs(['install','--settings']),/Missing/);
 });
 
-test('idle maintenance installs only on desktop and binds inside native compaction isolation',()=>{
- const plan=renderPlan(path.join(os.tmpdir(),'idle portable home'),settings);
- const config=JSON.parse(fs.readFileSync(path.join(repository,'config/desktop.patch.json'),'utf8'));
- const globalPolicy=config.flatMap(row=>row.insert??[]).find(row=>row.id==='idle-compaction');
- assert.deepEqual(globalPolicy.config,{enabled:true,idleMs:3240000,minTokens:200000});
- const preset=config.find(row=>row.id==='preset-standard');
- const group=preset.config.plugins.find(row=>row.id==='compaction');
- assert.equal(group.isolate.compaction,true);
- assert(group.config.some(row=>row.id==='idle-compaction-agent'));
- for(const role of ['explore','planner','reviewer']){
-  const rolePreset=config.flatMap(row=>row.insert??[]).find(row=>row.id==='preset-'+role);
-  const roleGroup=rolePreset.config.plugins.find(row=>row.id==='compaction');
-  assert.equal(roleGroup.isolate.compaction,true);
-  assert(roleGroup.config.some(row=>row.id==='idle-compaction-agent'));
- }
- for(const file of ['idle-compaction.mjs','idle-compaction-agent.mjs'])assert(plan.has('profiles/desktop/agent-capabilities/'+file));
- assert(!plan.get('profiles/headless/cordis.patch.yml').includes('idle-compaction'));
- assert(!renderPlan(path.join(os.tmpdir(),'native idle home'),settings,{}, {clean:true}).get('profiles/desktop/cordis.patch.yml').includes('idle-compaction'));
-});
-
 test('official OpenSpec skills deploy portably and native cleanup removes only managed skill files',()=>{
- const plan=renderPlan(path.join(os.tmpdir(),'spec portable home'),settings),base='profiles/desktop/agent-capabilities/skills/';
+ const plan=renderPlan(path.join(os.tmpdir(),'spec portable home'),settings),base='profiles/desktop/agent-capabilities/inline-skills/catalog/';
  const source=JSON.parse(fs.readFileSync(path.join(repository,'provenance.json'),'utf8')).integrations.openspec;
  const names=['explore','propose','apply-change','update-change','sync-specs','archive-change'].map(id=>'openspec-'+id);
  for(const name of names){
@@ -68,53 +49,10 @@ test('official OpenSpec skills deploy portably and native cleanup removes only m
  const native=renderPlan(path.join(os.tmpdir(),'spec clean home'),settings,{}, {clean:true});
  assert(![...native.keys()].some(name=>name.includes('openspec-')));
  assert(!plan.get('profiles/headless/cordis.patch.yml').includes('agent-capabilities/skills'));
- assert(plan.get('profiles/desktop/cordis.patch.yml').includes('customSkillDirs'));
+ assert(plan.get('profiles/desktop/cordis.patch.yml').includes('daily-managed-skills'));
  const delivery=base+'dsh-spec-delivery/SKILL.md';
- assert.equal(plan.get(delivery),fs.readFileSync(path.join(repository,'skills/dsh-spec-delivery/SKILL.md'),'utf8'));
+ assert(!plan.has(delivery));
  assert.deepEqual(staleModulePaths({sources:{[delivery]:'old'}},new Map()),[delivery]);
-});
-
-test('enhanced modules retain recovery and disable legacy shared browser servers',()=>{
- const home=path.join(os.tmpdir(),'enhanced portable home');
- const plan=renderPlan(home,settings),base='profiles/desktop/agent-capabilities/skills/';
- for(const name of ['workflow-orchestration','dsh-code-review','security-review','claude-context','usage-report','dynamic-ui'])
-  assert.equal(plan.get(base+name+'/SKILL.md'),fs.readFileSync(path.join(repository,'skills',name,'SKILL.md'),'utf8'));
- assert.equal(plan.get(base+'security-review/scan.mjs'),fs.readFileSync(path.join(repository,'skills/security-review/scan.mjs'),'utf8'));
- for(const relative of ['patterns/line.md','patterns/manifest.json','preview.py'])
-  assert.equal(plan.get(base+'dynamic-ui/'+relative),fs.readFileSync(path.join(repository,'skills/dynamic-ui',relative),'utf8'),'动态图元资源必须随技能部署: '+relative);
- for(const name of ['claude-context.mjs','usage-report.mjs','session-bus.mjs'])
-  assert.equal(plan.get('profiles/desktop/agent-capabilities/'+name),fs.readFileSync(path.join(repository,'modules',name),'utf8'));
-
- const config=JSON.parse(fs.readFileSync(path.join(repository,'config/desktop.patch.json'),'utf8'));
- const preset=config.find(row=>row.id==='preset-standard');
- const ids=config.flatMap(row=>row.insert??[]).map(row=>row.id);
- for(const id of ['claude-context','usage-report','session-bus'])assert(ids.includes(id),id+' must mount globally, not per preset');
- assert(!preset.config.plugins.some(row=>['claude-context','usage-report','session-bus'].includes(row.id)));
- const workflow=preset.config.plugins.find(row=>row.id==='delegation').config.find(row=>row.id==='workflow-ptc');
- assert.deepEqual(workflow.config,{provider:'spawn',maxConcurrentAgents:16,maxTotalAgents:1000});
- const subagent=config.find(row=>row.id==='subagent');
- assert.deepEqual(subagent.config,{maxActiveSubagents:20,maxDepth:3});
- const presetIds=config.flatMap(row=>row.insert??[]).map(row=>row.id);
- assert(!presetIds.includes('preset-cc'),'retired cc preset must not be declared');
- const allowed=preset.config.plugins.find(row=>row.id==='delegation').config.find(row=>row.id==='tool-subagent').config.allowedAgentPresets;
- assert(!allowed.includes('cc'),'retired cc preset must not be selectable');
-
- const browsers=config.flatMap(row=>row.insert??[]).filter(row=>row.id?.startsWith('mcp-playwright'));
- assert.equal(browsers.length,2);
- for(const row of browsers){assert(row.config.args.includes('${BROWSER}'));assert.equal(row.disabled,true);}
- assert(config.flatMap(row=>row.insert??[]).some(row=>row.id==='isolated-browser'&&!row.disabled));
- const session=browsers.find(row=>row.id==='mcp-playwright-session');
- assert(session.config.args.includes('--user-data-dir'));
- assert(session.config.args.some(arg=>arg.includes('browser-profiles/playwright-session')));
-
- const rendered=renderPlan(home,{...settings,browser:'msedge'}).get('profiles/desktop/cordis.patch.yml');
- assert.equal((rendered.match(/msedge/g)??[]).length,3);
- assert(!rendered.includes('${'));
-
- const stale=base+'security-review/scan.mjs';
- assert.deepEqual(staleModulePaths({sources:{[stale]:'old','skills/user/SKILL.md':'keep'}},new Map()),[stale]);
- const retired=base+'code-review/SKILL.md';
- assert.deepEqual(staleModulePaths({sources:{[retired]:'old'}},new Map()),[retired]);
 });
 
 test('desktop configuration does not register the retired liangshen preset',()=>{
@@ -197,18 +135,6 @@ test('versioned sources contain neither personal host paths nor credential files
  }
 });
 
- test('PTC reuses standard capabilities and only changes tool presentation', () => {
-  const text=renderPlan(path.join(os.tmpdir(),'ptc portable home'),settings).get('profiles/desktop/cordis.patch.yml');
-  const rows=JSON.parse(text.replace(/!!js ("(?:[^"\\]|\\.)*")/g,'{"$js":$1}'));
-  const standard=rows.find(row=>row.id==='preset-standard').config;
-  const ptc=rows.find(row=>row.id==='preset-ptc').config;
-  assert.deepEqual(ptc.plugins.slice(0,-1),standard.plugins);
-  assert.deepEqual(ptc.plugins.at(-1).config,{mode:'ptc'});
-  const delegation=ptc.plugins.find(row=>row.id==='delegation');
-  assert.equal(delegation.config.find(row=>row.id==='tool-workflow').name,'@local/dsh-tool-workflow');
-  assert.equal(delegation.config.find(row=>row.id==='workflow-ptc').config.maxConcurrentAgents,16);
- });
-
 
 test('missing RTK rejects deployment before writing target configuration',()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'dsh-no-rtk-'));
@@ -226,12 +152,15 @@ test('missing RTK rejects deployment before writing target configuration',()=>{
 
 test('Windows RTK preflight checks the real executable and no-profile PowerShell without shell interpolation',()=>{
  const calls=[];
- const run=(file,args,options)=>{calls.push({file,args,options});return {status:0,stdout:args.includes('--help')?'Usage: rtk '+args[0]:'rtk 0.38.0\r\n'};};
+ const run=(file,args,options)=>{calls.push({file,args,options});return {status:0,stdout:args[0]==='hook'?JSON.stringify({hookSpecificOutput:{updatedInput:{command:'rtk git status'}}}):args.includes('--help')?'Usage: rtk '+args[0]:'rtk 0.38.0\r\n'};};
  assert.equal(checkRtk({platform:'win32',run}).executable,'rtk.exe');
- assert.deepEqual(calls.map(x=>x.file),['rtk.exe','rtk.exe','rtk.exe','rtk.exe','rtk.exe','pwsh.exe']);
+ assert.deepEqual(calls.map(x=>x.file),['rtk.exe','rtk.exe','rtk.exe','rtk.exe','rtk.exe','rtk.exe','pwsh.exe']);
+ assert.deepEqual(JSON.parse(calls[5].options.input),{tool_name:'Bash',tool_input:{command:'git status'}});
+ for(const reply of [{status:1,stdout:''},{status:0,stdout:'not JSON'},{status:0,stdout:'{}'}])
+  assert.throws(()=>checkRtk({platform:'win32',run:(file,args,opts)=>args[0]==='hook'?reply:run(file,args,opts)}),/hook JSON interface unavailable/);
  assert(calls.every(x=>x.options.shell===false&&x.options.windowsHide));
- assert(calls.at(-1).args.includes('-NoProfile'));
- assert.match(calls.at(-1).args.at(-1),/Get-Command rtk.exe -CommandType Application/);
+ assert(calls[6].args.includes('-NoProfile'));
+ assert.match(calls[6].args.at(-1),/Get-Command rtk.exe -CommandType Application/);
  assert.throws(()=>checkRtk({platform:'win32',run:(file,args,opts)=>file==='pwsh.exe'?{status:1,stdout:''}:run(file,args,opts)}),/PowerShell 7 cannot run/);
  assert.throws(()=>checkRtk({platform:'win32',run:()=>({status:0,stdout:'unrelated program'})}),/RTK CLI unavailable/);
 });

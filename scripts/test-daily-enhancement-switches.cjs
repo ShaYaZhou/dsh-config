@@ -21,12 +21,7 @@ async function main() {
     patchFiles:[patch],args:['--port','0','--no-open']});
   const workspace = await ctx.workspaceRegistry.create(output, 'Enhancement switch regression');
   const groups = [
-    {ids:['agent-team-local','tool-agent-team-local'],tool:'spawn_teammate'},
-    {ids:['tool-worktree'],tool:'create_worktree'},
-    {ids:['browser-guidance'],section:'browser-computer-workflow'},
-    {ids:['session-bus'],tool:'message_session'},
     {ids:['claude-context'],section:'claude-context'},
-    {ids:['usage-report'],tool:'usage_report'},
   ];
   async function set(group, enabled) {
     for(const id of group.ids) await ctx.pluginManager.setPluginEnabled('include:'+id, enabled);
@@ -56,11 +51,7 @@ async function main() {
       await set(group,true); await check(group,true);
       await set(group,false); await check(group,false);
     }
-    // Bus and Team have separate lifecycles; disabling one must not remove the other.
-    await set(groups[0],true); await set(groups[3],true);
-    await set(groups[3],false); await check(groups[0],true);
-    await set(groups[3],true); await set(groups[0],false); await check(groups[3],true);
-    console.log('DAILY_ENHANCEMENT_SWITCHES_PASS Standard/PTC six on/off and Team/bus independence');
+    console.log('DAILY_ENHANCEMENT_SWITCHES_PASS Standard/PTC Claude context on/off');
   } finally {
     for(const group of groups) await set(group,false);
     await shutdown.shutdown(0);

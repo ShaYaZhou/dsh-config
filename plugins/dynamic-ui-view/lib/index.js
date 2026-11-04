@@ -1,4 +1,4 @@
-// render_widget：把模型产出的 HTML 片段内嵌渲染在当前会话的工具卡片里。
+// render_widget：把模型产出的 HTML 片段内嵌渲染在当前会话正文里。
 // 宿主只做参数校验和元数据；片段本身留在调用参数里，不落盘、不新增记录类型。
 import {defineTool} from '@deepseek-ai/dsh-tools';
 import {readFileSync} from 'node:fs';

@@ -9,6 +9,10 @@ const {withAgentTestHomeLock} = require('./test-home.cjs');
 
 async function main() {
   const home = process.env.DSH_HOME;
+  if(process.env.DSH_VERIFY_MANAGED_SKILLS==='1') {
+    process.env.DSH_AGENTS_HOME=path.join(home,'empty-shared-agent-home');
+    fs.mkdirSync(process.env.DSH_AGENTS_HOME,{recursive:true});
+  }
   const native = process.env.DSH_NATIVE_ROOT;
   assert(native, 'Set DSH_NATIVE_ROOT to the matching desktop runtime');
   const output = path.join(home, 'preset-loading');
@@ -23,9 +27,10 @@ async function main() {
     ...(process.env.DSH_VERIFY_MANAGED_SKILLS==='1'?[{id:'skills-manager',disabled:true}]:[]),
     ...(process.env.DSH_TEST_OPTIONAL_MISSING === '1' ? [{id: 'idle-compaction', disabled: true}] : []),
   ]));
-  const {runProfile} = await import(pathToFileURL(path.join(native, 'dsh/lib/profile-boot.js')));
+  const bundledBoot=path.join(native,'dsh/lib/profile-boot.js');
+  const {runProfile} = await import(pathToFileURL(fs.existsSync(bundledBoot)?bundledBoot:path.resolve(native,'../../lib/profile-boot.js')));
   const {loadLayeredEnv} = await import(pathToFileURL(path.join(native, 'dsh-app-boot/lib/index.js')));
-  const profile=process.env.DSH_TEST_PROFILE || 'desktop';
+  const profile='desktop';
   const {ctx, shutdown} = await runProfile({environment: loadLayeredEnv('dsh'), profile,
     patchFiles: [patch], args: ['--port', '0', '--no-open']});
   try {
@@ -42,17 +47,17 @@ async function main() {
         assert.equal(await vm.runInNewContext(code+'\n'+call,{spawn:blocked,clearTimeout,setTimeout}),false,'Denied executable probes must return unavailable, not throw a timer error');
       }
     }
-    for (const service of profile==='enhanced'?['nestedSessions', 'memoryWritePolicy', 'localEnvironments', 'followUps']:['nestedSessions'])
+    for (const service of ['dynamicWorkflows'])
       assert(ctx.get(service), service + ' failed to load');
     if(profile==='desktop'){
       const plugins=await ctx.pluginManager.listPlugins();
-      for(const id of ['browser-review','file-links','desktop-commands','delete-session','dsh-rewind-plugin','dynamic-ui-view','enhancement-settings','michengai-btw','archify-skill-filesystem','better-sidebar','skills-manager','michengai-code-review','subagent-workspace-manager','local-environments','follow-ups','team-view','ui-workspace-archive-manager','michengai-simplify','dsh-init']){
+      for(const id of ['browser-review','file-links','desktop-commands','delete-session','dsh-rewind-plugin','dynamic-ui-view','enhancement-settings','michengai-btw','archify-skill-filesystem','better-sidebar','skills-manager','michengai-code-review','dsh-external-workflow','ui-workspace-archive-manager','michengai-simplify','dsh-init']){
         if(id==='skills-manager'&&process.env.DSH_VERIFY_MANAGED_SKILLS==='1')continue;
         const row=plugins.find(row=>row.patchId===id);
         assert(row?.enabled&&row.fiberPhase==='active',id+' is missing or inactive');
       }
     }
-    for (const preset of profile==='enhanced'?['standard', 'ptc', 'explore', 'planner', 'reviewer']:['standard','ptc']) {
+    for (const preset of ['standard','ptc']) {
       const made = await ctx.sessionController.create({cwd: workspace, agentPreset: preset});
       const resolved = await ctx.sessionController.resolveAgent(made.sessionId);
       assert(!resolved.error && resolved.agent, preset + ': ' + JSON.stringify(resolved.error));
@@ -60,19 +65,14 @@ async function main() {
       const tools = agent.ctx.tools;
       assert(tools.get('read', agent), preset + ' missing read');
       if (['standard', 'ptc'].includes(preset)) {
-        assert(tools.get('start_session', agent), preset + ' missing linked sessions');
+        for(const name of ['workflow_list','run_workflow','workflow_manage']) assert(tools.get(name,agent), preset+' missing '+name);
         assert.equal(tools.modeFor(agent), preset === 'ptc' ? 'ptc' : 'native');
-        if(profile==='enhanced'){
-          const degraded = process.env.DSH_TEST_OPTIONAL_MISSING === '1';
-          assert.equal(Boolean(tools.get('workflow', agent)), !degraded, preset + ' workflow availability');
-          const result = await ctx.commands.execute(agent, '/workflow', [], AbortSignal.timeout(10000));
-          assert.equal(result.result.kind, degraded ? 'error' : 'success', JSON.stringify(result));
-        }else{
+        {
           const commands=ctx.commands.list(agent).map(command=>command.name);
           for(const name of ['init','simplify','review','btw','rewind'])assert(commands.includes(name),name+' absent from command registry');
           const skills=await agent.ctx.get("skills").list({scope:agent,cwd:workspace});
-          for(const name of ['think','ponytail','rtk-reference','openspec-explore'])assert(skills.some(skill=>skill.name===name&&(process.env.DSH_VERIFY_MANAGED_SKILLS!=='1'||skill.path.includes('inline-skills/catalog'))),name+' missing portable skill');
-          for(const name of ['render_widget','create_worktree','message_session','usage_report'])assert(tools.get(name,agent),preset+' missing '+name);
+          for(const name of ['think','ponytail','rtk-reference','openspec-explore'])assert(skills.some(skill=>skill.name===name&&(process.env.DSH_VERIFY_MANAGED_SKILLS!=='1'||skill.path.replaceAll('\\','/').includes('inline-skills/catalog'))),name+' missing portable skill');
+          for(const name of ['render_widget'])assert(tools.get(name,agent),preset+' missing '+name);
           // Rewind candidates/preview now use the read-only connection RPC;
           // command presence is checked above, not via the retired query command.
         }

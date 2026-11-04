@@ -1,0 +1,348 @@
+--- a/index.js
++++ b/index.js
+@@ -3095,6 +3095,12 @@
+ 
+     const methods = {
+       async ping() { return { ok: true, version: VERSION }; },
++      // Public bridge contract; credentials remain local and generation is never triggered here.
++      async liclickConfiguration() {
++        const adapter = ctx.get('liclickAdapter');
++        if (!adapter) throw new Error('请先启用 LiClick 本地适配层插件。');
++        return adapter.configuration();
++      },
+       async llmOptions() { return listLlmOptions(); },
+       async llmComplete(args) { return complete(args); },
+       async updateCheck() { return updateCheck(); },
+--- a/client.js
++++ b/client.js
+@@ -3539,12 +3539,28 @@
+     let legacyImageApiRefMap = {}; // 旧扁平配置 id → 'providerId|modelId'（节点字段懒迁移用）
+     let legacyVideoApiRefMap = {};
+     /** 供应商列表 → 扁平模型视图（ref = 'providerId|modelId'）；未填模型名的条目不进下拉。 */
++    function isLiClickCfg(config) {
++      return /^http:\/\/127\.0\.0\.1:\d+\/liclick$/.test(config && (config.baseUrl || config.url) || '');
++    }
++    function liclickValue(rule, value) {
++      if (!rule) return value;
++      if (rule.options) return rule.options.find(option => String(option).toLowerCase() === String(value).toLowerCase()) ?? rule.default ?? rule.options[0];
++      if (value === undefined || rule.min !== undefined && value < rule.min || rule.max !== undefined && value > rule.max) return rule.default;
++      return value;
++    }
++    function liclickImageSize(parameters, ratio, value) {
++      const rule = parameters?.image_size;
++      const selected = liclickValue(rule, value);
++      if (!rule?.options?.includes('auto')) return selected;
++      if (ratio === 'auto') return 'auto';
++      return selected === 'auto' ? rule.options.find(option => option !== 'auto') : selected;
++    }
+     function flattenImageModels(settings) {
+       const out = [];
+       for (const p of settings.imageProviders || []) {
+         for (const m of (p.models || [])) {
+           if (!m || !m.id || !String(m.model || '').trim()) continue;
+-          out.push({ ref: p.id + '|' + m.id, providerId: p.id, providerName: p.name || p.id, modelId: m.id, model: String(m.model).trim(), baseUrl: p.baseUrl || '', apiKey: p.apiKey || '', extra: p.extra || '', size: p.size || '', responseFormat: p.responseFormat || '', mode: p.mode || 'generations' });
++          out.push({ ref: p.id + '|' + m.id, providerId: p.id, providerName: p.name || p.id, modelId: m.id, model: String(m.model).trim(), label: m.label || m.model, parameters: m.parameters, outputCount: m.outputCount || 1, category: m.category, maxImages: m.maxImages, maxVideos: m.maxVideos, audioReferences: m.audioReferences, baseUrl: p.baseUrl || '', apiKey: p.apiKey || '', extra: p.extra || '', size: p.size || '', responseFormat: p.responseFormat || '', mode: p.mode || 'generations' });
+         }
+       }
+       return out;
+@@ -3555,7 +3571,7 @@
+         for (const m of (p.models || [])) {
+           if (!m || !m.id || !String(m.model || '').trim()) continue;
+           // vendor 必须带出去：否则「显式选了厂商」在请求侧丢失，只能靠模型名/URL 猜协议（曾把万相误判成 Seedance）
+-          out.push({ ref: p.id + '|' + m.id, providerId: p.id, providerName: p.name || p.id, modelId: m.id, model: String(m.model).trim(), url: p.url || '', apiKey: p.apiKey || '', extra: p.extra || '', outputFormat: p.outputFormat || '', generateAudio: p.generateAudio, protocol: p.protocol || 'generic', watermark: p.watermark, vendor: p.vendor || '' });
++          out.push({ ref: p.id + '|' + m.id, providerId: p.id, providerName: p.name || p.id, modelId: m.id, model: String(m.model).trim(), label: m.label || m.model, parameters: m.parameters, outputCount: m.outputCount || 1, category: m.category, maxImages: m.maxImages, maxVideos: m.maxVideos, audioReferences: m.audioReferences, url: p.url || '', apiKey: p.apiKey || '', extra: p.extra || '', outputFormat: p.outputFormat || '', generateAudio: p.generateAudio, protocol: p.protocol || 'generic', watermark: p.watermark, vendor: p.vendor || '' });
+         }
+       }
+       return out;
+@@ -6574,6 +6590,8 @@
+     async function sanbaoImageTask(prompt, refBlobs, s, opts) {
+       const base = vendorBase(s.baseUrl, VIDEO_VENDORS.sanbao.base);
+       const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (s.apiKey || '') };
++        // Reuse one request id through retries of this canvas generation only.
++        if (/^http:\/\/127\.0\.0\.1:\d+\/liclick$/.test(base)) headers['Idempotency-Key'] = crypto.randomUUID();
+       const o = opts || {};
+       const rawRefs = refBlobs || [];
+       // 扩展参数：逃生舱；uploadKey 专用上传 key 只用于 /uploads/raw，绝不进任务请求体
+@@ -6591,9 +6609,12 @@
+         if (!raw) continue;
+         refUrls.push(await sanbaoUploadRaw(base, uploadKey, raw, 'image'));
+       }
+-      const aspect = String(s.size || '').trim() || String(o.ratio || '').trim() || 'auto';
++      const rawAspect = String(s.size || '').trim() || String(o.ratio || '').trim() || 'auto';
++      const aspect = isLiClickCfg(s) ? liclickValue(s.parameters?.aspect_ratio, rawAspect) : rawAspect;
+       const body = buildSanbaoImageBody({ model: s.model || '', prompt, aspect_ratio: aspect, quality: 'high' }, { refUrls });
++      if (isLiClickCfg(s) && s.parameters?.image_size) body.image_size = liclickImageSize(s.parameters, aspect, o.size);
+       if (extra) Object.assign(body, extra);
++        if (headers['Idempotency-Key'] && o.onTask) o.onTask(headers['Idempotency-Key'], base + '/openapi/v1/images/' + headers['Idempotency-Key']);
+       const r1 = await fetchViaProxy(base + '/openapi/v1/images', { headers, body, timeoutMs: 120000, label: 'Sanbao 图片提交' });
+       if (!r1.ok) throw new Error('Sanbao 图片提交 HTTP ' + r1.status + ' @ ' + base + '：' + r1.text.slice(0, 300));
+       let j1 = null; try { j1 = JSON.parse(r1.text); } catch { throw new Error('Sanbao 图片响应非 JSON：' + r1.text.slice(0, 200)); }
+@@ -6601,13 +6622,17 @@
+       if (!tid) throw new Error('Sanbao 图片响应中没有任务 id：' + r1.text.slice(0, 200));
+       const taskUrl = base + '/openapi/v1/images/' + encodeURIComponent(tid);
+       if (o.onTask) { try { o.onTask(tid, taskUrl); } catch { /* 持久化失败不影响生成 */ } }
++      let outputUrls = [];
+       const url = await vendorPoll('Sanbao', 5000, async () => {
+         const r = await fetchViaProxy(taskUrl, { method: 'GET', headers: { Authorization: 'Bearer ' + (s.apiKey || '') }, timeoutMs: 60000, label: 'Sanbao 图片查询' });
+         if (!r || !r.ok) return { state: 'wait' };
+         let j = null; try { j = JSON.parse(r.text); } catch { return { state: 'wait' }; }
+-        return sanbaoImagePollState(j);
++        const result = sanbaoImagePollState(j);
++        if (isLiClickCfg(s) && result.state === 'done') outputUrls = j.data?.images || [result.url];
++        return result;
+       });
+       // 链接是签名直链（约 24h 有效），拿到就立即下载；下载带瞬态重试（缓存未就绪 502 同视频口径）
++      if (isLiClickCfg(s) && outputUrls.length > 1) return await Promise.all(outputUrls.map(output => downloadVideoWithRetry(output, {}, { windowMs: SANBAO_DOWNLOAD_RETRY_MS, stepMs: SANBAO_DOWNLOAD_RETRY_STEP_MS })));
+       return await downloadVideoWithRetry(url, {}, {
+         windowMs: SANBAO_DOWNLOAD_RETRY_MS,
+         stepMs: SANBAO_DOWNLOAD_RETRY_STEP_MS,
+@@ -6816,16 +6841,32 @@
+       async sanbao(prompt, frameBlob, s, o) {
+         const base = vendorBase(s.url, VIDEO_VENDORS.sanbao.base);
+         const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (s.apiKey || '') };
+-        const rawRefs = o.hardFrame ? [] : (o.refs || []).slice(0, 9);
++        // Reuse one request id through retries of this canvas generation only.
++        if (/^http:\/\/127\.0\.0\.1:\d+\/liclick$/.test(base)) headers['Idempotency-Key'] = crypto.randomUUID();
++        const incoming = o.hardFrame ? [] : (o.refs || []);
++        const local = isLiClickCfg(s);
++        const videoRefs = local ? incoming.filter(blob => blob.type?.startsWith('video/')) : [];
++        const audioRefs = local ? (s.category === 'enhancement' ? [] : (o.audioRefs || [])).concat(incoming.filter(blob => blob.type?.startsWith('audio/'))) : (o.audioRefs || []).slice(0,3);
++        const rawRefs = local ? incoming.filter(blob => !/^(video|audio)\//.test(blob.type || '')) : incoming.slice(0,9);
+         let text = prompt;
+         if (frameBlob && rawRefs.length) text = videoRefNote(o.refNames) + '\n' + prompt;
+         const baseSpec = { model: s.model || '', prompt: text, ratio: o.ratio, resolution: o.resolution || '720p', duration: o.duration };
+         // 第一发：本地素材 dataURL 直传（全模型 media_inputs 含 data_url，2026-10-31 实测格式校验通过）
+         const body = buildSanbaoVideoBody(baseSpec, {
+-          frameDataUrl: frameBlob ? await blobToDataUrlScaled(frameBlob) : '',
++          frameDataUrl: frameBlob && !(local && s.category === 'enhancement') ? await blobToDataUrlScaled(frameBlob) : '',
+           refDataUrls: await Promise.all(rawRefs.map((b) => blobToDataUrlScaled(b))),
+-          audioDataUrls: await Promise.all((o.audioRefs || []).slice(0, 3).map((b) => blobToDataUrl(b))),
++          audioDataUrls: await Promise.all(audioRefs.map((b) => blobToDataUrl(b))),
+         });
++        if (local) {
++          body.videos = await Promise.all(videoRefs.map(blob => blobToDataUrl(blob)));
++          body.request_type = s.category === 'enhancement' ? 'video-enhancement'
++            : frameBlob && !rawRefs.length && !audioRefs.length && !videoRefs.length ? 'first_frame'
++            : frameBlob || rawRefs.length || audioRefs.length || videoRefs.length ? 'reference_images' : 'text_prompt';
++          body.resolution = liclickValue(s.parameters?.resolution, o.resolution);
++          body.ratio = liclickValue(s.parameters?.aspect_ratio, o.ratio);
++          if (!o.durationLocked) body.duration = liclickValue(s.parameters?.duration, o.duration);
++          if (typeof s.generateAudio === 'boolean') body.generate_audio = s.generateAudio;
++        }
+         // 扩展参数：逃生舱；uploadKey 专用上传 key 只用于 /uploads/raw，绝不进任务请求体
+         let uploadKey = s.apiKey || '';
+         try {
+@@ -6837,6 +6878,7 @@
+           }
+         } catch (e) { throw new Error('三宝扩展参数配置有误：' + ((e && e.message) || e)); }
+         const submit = (b, label) => fetchViaProxy(base + '/openapi/v1/videos', { headers, body: b, timeoutMs: 120000, label });
++        if (headers['Idempotency-Key'] && o.onTask) o.onTask(headers['Idempotency-Key'], base + '/openapi/v1/videos/' + headers['Idempotency-Key']);
+         let r1 = await submit(body, 'Sanbao 提交');
+         // 兜底：图片/素材格式或 URL 类错误 → 用专用 uploadKey 把本地素材传 /uploads/raw 转公网 URL 后重试一次
+         // （余额/鉴权/限流/账号限制类错误绝不重试——needsSanbaoMediaRetry 排除）
+@@ -6846,7 +6888,7 @@
+             const refUrls = [];
+             for (const b of rawRefs) refUrls.push(await sanbaoUploadRaw(base, uploadKey, b, 'image'));
+             const audioUrls = [];
+-            for (const b of (o.audioRefs || []).slice(0, 3)) audioUrls.push(await sanbaoUploadRaw(base, uploadKey, b, 'audio'));
++            for (const b of audioRefs) audioUrls.push(await sanbaoUploadRaw(base, uploadKey, b, 'audio'));
+             const body2 = buildSanbaoVideoBody(baseSpec, { frameDataUrl: frameUrl, refDataUrls: refUrls, audioDataUrls: audioUrls });
+             const ex2 = parseExtraParams(s.extra);
+             if (ex2) { const rest2 = { ...ex2 }; delete rest2.uploadKey; Object.assign(body2, rest2); }
+@@ -7214,7 +7256,7 @@
+       let vendorDowngraded = false; // IC-03：识别到厂商但无适配器 → 降级走 OpenAI 兼容通用链（节点上可见）
+       // 参考素材上限检查：超出即告警（截断发生在各 runner 内，这里先把事实说清楚）。
+       // 未知厂商兜底 8 = IC-03 降级后的 OpenAI 兼容链实际发送上限。
+-      if (o.warn) {
++      if (o.warn && !isLiClickCfg(s)) {
+         const caps = VIDEO_REF_CAPS[vendor] || { img: 8 };
+         const refCount = o.hardFrame ? 0 : (Array.isArray(o.refs) ? o.refs.length : 0);
+         if (refCount > (caps.img || 0)) {
+@@ -10604,11 +10646,12 @@
+           const mcfg = resolveImageModelCfg(settings, nodeImageModelRef(n));
+           if (!mcfg) throw new Error(T('errNoImageModel'));
+           // 张数（1–4）：同一提示词一次生成多张；历史条保留全部结果，节点显示最后一张
+-          const want = clamp(Number(n.data.imageCount) || 1, 1, 4);
++          const count = clamp(Number(n.data.imageCount) || 1, 1, 4);
++          const want = isLiClickCfg(mcfg) ? Math.ceil(count / (mcfg.outputCount || 1)) : count;
+           const cases = [];
+           for (let i = 0; i < want; i++) {
+             if (want > 1) update((s) => { const nd = s.graph.nodes[n.id]; if (nd) nd.data.progress = (i + 1) + '/' + want; });
+-            const blob = await apiImage(p, metas, mcfg, {
++            const generated = await apiImage(p, metas, mcfg, {
+               size: n.data.size, ratio: n.data.ratio, nodeExtra: n.data.imgExtra, warn: addWarn,
+               // 任务式厂商（三宝图片）：任务 id 就是凭证——代理超时/页面关闭后仍可凭 id 回查（与视频同口径）
+               onTask: (tid, qurl) => {
+@@ -10616,6 +10659,7 @@
+                 flushSave();
+               },
+             });
++            for (const blob of (Array.isArray(generated) ? generated : [generated])) {
+             const rec = await saveAssetRecord(S.activeId, 'image', blob, {
+               name: assetNameFor(n, entities, 'image'),
+               prompt: stripMentionMarks(prompt), effectivePrompt: p,
+@@ -10628,6 +10672,7 @@
+             });
+             cases.push(rec.id);
+             commitGenResult(n.id, rec.id, false, 'image');
++            }
+           }
+           update((s) => { const nd = s.graph.nodes[n.id]; if (nd) nd.data.progress = null; });
+           if (!cases.length) throw new Error(T('noResult'));
+@@ -10772,7 +10817,7 @@
+           if (!mcfg) throw new Error(T('errNoVideoModel'));
+           if (sbUp && !durationPlan.value) addWarn('已连接分镜但暂无镜头时长：视频时长回退 5s（先生成分镜镜头后重跑）');
+           const blob = await apiVideo(p, useFrame ? frameBlob : null, mcfg, {
+-            duration: autoDuration, resolution: n.data.resolution, ratio: n.data.ratio,
++            duration: autoDuration, durationLocked: !!sbUp, resolution: n.data.resolution, ratio: n.data.ratio,
+             frameMode, // auto=尾帧降级为参考图（保留实体参考图）/ hard=硬首帧（放弃参考图）/ off=忽略首帧
+             hardFrame,
+             refs: refs.map((r) => r.blob),
+@@ -12370,19 +12415,34 @@
+             for (const m of (p.models || [])) opts.push({ value: p.id + '|' + m.id, label: m.name, sub: p.name, title: p.name + ' · ' + m.name });
+           }
+         } else if (isImage) {
+-          for (const m of flattenImageModels(settings)) opts.push({ value: m.ref, label: m.model, sub: m.providerName, title: m.providerName + ' · ' + m.model + (m.ref === settings.imageStar ? ' ★' : '') });
++          for (const m of flattenImageModels(settings)) opts.push({ value: m.ref, label: m.label || m.model, sub: m.providerName, title: m.providerName + ' · ' + m.model + (m.ref === settings.imageStar ? ' ★' : '') });
+         } else if (isVideo) {
+-          for (const m of flattenVideoModels(settings)) opts.push({ value: m.ref, label: m.model, sub: m.providerName, title: m.providerName + ' · ' + m.model + (m.ref === settings.videoStar ? ' ★' : '') });
++          for (const m of flattenVideoModels(settings)) opts.push({ value: m.ref, label: m.label || m.model, sub: m.providerName, title: m.providerName + ' · ' + m.model + (m.ref === settings.videoStar ? ' ★' : '') });
+         }
+         return opts;
+       })();
+       const modelRef = isImage ? nodeImageModelRef(n) : isVideo ? nodeVideoModelRef(n) : (n.data.model || '');
++      const picked = isImage ? resolveImageModelCfg(settings, modelRef) : isVideo ? resolveVideoModelCfg(settings, modelRef) : null;
++      const lcParams = isLiClickCfg(picked) ? picked.parameters || {} : null;
++      const batchCount = lcParams ? picked.outputCount || 1 : 1;
++      const selectedRatio = lcParams ? liclickValue(lcParams.aspect_ratio, n.data.ratio) || n.data.ratio || '16:9' : n.data.ratio || '16:9';
++      const selectedSize = lcParams ? liclickImageSize(lcParams, selectedRatio, n.data.size) || n.data.size || '2K' : n.data.size || '2K';
++      const selectedResolution = lcParams ? liclickValue(lcParams.resolution, n.data.resolution) || n.data.resolution || '720P' : n.data.resolution || '720P';
++      const selectedDuration = lcParams ? liclickValue(lcParams.duration, n.data.duration) ?? 5 : Number(n.data.duration) || 5;
+       const setModel = (v) => update((s) => {
+         const nd = s.graph.nodes[n.id];
+         if (!nd) return;
+         if (isImage) { nd.data.imageModel = v; delete nd.data.imageApiId; }
+         else if (isVideo) { nd.data.videoModel = v; delete nd.data.videoApiId; }
+         else nd.data.model = v;
++        const cfg = isImage ? resolveImageModelCfg(settings, v) : isVideo ? resolveVideoModelCfg(settings, v) : null;
++        if (isLiClickCfg(cfg)) {
++          for (const [field, parameter] of [['ratio','aspect_ratio'],['size','image_size'],['resolution','resolution'],['duration','duration']]) {
++            const value = liclickValue(cfg.parameters?.[parameter], nd.data[field]);
++            if (value !== undefined) nd.data[field] = value;
++          }
++          if (isImage && cfg.outputCount > 1) nd.data.imageCount = cfg.outputCount;
++        }
+       });
+       const setData = (key, v) => update((s) => { const nd = s.graph.nodes[n.id]; if (nd) nd.data[key] = v; });
+       // 比例变化：媒体节点立即按「预览区比例 + 固定栏」重排外框（有结果才有操作栏；空态不加操作栏）
+@@ -12499,9 +12559,9 @@
+           try { if (ta) { ta.focus(); ta.selectionStart = ta.selectionEnd = caretAt; } } catch { /* 忽略 */ }
+         }, 0);
+       };
+-      const ratioOpts = RATIOS.map((x) => ({ value: x, label: x }));
+-      const sizeOpts = IMAGE_SIZES.map((x) => ({ value: x, label: x }));
+-      const countOpts = [1, 2, 3, 4].map((x) => ({ value: String(x), label: String(x) }));
++      const ratioOpts = (lcParams?.aspect_ratio?.options || RATIOS).map((x) => ({ value: x, label: x }));
++      const sizeOpts = (lcParams?.image_size?.options || IMAGE_SIZES).filter(x => !lcParams?.image_size?.options?.includes('auto') || (selectedRatio === 'auto' ? x === 'auto' : x !== 'auto')).map((x) => ({ value: x, label: x }));
++      const countOpts = (batchCount > 1 ? [batchCount] : [1, 2, 3, 4]).map((x) => ({ value: String(x), label: String(x) }));
+       // 视频分辨率：H3（V2 协议）扩展档位 480P/768P/1080P/2K/4K（大小写敏感），其余用标准三档；
+       // 当前值不在列表里（历史数据/厂商自定义）也要能显示与保留。
+       const videoModelName = (() => {
+@@ -12516,10 +12576,10 @@
+       const resList = baseRes.includes(String(n.data.resolution))
+         ? baseRes
+         : baseRes.concat([String(n.data.resolution || '720P')]);
+-      const resOpts = resList.map((x) => ({ value: x, label: x }));
++      const resOpts = (lcParams?.resolution?.options || resList).map((x) => ({ value: x, label: x }));
+       // 视频时长预设；未连分镜时还能自定义（1–300s，一位小数）。自定义值不在预设里也由
+       // PopupSelect 的 customLabel 正常显示；已连分镜时控件禁用，时长改由镜头节拍决定。
+-      const durOpts = VIDEO_DURATIONS.map((x) => ({ value: String(x), label: x + 's' }));
++      const durOpts = (lcParams?.duration?.options || VIDEO_DURATIONS.filter(x => !lcParams?.duration || x >= (lcParams.duration.min ?? 1) && x <= (lcParams.duration.max ?? 300))).map((x) => ({ value: String(x), label: x + 's' }));
+       const canRun = kind !== 'text';
+       // 是否还有高级项可折叠：没有就不渲染「更多」开关（文本类节点默认只剩提示词 + 控件行）
+       const hasAdvanced = isImage || isVideo || !!(
+@@ -12664,23 +12724,23 @@
+               })
+             : null,
+           (isImage || isVideo || isFinalCut)
+-            ? h(PopupSelect, { value: n.data.ratio || '16:9', options: ratioOpts, onChange: onRatio, width: 74, title: T('ratioLabel') })
++            ? h(PopupSelect, { value: selectedRatio, disabled: !!lcParams && !lcParams.aspect_ratio, disabledLabel: '由素材决定', options: ratioOpts, onChange: onRatio, width: 74, title: T('ratioLabel') })
+             : null,
+           isImage
+-            ? h(PopupSelect, { value: n.data.size || '2K', options: sizeOpts, onChange: (v) => setData('size', v), width: 64, title: T('sizeLabel') })
++            ? h(PopupSelect, { value: selectedSize, disabled: !!lcParams && !lcParams.image_size, disabledLabel: '由模型决定', options: sizeOpts, onChange: (v) => setData('size', v), width: 64, title: T('sizeLabel') })
+             : null,
+           isVideo || isFinalCut
+-            ? h(PopupSelect, { value: n.data.resolution || '720P', options: resOpts, onChange: (v) => setData('resolution', v), width: 76, title: T('resolutionLabel') })
++            ? h(PopupSelect, { value: selectedResolution, disabled: !!lcParams && !lcParams.resolution, disabledLabel: '由模型决定', options: resOpts, onChange: (v) => setData('resolution', v), width: 76, title: T('resolutionLabel') })
+             : null,
+           isImage
+-            ? h(PopupSelect, { value: String(n.data.imageCount || 1), options: countOpts, onChange: (v) => setData('imageCount', Number(v)), width: 54, title: T('countLabel') })
++            ? h(PopupSelect, { value: String(batchCount > 1 ? batchCount : n.data.imageCount || 1), options: countOpts, onChange: (v) => setData('imageCount', Number(v)), width: 54, title: T('countLabel') })
+             : null,
+           isVideo
+             ? h(PopupSelect, {
+-                value: String(Number(n.data.duration) || 5), options: durOpts, onChange: (v) => setData('duration', Number(v)), width: 76, title: T('durationLabel'),
+-                editable: !sbDurationLocked, min: 1, max: 300, integer: false, decimals: 1,
++                value: String(selectedDuration), options: durOpts, onChange: (v) => setData('duration', Number(v)), width: 76, title: T('durationLabel'),
++                editable: !sbDurationLocked && !lcParams?.duration?.options, min: lcParams?.duration?.min ?? 1, max: lcParams?.duration?.max ?? 300, integer: !!lcParams, decimals: 1,
+                 customLabel: (v) => String(v) + 's', customPlaceholder: T('customSegMaxPh'),
+-                disabled: sbDurationLocked, disabledLabel: T('durationByStoryboard'), disabledTitle: T('durationByStoryboardTip'),
++                disabled: sbDurationLocked || !!lcParams && !lcParams.duration, disabledLabel: lcParams && !lcParams.duration ? '保持原时长' : T('durationByStoryboard'), disabledTitle: lcParams && !lcParams.duration ? '视频增强保持原视频时长' : T('durationByStoryboardTip'),
+               })
+             : null,
+           h('button', {
+@@ -19497,7 +19557,34 @@
+             ],
+       );
+     }
++    function LiClickCard({ onConnected }) {
++      const [busy, setBusy] = useState(false);
++      const [message, setMessage] = useState('复用本机 LiClick 登录态，接入图片和视频模型。');
++      const connect = async () => {
++        if (busy) return;
++        setBusy(true);
++        try {
++          const config = await hostRpc('liclickConfiguration', {});
++          if (!config.image?.models?.length || !config.video?.models?.length) throw new Error('LiClick 未返回可用模型。');
++          const next = loadSettings();
++          next.imageProviders = next.imageProviders.filter(p => p.id !== config.image.id).concat(config.image);
++          next.videoProviders = next.videoProviders.filter(p => p.id !== config.video.id).concat(config.video);
++          if (!next.imageStar || next.imageStar.startsWith(config.image.id + '|') && !config.image.models.some(m => next.imageStar === config.image.id + '|' + m.id)) next.imageStar = config.image.id + '|' + config.image.models[0].id;
++          if (!next.videoStar || next.videoStar.startsWith(config.video.id + '|') && !config.video.models.some(m => next.videoStar === config.video.id + '|' + m.id)) next.videoStar = config.video.id + '|' + config.video.models[0].id;
++          saveSettings(next);
++          onConnected();
++          setMessage('已接入：' + config.image.models.length + ' 个图片模型、' + config.video.models.length + ' 个视频模型。保留已有默认模型；Midjourney 每批固定 4 张，视频增强需连接原视频。尚未提交生成任务。');
++        } catch (error) { setMessage(error.message); }
++        finally { setBusy(false); }
++      };
++      return h('div', { className: 'dshic-card' },
++        h('strong', { style: { fontSize: 12 } }, 'LiClick'),
++        h('p', { className: 'dshic-hint', role: 'status' }, message),
++        h('button', { type: 'button', className: 'dshic-mini', disabled: busy, onClick: connect }, busy ? '正在连接…' : '接入 / 刷新 LiClick 模型'),
++      );
++    }
+     function SettingsTab() {
++      const [liclickRevision, setLiclickRevision] = useState(0);
+       const [s, setS] = useState(loadSettings);
+       const apply = (fn) => {
+         setS((prev) => {
+@@ -19525,6 +19612,7 @@
+             h('option', { value: 'en' }, T('langEn'))),
+         ),
+         h(DataRootCard, { key: 'dataroot' }),
++        h(LiClickCard, { key: 'liclick', onConnected: () => { setS(loadSettings()); setLiclickRevision(n => n + 1); } }),
+         h(CraftCard, { key: 'craft' }),
+         // 「技能增强」已升级为右侧独立「技能」页（SkillsTab）：四层图标瓦片 + 预览/写设定集
+         // 文本模型卡：只选模型，参数全用 Harness 默认；紧挨图片/视频/TTS 模型卡片
+@@ -19536,8 +19624,8 @@
+           ),
+           h(LlmModelSelect),
+         ),
+-        h(ModelProviderEditor, { key: 'imglist', kind: 'image' }),
+-        h(ModelProviderEditor, { key: 'vidlist', kind: 'video' }),
++        h(ModelProviderEditor, { key: 'imglist-' + liclickRevision, kind: 'image' }),
++        h(ModelProviderEditor, { key: 'vidlist-' + liclickRevision, kind: 'video' }),
+         h(ApiListEditor, { key: 'ttslist', kind: 'tts' }),
+         // 帮助与反馈：一行入口（点开弹窗看二维码与提 Issue）
+         h('div', {

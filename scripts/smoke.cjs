@@ -23,17 +23,13 @@ async function main(){
   if(daily){assert.equal(agent.ctx.tools.modeFor(agent),'ptc');assert(tools.some(t=>t.name==='mcp__playwright__browser_navigate'));}
   assert(tools.some(t=>t.name==='read'));assert(tools.some(t=>t.name==='write'));assert(tools.some(t=>['pwsh','bash'].includes(t.name)));
   const presets=await ctx.get('agentPresets').list();assert(presets.some(p=>p.id==='standard'));
-  if(tuned){assert(tools.find(t=>t.name==='spawn_teammate').parameters.properties.isolation);assert(tools.some(t=>t.name==='create_worktree'));assert(tools.some(t=>t.name==='job_output'));for(const id of ['explore','planner','reviewer'])assert(presets.some(p=>p.id===id));assert(ctx.get('commands').find(agent,'rewind').input);assert(ctx.get('clientModules').graph().entries.some(row=>row.id==='@local/dsh-desktop-commands'));
+  if(tuned){assert(tools.find(t=>t.name==='spawn_teammate').parameters.properties.isolation);assert(tools.some(t=>t.name==='job_output'));for(const id of ['explore','planner','reviewer'])assert(presets.some(p=>p.id===id));assert(ctx.get('commands').find(agent,'rewind').input);assert(ctx.get('clientModules').graph().entries.some(row=>row.id==='@local/dsh-desktop-commands'));
    for(const name of ['cua_driver_native__get_window_state','cua_driver_native__browser_prepare','mcp__playwright__browser_highlight','mcp__playwright__browser_annotate'])assert(tools.some(t=>t.name===name),'Missing browser/computer tool: '+name);
-   for(const name of ['start_session','list_session_models','wait_for_sessions','list_linked_sessions','send_session_message','read_session','stop_session'])assert(tools.some(t=>t.name===name),'Missing nested session tool: '+name);
-   assert(ctx.get('clientModules').graph().entries.some(row=>row.id==='@local/dsh-nested-sessions'));
    assert(ctx.get('clientModules').graph().entries.some(row=>row.id==='@local/dsh-browser-review'));
-   const computerSkill=await ctx.skills.get('computer-use',{scope:agent,cwd:skillWorkspace});assert(computerSkill?.path.replaceAll('\\','/').endsWith('/agent-capabilities/skills/computer-use/SKILL.md'),'computer-use must resolve to the desktop profile, not a shared foreign skill: '+JSON.stringify({path:computerSkill?.path,source:computerSkill?.source}));
    for(const suffix of ['explore','propose','apply-change','update-change','sync-specs','archive-change']){
     const skill=await ctx.skills.get('openspec-'+suffix,{scope:agent,cwd:skillWorkspace});
     assert(skill?.path.replaceAll('\\','/').includes('/agent-capabilities/skills/openspec-'),'Missing managed OpenSpec skill: '+suffix);
    }
-   assert(await ctx.skills.get('dsh-spec-delivery',{scope:agent,cwd:skillWorkspace}),'Missing natural-language spec delivery skill');
   }
   else {assert(!presets.some(p=>p.id==='reviewer'));assert(!ctx.commands.list().some(c=>c.name==='btw'));}
   const signal=AbortSignal.timeout(120000);

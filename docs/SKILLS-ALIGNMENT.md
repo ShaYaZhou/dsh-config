@@ -96,7 +96,6 @@ cargo install --git https://github.com/rtk-ai/rtk rtk
 
 原工具历史保留模型输入，验收在原生confine入口核实真实命令。所有命令只执行一次；RTK缺失、失败、超时、拒绝或停止都不会再执行裸命令。预览只使用同一纯规则引擎，不运行命令、不读取目标文件。运行中的命令保持其开始时的规则，不因开关变化重启。
 
-设置通过部署三方合并保留。整体移除自动适配时，可移除bundle并重新部署，使本地环境原执行器恢复，或用安装器备份回滚；不要单独禁用唯一shell provider。RTK统计是命令输出估算，不是总账单降幅；统计库访问被拒绝不放宽权限。真实验收脚本为`scripts/test-rtk-auto.cjs`及`scripts/test-rtk-settings.cjs`，仅在隔离DSH_HOME执行。
 
 只部署 DSH 时，不执行 `rtk init -g` 或其他宿主的 hook 安装；“No hook installed”提醒不代表显式RTK命令未生效，不应为消除提示擅自修改Claude/Codex配置。
 
@@ -121,7 +120,6 @@ node scripts/check-rtk.mjs
 ### 2.3 不纳入
 
 - `~/.claude/skills` 下的 Lark、视频、抓取类技能：体积可达数十 MB，且与本仓库能力无关，只在需要的机器上单独安装。
-- `computer-use` 的 agent 全局副本：全局路径指向 `~/.agents/skills`，由该目录自己维护；DSH 副本仍随 `skills/computer-use` 部署。
 - 任何插件专属的内部状态、会话、记忆和快照。
 
 ## 三、执行顺序

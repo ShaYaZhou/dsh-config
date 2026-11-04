@@ -1,0 +1,3 @@
+- insert:
+    - id: liclick-adapter
+      name: '@local/dsh-liclick-adapter'

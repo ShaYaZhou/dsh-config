@@ -1,61 +1,29 @@
 # OpenSpec 与 DSH
 
-固定版本：`@fission-ai/openspec@1.14.3`，官方 `dsh` 目标、`core` 工作流。技能是上游 CLI 原样生成的文件，位于 `.dsh/skills/`，MIT 许可见 `licenses/OpenSpec-MIT.txt`。不增加 MCP 或自写规格插件。
+固定 `@fission-ai/openspec@1.14.3`，采用上游 DSH 技能，来源为 `.dsh/skills/`。安装器通过原生 filesystem skill provider 分发到桌面 profile；按需读取，不自动启动 Workflow。
 
-## 在另一台电脑启用
-
-先按主 README 安装匹配的 Harness 运行时，再安装规格 CLI：
+新电脑安装 CLI：
 
 ```powershell
-rtk proxy npm install --global @fission-ai/openspec@1.14.3
+rtk npm install --global @fission-ai/openspec@1.14.3
 rtk proxy openspec --version
-rtk proxy node scripts/harness.mjs install --dry-run
-rtk proxy node scripts/harness.mjs install
 ```
 
-安装器把这 6 个技能部署到当前 DSH_HOME 的桌面能力目录，由原生 `customSkillDirs` 加载。换工作区仍可使用；项目自己的 `.dsh/skills` 优先于桌面默认技能。路径在部署时生成，仓库中不保存机器绝对路径。部署漂移、capture、备份和 rollback 均包含技能文件；clean 只移除曾被管理的增强技能，保留项目规格和用户技能。headless profile 不新增这些技能。
-
-规格 CLI 是独立的全局 npm 工具，Harness 的 rollback 不会降级它；如需恢复旧 CLI，可显式安装旧版本。本轮升级前为 `1.3.1`。
-
-## 在业务项目中使用
-
-配置仓库已初始化 OpenSpec。其他项目需在自己的 Git 根目录初始化一次：
+在业务项目根目录初始化：
 
 ```powershell
 rtk proxy openspec init --tools dsh --profile core --language Chinese --no-animation
 ```
 
-之后在 DSH 对话中使用：
-
-也可以直接说：**“先用 OpenSpec 写 spec，再自动分配嵌套会话实现、独立审查并运行验收，不用我切命令。需求是……”**。桌面默认提供的 `dsh-spec-delivery` 是本地完整交付技能，区别于下面保持原文的官方分阶段技能。
-
-完整请求会让主会话读取项目、初始化当前项目所需的规格根、按 CLI instructions 写规格和任务，然后自行选择实现子会话及模型，等待结果，安排独立 reviewer，实际运行验收并循环修复。由主会话统一更新任务和 `acceptance.md`。需求不清、执行权限被拒绝、用户之前明确暂停等真实冲突仍需处理；不会自动把失败改成通过，也不会自动推送或发布。只说“先写 spec”则只完成规格。
-
-新会话会按自然语言意图发现这个技能，不要求 `/collaborate`、先进入面板或手工填写人数和模型。现有项目根不明确或 store 声明损坏时不能凭空选择；这类问题会说明具体原因。
-
-维护者可在已安装的隔离 home 运行 `rtk proxy node scripts/harness.mjs spec-test --home <测试目录>`；需要本地注入代理 key，不能使用真实 `.dsh`（包括目录别名）。验收会创建独立测试项目并产生真实模型请求。中断后用同一命令加环境变量 `DSH_SPEC_RESUME_LAST=1` 恢复上次测试项目；保留最初分工记录、源码修改归属和原始验收文件摘要，不把恢复后的单段耗时当全流程耗时。记录只保存在 `.local/`，不提交私人测试会话。
-
-| 入口 | 行为 |
+| 技能 | 用途 |
 |---|---|
-| `/openspec-explore` | 调研、理解代码和讨论方案 |
-| `/openspec-propose 需求描述` | 生成提案、增量规格、设计和任务，完成规划后停止 |
-| `/openspec-apply-change 变更名` | 执行任务并记录进度 |
-| `/openspec-update-change 变更名` | 修订现有规划材料 |
-| `/openspec-sync-specs 变更名` | 将增量规格合入主规格 |
-| `/openspec-archive-change 变更名` | 同步并归档已完成的变更 |
+| `/openspec-explore` | 理解代码、调研和讨论需求 |
+| `/openspec-propose` | 生成提案、规格、设计和任务 |
+| `/openspec-apply-change` | 执行已规划的变更 |
+| `/openspec-update-change` | 修订规划 |
+| `/openspec-sync-specs` | 同步增量规格 |
+| `/openspec-archive-change` | 归档已完成变更 |
 
-这些是官方分阶段技能入口。新会话若尚未刷新技能列表，重新打开该项目会话。上游 propose 只规划，执行阶段由 apply 明确启动；本地完整交付技能直接按 CLI instructions 驱动，避免同一完整请求在规划结束后被迫停住，且不修改上游技能。未启用 OpenSpec 的项目继续正常工作，小修复不必强行套用规格流程。
+也可以用自然语言要求 Agent 使用对应技能。上游 propose 是规划阶段；执行需要明确要求。自建 dsh-spec-delivery 技能已移除，不再保证自动分配嵌套会话或强制独立审查。需要编排时另行使用 [Workflow](WORKFLOW.md)。
 
-规格保存于项目的 `openspec/`，与项目代码一起提交 Git。不要把不同业务项目的规格收集到本配置仓库，也不要推送本机 DSH_HOME、会话或凭据。
-
-## 与协作和验收衔接
-
-规格定义目标、约束和验收场景；主会话用已有 `/collaborate`、`start_session` 分派可独立任务。子会话交付实现和测试证据，主会话核对后汇总；由主会话统一更新任务进度，避免并行写同一个 `tasks.md`。需要并行改代码时使用独立 worktree。
-
-`openspec validate --strict` 检查结构，不证明功能正确。任务勾选、规划文件齐全或 Agent 自称完成，也不能代替测试、界面实际操作及附件收件验证。只有观察到验收证据才报告完成。
-
-## 更新
-
-先在隔离目录验证新 CLI 和 DSH 加载，再更新全局版本，在本仓库运行 `openspec update`，核对 `.dsh/skills/` 与 `provenance.json` 的版本，运行测试并重新部署。不要给旧 CLI 配置新技能，也不要自动使用 `@latest` 作为长期版本约定。
-
-依据：[官方 DSH 集成](https://github.com/Fission-AI/OpenSpec/blob/main/docs-lab/reference/supported-tools.md)、[官方工作流](https://github.com/Fission-AI/OpenSpec/blob/main/docs/workflows.md)。
+规格保存在各业务项目的 `openspec/`，跟随项目 Git 管理。Harness 回滚不会降级全局 CLI；clean 不删除业务规格和用户技能。许可见 `licenses/OpenSpec-MIT.txt`。

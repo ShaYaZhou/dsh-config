@@ -2,7 +2,10 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Config, ratioOf } from '../plugins/idle-settings/lib/index.js';
+const backend=fs.readFileSync(new URL('../plugins/idle-settings/lib/index.js',import.meta.url),'utf8');
+const scope={};
+vm.runInNewContext(backend.slice(backend.indexOf('function readPercent'),backend.indexOf('class CompactionThreshold')).replace('export function','function')+'\nthis.ratioOf=ratioOf;',scope);
+const {ratioOf}=scope;
 
 function fixture({write, unset = async () => true, threshold = {}} = {}) {
   let plugin,page,cleanup;
@@ -12,7 +15,7 @@ function fixture({write, unset = async () => true, threshold = {}} = {}) {
   const idleForm={getSnapshot:()=>({status:'ready',writable:true,value:{enabled:true}}),subscribe:()=>()=>{},set:write};
   const thresholdSnapshot={status:'ready',writable:true,value:{thresholdPercent:80},base:{thresholdPercent:80},user:{},...threshold};
   const thresholdForm={getSnapshot:()=>thresholdSnapshot,subscribe:()=>()=>{},set:write,unset};
-  plugin.apply({effect:effect=>effect(),configForms:{get:namespace=>{assert.ok(namespace==='idle-compaction'||namespace==='idle-settings');return namespace==='idle-compaction'?idleForm:thresholdForm;},whileServed:(names,register)=>{assert.deepEqual([...names],['idle-compaction','idle-settings']);return register(new Set(names));}},slots:{inject:(_name,register)=>register(),register:(options,component)=>{assert.equal(options.name,'settings.enhancement.panel');page=component;return()=>{};}}});
+  plugin.apply({effect:effect=>effect(),configForms:{get:namespace=>{assert.ok(namespace==='idle-compaction'||namespace==='idle-settings');return namespace==='idle-compaction'?idleForm:thresholdForm;},whileServed:(names,register)=>{assert.deepEqual([...names],['idle-settings']);return register(new Set(names));}},slots:{inject:(_name,register)=>register(),register:(options,component)=>{assert.equal(options.name,'settings.enhancement.panel');page=component;return()=>{};}}});
   const tree=page();
   const find=(type,node=tree)=>node?.type===type?node:node?.children?.map(child=>find(type,child)).find(Boolean);
   return {tree,updates,switchControl:find('native-switch'),button:find('native-button'),input:find('input'),unmount:()=>cleanup?.()};
@@ -25,13 +28,13 @@ function textOf(node) {
 
 test('idle settings use the native shared form and surface a refused write',async()=>{
   const calls=[];const f=fixture({write:async(...args)=>{calls.push(args);return false;}});
-  assert.equal(f.switchControl.props.checked,true);assert.equal(f.switchControl.props.disabled,false);
-  await f.switchControl.props.onChange(false);assert.deepEqual(calls,[['enabled',false]]);assert(f.updates.includes('保存未成功，请重试。'));
+  assert.equal(f.switchControl,undefined);assert.equal(f.input.props.disabled,false);
+  await f.input.props.onBlur({target:{value:'65'}});assert.deepEqual(calls,[['thresholdPercent',65]]);assert(f.updates.includes('保存未成功，请重试。'));
 });
 
 test('closing the settings page does not publish state from a later write settlement',async()=>{
   let settle;const f=fixture({write:()=>new Promise(resolve=>{settle=resolve;})});
-  const pending=f.switchControl.props.onChange(false);f.unmount();const count=f.updates.length;settle(true);await pending;assert.equal(f.updates.length,count);
+  const pending=f.input.props.onBlur({target:{value:'65'}});f.unmount();const count=f.updates.length;settle(true);await pending;assert.equal(f.updates.length,count);
 });
 
 test('compaction threshold commits the typed percentage and shows the default',async()=>{
@@ -59,9 +62,8 @@ test('restore-default button is only enabled for an override and clears it',asyn
   assert.deepEqual(calls,[['thresholdPercent']]);
 });
 
-test('backend exposes the configured ratio and the native 80% default',async()=>{
+test('backend converts plain and volatile percentages without inventing an unset value',async()=>{
   assert.equal(ratioOf({thresholdPercent:65}),0.65);
   assert.equal(ratioOf({thresholdPercent:{get:()=>70}}),0.7);
   assert.equal(ratioOf({}),undefined);
-  assert.equal(Config({}).thresholdPercent.get(),80);
 });

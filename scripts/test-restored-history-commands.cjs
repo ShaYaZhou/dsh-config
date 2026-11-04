@@ -7,7 +7,7 @@ async function main(){
  const output=path.join(home,'history-command-audit');fs.mkdirSync(output,{recursive:true});
  const patch=path.join(output,'patch.json');fs.writeFileSync(patch,JSON.stringify([{id:'desktop-product-telemetry',disabled:true},{id:'product-analytics',disabled:true}]));
  const {runProfile}=await import(pathToFileURL(path.join(native,'dsh/lib/profile-boot.js'))),{loadLayeredEnv}=await import(pathToFileURL(path.join(native,'dsh-app-boot/lib/index.js')));
- const {localGit}=await import(pathToFileURL(path.join(home,'profiles/desktop/node_modules/@local/dsh-local-environments/lib/workspace.js')));
+ const localGit=async (_ctx,cwd,args,signal)=>(await require('node:util').promisify(require('node:child_process').execFile)('git',['--no-optional-locks','-C',cwd,...args],{signal,env:{...process.env,GIT_NO_LAZY_FETCH:'1',GIT_TERMINAL_PROMPT:'0'}})).stdout.trim();
  const {ctx,shutdown}=await runProfile({environment:loadLayeredEnv('dsh'),profile:'desktop',patchFiles:[patch],args:['--port','0','--no-open']});
  const signal=AbortSignal.timeout(180000),results=[];
  try{

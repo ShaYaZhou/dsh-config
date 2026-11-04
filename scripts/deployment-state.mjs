@@ -43,7 +43,7 @@ export function mergeManaged(base,live,next,label='managed configuration'){
  throw new Error('Local and template changes conflict in '+label+'; existing files were not overwritten');
 }
 
-export const preservedConfig=file=>file==='AGENTS.md'||file==='cordis.patch.yml'||/^profiles\/[^/]+\/(?:package\.json|cordis\.patch\.yml|pnpm-workspace\.yaml)$/.test(file);
+export const preservedConfig=file=>file==='AGENTS.md'||file==='hooks.json'||file==='cordis.patch.yml'||/^profiles\/[^/]+\/(?:package\.json|cordis\.patch\.yml|pnpm-workspace\.yaml)$/.test(file);
 export const baselinePath=file=>'.portable-harness/generated/'+file;
 const digest=file=>fs.existsSync(file)?createHash('sha256').update(fs.readFileSync(file)).digest('hex'):null;
 

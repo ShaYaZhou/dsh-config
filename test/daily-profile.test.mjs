@@ -28,8 +28,11 @@ test('daily profile uses native PTC, private browsers and the requested enhancem
  const home=path.join(os.tmpdir(),'daily profile with spaces');
  const plan=renderDailyPlan(home,settingsFrom(path.join(repository,'config/local.example.json'),{}));
  const daily=JSON.parse(plan.get('profiles/desktop/package.json'));
- assert.deepEqual(Object.keys(daily.dependencies),['@playwright/mcp','@local/dsh-nested-sessions','@local/dsh-shared','dshmarket','@local/dsh-enhancement-settings','@local/dsh-dynamic-ui-view','@local/dsh-browser-review','@local/dsh-file-links','dsh-rewind-plugin','@local/dsh-desktop-commands','@local/dsh-delete-session','@michengai/dsh-btw','@tt-a1i/archify-dsh','dsh-better-sidebar','@michengai/dsh-code-review','dsh-subagent-workspace-ui','@michengai/dsh-skills-manager','@local/dsh-local-environments','@local/dsh-follow-ups','@local/dsh-team-view','@michengai/dsh-archive-manager','@michengai/dsh-simplify','dsh-init','@kenz1117/dsh-ui-usage-billing','dsh-boot-animation','@local/dsh-sidebar-layout','@local/dsh-rtk-shell']);
- assert.deepEqual(daily.dsh.profile.bundles,['@deepseek-ai/dsh-base','@deepseek-ai/dsh-web-app','@local/dsh-nested-sessions','dshmarket','@local/dsh-enhancement-settings','@local/dsh-dynamic-ui-view','@local/dsh-browser-review','@local/dsh-file-links','dsh-rewind-plugin','@local/dsh-desktop-commands','@local/dsh-delete-session','@michengai/dsh-btw','@tt-a1i/archify-dsh','dsh-better-sidebar','@michengai/dsh-code-review','dsh-subagent-workspace-ui','@michengai/dsh-skills-manager','@local/dsh-local-environments','@local/dsh-follow-ups','@local/dsh-team-view','@michengai/dsh-archive-manager','@michengai/dsh-simplify','dsh-init','@kenz1117/dsh-ui-usage-billing','dsh-boot-animation','@local/dsh-sidebar-layout','@local/dsh-rtk-shell']);
+ for(const name of ['dsh-mnemon','dsh-codex-hooks','@local/dsh-idle-settings']) {
+  assert(daily.dependencies[name]); assert(daily.dsh.profile.bundles.includes(name));
+ }
+ assert(![...plan.keys()].some(file=>file.startsWith('profiles/enhanced/')));
+ for(const name of ['@dsh-external/dsh-memory','@local/dsh-memory-policy','@local/dsh-workflow-ptc','@local/dsh-tool-workflow','@local/dsh-ultracode-control','@local/dsh-rtk-shell','@local/dsh-sidebar-layout','@kenz1117/dsh-ui-usage-billing'])assert(!daily.dependencies[name]);
  const patch=JSON.parse(plan.get('profiles/desktop/cordis.patch.yml'));
  assert.equal(patch.find(p=>p.id==='agent-preset-registry').config.default,'ptc');
  assert.equal(patch.find(p=>p.id==='ui-settings-account').config.step,'done');
@@ -41,30 +44,15 @@ test('daily profile uses native PTC, private browsers and the requested enhancem
  assert(plan.has('profiles/desktop/agent-capabilities/inline-skills/dynamic-ui/patterns/manifest.json'));
  for(const name of ['think','ponytail','rtk-reference','check','openspec-explore'])
   assert(plan.has('profiles/desktop/agent-capabilities/inline-skills/catalog/'+name+'/SKILL.md'),name+' must be portable without global skills');
- for(const name of ['workflow-orchestration','dsh-spec-delivery','computer-use'])
+ for(const name of ['workflow-orchestration','computer-use'])
   assert(!plan.has('profiles/desktop/agent-capabilities/inline-skills/catalog/'+name+'/SKILL.md'));
  assert.deepEqual([...plan.keys()].filter(p=>p.startsWith('profiles/desktop/agent-capabilities/skills/')),
-  ['profiles/desktop/agent-capabilities/skills/computer-use/SKILL.md']);
+  []);
  const optional=patch.flatMap(p=>p.insert??[]).filter(p=>typeof p.disabled==='boolean');
- assert.deepEqual(optional.filter(p=>p.disabled).map(p=>p.id),['agent-team-local','tool-agent-team-local','browser-guidance']);
- assert.deepEqual(optional.filter(p=>!p.disabled).map(p=>p.id),['tool-worktree','session-bus','claude-context','usage-report']);
+ assert.deepEqual(optional.filter(p=>p.disabled).map(p=>p.id),[]);
+ assert.deepEqual(optional.filter(p=>!p.disabled).map(p=>p.id),['claude-context']);
  for(const row of optional) assert(plan.has('profiles/desktop/agent-capabilities/'+path.basename(new URL(row.name).pathname)));
- assert(plan.has('profiles/enhanced/agent-capabilities/ultracode.mjs'));
- assert(plan.has('profiles/enhanced/agent-capabilities/skills/ponytail/SKILL.md'));
- const enhanced=plan.get('profiles/enhanced/cordis.patch.yml');
- assert(!enhanced.includes('/profiles/desktop/'));
- assert(enhanced.includes('workflow-command.mjs'));
  assert.equal(plan.get('cordis.patch.yml').trim(),'[]');
-});
-
-test('every enhanced bundle is daily or has an explicit execution-policy exclusion',()=>{
- const enhanced=JSON.parse(fs.readFileSync(path.join(repository,'config/desktop.package.json')));
- const daily=JSON.parse(fs.readFileSync(path.join(repository,'presets/daily/desktop.package.json')));
- assert.deepEqual(enhanced.dsh.profile.bundles.filter(name=>!daily.dsh.profile.bundles.includes(name)),[
-  '@deepseek-ai/dsh-experimental-agent-team-profile', // mutually exclusive with local Team
-  '@dsh-external/dsh-memory', // automatic behavior has no isolated cost/quality ablation
-  '@local/dsh-idle-settings', // requires the optional custom compaction implementation
- ]);
 });
 
 test('browser boundary rejects privileged code and custom export destinations', () => {
@@ -128,63 +116,23 @@ test('browser lifecycle closes stopped sessions without automatic restart and ow
   await assert.rejects(cleanup(),/unconfirmed cleanup/);
 });
 
-test('nested mode routes only new dispatch and leaves legal communication available', () => {
- const s=fs.readFileSync(new URL('../plugins/nested-sessions/lib/index.js',import.meta.url),'utf8');
- const fn=s.slice(s.indexOf('export function delegationRefusal'),s.indexOf('function installTools')).replace('export ','');
- const scope={};vm.createContext(scope);vm.runInContext(fn+'\nthis.check=delegationRefusal;',scope);
- for(const tool of ['spawn_teammate','subagent','subagent_fork']){
-  assert(scope.check('linked',tool));assert(scope.check('worker',tool));
-  assert.equal(scope.check('auto',tool),undefined);assert.equal(scope.check('off',tool),undefined);
- }
- for(const tool of ['send_message','send_session_message','team_task_get','wait_for_sessions','read_session'])
-  assert.equal(scope.check('linked',tool),undefined);
- assert(scope.check('worker','workflow'));
- assert.equal(scope.check('linked','workflow'),undefined);
-});
-
-
-test('sidebar sections persist independently and tolerate unavailable preference storage',()=>{
- const source=fs.readFileSync(path.join(repository,'plugins/sidebar-layout/lib/client.js'),'utf8');
- const saved=new Map(),components=new Map();let plugin;
- const react={createElement:(type,props,...children)=>({type,props,children}),useState:fn=>[fn(),()=>{}]};
- const storage={getItem:key=>saved.get(key),setItem:(key,value)=>saved.set(key,value)};
- vm.runInNewContext(source,{window:{__ModuleLoader__:{load:def=>{plugin=def.factory(()=>react);}}},localStorage:storage});
- plugin.apply({effect(){},slots:{inject:(_name,fn)=>fn(),register:(meta,render)=>components.set(meta.id,render)}});
- const render=(section,wide=true)=>{const view=components.get('sidebar-layout-'+section)({wide});return view.type(view.props);};
- assert.equal(render('tools').props['data-wide'],'true');
- assert.equal(render('tools',false).props['data-wide'],'false');
- assert.equal(render('tools').props['aria-expanded'],true);
- render('tools').props.onClick();
- assert.equal(render('tools').props['aria-expanded'],false);
- assert.equal(render('billing').props['aria-expanded'],true);
- render('tools').props.onClick();
- assert.equal(render('tools').props['aria-expanded'],true);
- storage.getItem=()=>{throw Error('blocked');};storage.setItem=()=>{throw Error('blocked');};
- assert.doesNotThrow(()=>render('billing').props.onClick());
-});
-
-
-test('daily boot default patch ships with the pinned embedded animation without copying personal choices',()=>{
- const plan=renderDailyPlan(path.join(os.tmpdir(),'dsh-boot-plan'),settingsFrom('/nonexistent'));
- for(const profile of ['desktop','enhanced']) {
-  const workspace=JSON.parse(plan.get(`profiles/${profile}/pnpm-workspace.yaml`));
-  assert.equal(workspace.patchedDependencies['dsh-boot-animation'],'patches/dsh-boot-animation.patch');
-  assert.match(plan.get(`profiles/${profile}/patches/dsh-boot-animation.patch`),/builtin:cyberpunk/);
-  const manifest=JSON.parse(plan.get(`profiles/${profile}/package.json`));
-  assert.equal(manifest.dependencies['dsh-boot-animation'],'github:NativeDog1/dsh-boot-animation#24c711296cb4af2618fef4f65e81346a660fc67b');
- }
- assert(![...plan.keys()].some(key=>key.endsWith('selection.json')));
+test('desktop does not install the retired boot animation',()=>{
+ const plan=renderDailyPlan(path.join(os.tmpdir(),'dsh-no-boot-plan'),settingsFrom('/nonexistent'));
+ const manifest=JSON.parse(plan.get('profiles/desktop/package.json'));
+ assert(!manifest.dependencies['dsh-boot-animation']);
+ assert(!manifest.dsh.profile.bundles.includes('dsh-boot-animation'));
+ assert(![...plan.keys()].some(key=>key.includes('boot-animation')));
 });
 
 
 test('daily and full instructions retain the same portable RTK execution guidance',()=>{
  const daily=fs.readFileSync(path.join(repository,'presets/daily/AGENTS.md'),'utf8');
  const full=fs.readFileSync(path.join(repository,'config/AGENTS.md'),'utf8');
- const section=text=>text.split('## RTK command output\n')[1].split('\n---')[0].trim();
+ const section=text=>text.replaceAll('\r\n','\n').split('## RTK hooks\n')[1].split('\n---')[0].trim();
  assert.equal(section(daily),section(full));
  assert.match(section(daily),/including calls dispatched through PTC/);
  assert.match(section(daily),/rtk proxy/);
- assert.match(section(daily),/Never change the command/);
+ assert.match(section(daily),/never repeat an already executed/);
  const plan=renderDailyPlan(path.join(os.tmpdir(),'dsh-rtk-plan'),settingsFrom('/nonexistent'));
- assert.match(plan.get('AGENTS.md'),/## RTK command output/);
+ assert.match(plan.get('AGENTS.md'),/## RTK hooks/);
 });
