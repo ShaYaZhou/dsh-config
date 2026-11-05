@@ -232,6 +232,13 @@
         "reason": "Classify ordinary dependencies without DSH metadata or observed loader rows as libraries; never infer MCP liveness.",
         "testedVersion": "1.73.9",
         "mechanism": "native pnpm-workspace patchedDependencies"
+      },
+      "dsh-mnemon": {
+        "source": "https://github.com/omdsh-dev/dsh-mnemon",
+        "patch": "config/patches/dsh-mnemon.patch",
+        "testedVersion": "0.5.40",
+        "reason": "Display inherited scoped sources accurately and confirm explicit empty selections; preserve unset and readonly semantics without changing Host authorization.",
+        "mechanism": "native pnpm-workspace patchedDependencies"
       }
     },
     "dailySkills": {

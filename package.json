@@ -22,6 +22,7 @@
     "rollback": "node scripts/harness.mjs rollback",
     "smoke": "node scripts/harness.mjs smoke",
     "clean": "node scripts/harness.mjs clean",
-    "check:rtk": "node scripts/check-rtk.mjs"
+    "check:rtk": "node scripts/check-rtk.mjs",
+    "test:mnemon-options": "node scripts/test-mnemon-options.mjs"
   }
 }

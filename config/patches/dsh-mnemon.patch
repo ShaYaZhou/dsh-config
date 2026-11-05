@@ -1,0 +1,50 @@
+--- a/lib/client.js
++++ b/lib/client.js
+@@ -5167,6 +5167,7 @@
+ 							field.input === "source-list" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(SourceChoice, {
+ 								field,
+ 								value,
++								defaultAll: entry.typeId === "scoped" && field.key === "sourceKeys",
+ 								sources: props.dashboard.sources,
+ 								name: sourceName,
+ 								labelledBy: `${control}-label`,
+@@ -5211,18 +5212,27 @@
+ 					t,
+ 					onDiscard: () => setDraft(initial(entry)),
+ 					onApply: () => {
++						if (emptyScopedSelection(entry, config) && !window.confirm(zh ? "当前未选择任何记忆源。保存后 Agent 的热记忆、档案和记忆空间读写将不可用。若想恢复自动选择，请取消并点击恢复默认。确定保存空列表吗？" : "No memory sources are selected. Saving disables Agent access to runtime memory, documents and memory spaces. To restore automatic selection, cancel and reset this option to default. Save an empty selection?")) return;
+ 						props.onApply(config);
+ 					}
+ 				})]
+ 			});
+ 		}
++		// Preserve the difference between an unset selection and an explicit empty one.
++		function emptyScopedSelection(entry, config) {
++			return entry.typeId === "scoped" && Array.isArray(config.sourceKeys) && config.sourceKeys.length === 0;
++		}
++		function shownSourceKeys(value, eligible, defaultAll) {
++			return !value.own && defaultAll ? eligible.map(source => source.sourceInstanceKey) : value.sources;
++		}
+ 		/** Sources a Strategy may use, in the order chosen; ones no longer running stay listed so they can be removed. */
+ 		function SourceChoice(props) {
+ 			const { field, value, t } = props;
+-			const eligible = props.sources.filter((source) => field.sourceRoles === void 0 || field.sourceRoles.length === 0 || field.sourceRoles.includes(source.role));
+-			const missing = value.sources.filter((key) => !eligible.some((source) => source.sourceInstanceKey === key));
++			const eligible = props.sources.filter((source) => (field.sourceRoles === void 0 || field.sourceRoles.length === 0 || field.sourceRoles.includes(source.role)) && (!props.defaultAll || ["working-context", "narrative", "durable-evidence"].includes(source.role)));
++			const selected = shownSourceKeys(value, eligible, props.defaultAll);
++			const missing = selected.filter((key) => !eligible.some((source) => source.sourceInstanceKey === key));
+ 			const several = (sourceTypeId) => eligible.filter((source) => source.sourceTypeId === sourceTypeId).length > 1;
+-			const toggle = (key, on) => props.onChange(on ? [...value.sources, key] : value.sources.filter((item) => item !== key));
++			const toggle = (key, on) => props.onChange(on ? [...selected, key] : selected.filter((item) => item !== key));
+ 			if (eligible.length === 0 && missing.length === 0) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+ 				className: MnemonSettingsCard_module_css_default.optionEmpty,
+ 				children: t("options.noSources")
+@@ -5234,7 +5244,7 @@
+ 				children: [eligible.map((source) => {
+ 					const label = props.name(source.sourceTypeId, source.label);
+ 					return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Checkbox, {
+-						checked: value.sources.includes(source.sourceInstanceKey),
++						checked: selected.includes(source.sourceInstanceKey),
+ 						disabled: props.disabled,
+ 						label: several(source.sourceTypeId) ? `${label} · ${source.sourceInstanceKey}` : label,
+ 						onChange: (on) => toggle(source.sourceInstanceKey, on)
