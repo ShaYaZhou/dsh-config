@@ -20,7 +20,7 @@ async function main(){
    console.log('RESTORED_CONTROLS_COLD_PASS histories readable without Rewind; no activation');return;
   }
   const rows=await ctx.pluginManager.listPlugins();
-  for(const id of ['browser-review','file-links','desktop-commands','delete-session','dsh-rewind-plugin','dynamic-ui-view','enhancement-settings']){
+  for(const id of ['browser-review','file-links','desktop-commands','dsh-rewind-plugin','dynamic-ui-view','enhancement-settings']){
    const row=rows.find(r=>r.patchId===id);assert(row?.enabled&&row.fiberPhase==='active',id+' not active');
   }
   assert(process.env.OPENAI_API_KEY,'Real-model test needs configured proxy credential');

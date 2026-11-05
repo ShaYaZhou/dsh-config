@@ -108,19 +108,6 @@
       }
     },
     {
-      "id": "delete-session",
-      "package": "@local/dsh-delete-session",
-      "version": "1.0.0",
-      "license": "UNLICENSED",
-      "localChanges": {
-        "unpublishedLocalBuild": true,
-        "changes": [
-          "The session row menu gains a delete action: stop and archive the session, then move its stored log directory into DSH_HOME/dsh-delete-session-trash for manual recovery.",
-          "Uses the public sidebar session menu and shell overlay slots; assumes no native session deletion API."
-        ]
-      }
-    },
-    {
       "id": "dynamic-ui-view",
       "package": "@local/dsh-dynamic-ui-view",
       "version": "1.1.0",
@@ -160,36 +147,26 @@
     {
       "id": "codex-hooks",
       "package": "dsh-codex-hooks",
-      "version": "0.6.0-local.1",
+      "version": "0.6.0",
       "license": "MIT",
-      "upstream": "https://github.com/matata2017/dsh-codex-hooks",
-      "localChanges": {
-        "unpublishedLocalBuild": true,
-        "baseCommit": "c890a41",
-        "changes": [
-          "Use the rc5 public Remote service, owner-only management and scoped project hook execution."
-        ]
-      }
+      "upstream": {
+        "type": "git",
+        "url": "git+https://github.com/matata2017/dsh-codex-hooks.git",
+        "commit": "c890a41b32fb1d6871b43a50234fe51d503e74ba"
+      },
+      "localChanges": false
     },
     {
       "id": "external-workflow",
       "package": "@dsh-external/workflow",
-      "version": "0.1.2-local.rc5.1",
+      "version": "0.1.2",
       "license": "MIT",
       "upstream": {
         "type": "git",
-        "url": "https://github.com/omdsh-dev/dsh_workflow",
+        "url": "git+https://github.com/dsh-external/dsh_workflow.git",
         "commit": "44b83c182aa02d1be8a0803e8446cb495f93cd8f"
       },
-      "localChanges": {
-        "unpublishedLocalBuild": true,
-        "baseVersion": "0.1.2",
-        "changes": [
-          "Pin DSH peer requirements to verified 0.2.1-rc.5; omit development-only snapshot dependencies.",
-          "Adapt native startActivation and messaging through rc5-subagents.js; preserve read-only tool restrictions before execution and on cold resume using ignorable session records.",
-          "Use native snapshotEvents for session reads. Keep upstream workflow, storage, approvals and retry policy."
-        ]
-      }
+      "localChanges": false
     }
   ],
   "flavor": "tuned",
@@ -232,7 +209,6 @@
         "file-links",
         "rewind",
         "desktop-commands",
-        "delete-session",
         "better-sidebar",
         "code-review",
         "skills-manager",

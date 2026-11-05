@@ -36,22 +36,20 @@ async function main() {
     assert.deepEqual(failed.map(row => row.moduleName), []);
     assert.deepEqual((inventory.agentPresets || []).filter(row => row.broken).map(row => row.id), []);
     if (profile !== 'headless') {
-      for (const name of ['delete-session','liclick-adapter','idle-settings','dynamic-ui-view']) {
+      for (const name of ['liclick-adapter','idle-settings','dynamic-ui-view']) {
         const row = inventory.entries.find(row => row.moduleName === '@local/dsh-' + name);
         assert(row?.enabled && row.fiberPhase === 'active', `${name} must load: ${JSON.stringify(row)}`);
       }
       assert(ctx.get('clientModules').graph().entries.some(row => row.id === '@local/dsh-desktop-commands'), 'Desktop /agents UI must be registered');
-      for (const name of ['btw','rewind','workflow'])
+      for (const name of ['btw','rewind'])
         assert(ctx.get('commands').find(resolved.agent, name), `Missing command: ${name}`);
-      for (const name of ['dsh-mnemon','dsh-codex-hooks','@deepseek-ai/dsh-experimental-computer-use-cua-driver-native']) {
+      for (const name of ['dsh-mnemon','@deepseek-ai/dsh-experimental-computer-use-cua-driver-native']) {
         const row=inventory.entries.find(row=>row.moduleName===name);
         assert(row?.enabled&&row.fiberPhase==='active', `${name} must be active`);
       }
       for (const name of ['workflowEngine','ultracodeState','idleCompaction']) assert(!ctx.get(name), `${name} is retired`);
-      const hooks=ctx.get('hooksController');
-      assert(hooks,'Hooks must expose its native Remote service');
-      assert(!hooks.review().hooks.some(row=>row.command?.includes('rtk-hooks.mjs')),'Managed RTK hooks must be approved');
-      assert(ctx.get('commands').find(resolved.agent,'hooks'), '/hooks must be registered');
+      assert(!ctx.get('hooksController'), 'Original Hooks must remain unmounted pending upstream compatibility');
+      for(const name of ['hooks','workflow'])assert(!ctx.get('commands').find(resolved.agent,name),name+' must remain unavailable');
       assert.equal(ctx.get('compactionThreshold').ratio(),0.8);
       const {createUserMessage}=await load('dsh-llm');
       const {randomUUID}=require('node:crypto');
@@ -63,21 +61,16 @@ async function main() {
       };
       const call=async (agent,name,args)=>agent.ctx.tools.execute({agent,name,arguments:args,callId:randomUUID(),signal:AbortSignal.timeout(15000)});
       await begin(resolved.agent,'Remember the isolated acceptance marker only.');
-      const shell=process.platform==='win32'?'pwsh':'bash';
-      const blockedCommand=await call(resolved.agent,shell,{command:'git status',description:'Verify RTK pre-execution check'});
-      assert(blockedCommand.isError&&JSON.stringify(blockedCommand).includes('original command has NOT run'),JSON.stringify(blockedCommand));
-      const rtkVersion=await call(resolved.agent,shell,{command:'rtk --version',description:'Verify RTK can execute normally'});
-      assert.equal(rtkVersion.isError,false,JSON.stringify(rtkVersion));
       const marker='isolated-mnemon-policy-'+randomUUID();
       const saved=await call(resolved.agent,'mnemon_runtime_memory',{action:'add',target:'memory',content:marker});
       assert.equal(saved.isError,false,JSON.stringify(saved));
       const route=ctx.get('agentDefaultModel').currentSelection();
       console.log('ACCEPTANCE_MODEL_CATALOG',JSON.stringify({route,models:(await ctx.get('llm').listModels(route.provider)).map(item=>item.id)}));
-      assert(ctx.get('dynamicWorkflows'));
+      assert(!ctx.get('dynamicWorkflows'), 'Original Workflow must remain unmounted pending upstream compatibility');
       assert(!ctx.get('nestedSessions'));
       assert(!ctx.get('followUps'));
       assert(!ctx.get('memoryWritePolicy'));
-      console.log('UNIFIED_CAPABILITIES_PASS memory=upstream workflow=loaded hooks=trusted threshold=80 dynamic-ui=loaded');
+      console.log('UNIFIED_CAPABILITIES_PASS memory=upstream workflow=unmounted hooks=unmounted threshold=80 dynamic-ui=loaded');
     }
     console.log('RUNTIME_COMPATIBILITY_PASS ' + JSON.stringify({profile,entries:inventory.entries.length,failed:failed.length}));
     passed = true;

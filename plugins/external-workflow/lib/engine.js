@@ -44,7 +44,7 @@ function usageOf(agent) {
     let outputTokens = 0;
     let cacheReadTokens = 0;
     let observed = false;
-    for (const event of agent.session.snapshotEvents()) {
+    for (const event of agent.session.events) {
         if (event.type !== 'assistant/message' || event.data.usage === undefined)
             continue;
         observed = true;
@@ -140,7 +140,7 @@ function observedToolEvidence(agent) {
     if (agent === undefined)
         return { readPaths: [], mutationToolCalls: [] };
     const successful = new Set();
-    for (const event of agent.session.snapshotEvents()) {
+    for (const event of agent.session.events) {
         if (event.type !== 'tool/result' || event.data.error !== undefined)
             continue;
         for (const block of event.data.message.content)
@@ -150,7 +150,7 @@ function observedToolEvidence(agent) {
     const readPaths = [];
     const mutationToolCalls = [];
     const mutationNames = new Set(['write', 'edit', 'str_replace_editor', 'bash', 'pwsh', 'terminal_create', 'terminal_write', 'cordis_mount', 'cordis_unmount']);
-    for (const event of agent.session.snapshotEvents()) {
+    for (const event of agent.session.events) {
         if (event.type !== 'tool/call' || !successful.has(String(event.data.callId)))
             continue;
         if (mutationNames.has(event.data.name))
@@ -174,7 +174,7 @@ function pathObserved(required, observed, cwd) {
 function latestAssistantText(agent, fallback) {
     if (agent === undefined)
         return fallback;
-    for (const event of [...agent.session.snapshotEvents()].reverse()) {
+    for (const event of [...agent.session.events].reverse()) {
         if (event.type !== 'assistant/message')
             continue;
         const text = event.data.message?.content?.filter(block => block.type === 'text').map(block => block.text).join('\n') ?? '';
@@ -186,7 +186,7 @@ function latestAssistantText(agent, fallback) {
 function childRecordedCompleted(agent) {
     if (agent === undefined)
         return false;
-    const end = [...agent.session.snapshotEvents()].reverse().find(event => event.type === 'turn/end');
+    const end = [...agent.session.events].reverse().find(event => event.type === 'turn/end');
     return end?.type === 'turn/end' && end.data.reason.kind === 'completed';
 }
 function workspacePath(cwd, requested) {
@@ -900,7 +900,7 @@ export class DynamicWorkflowEngine {
                 const task = this.expectTask(run, taskId);
                 if (task.status !== 'running' || task.run?.localAgent === undefined)
                     throw new Error(`task "${taskId}" does not support live messaging on its selected provider`);
-                await task.run.send(content, run.controller.signal);
+                task.run.localAgent.steer(createUserMessage({ content: [{ type: 'text', text: content }], source: { kind: 'plugin', plugin: '@dsh-external/workflow', form: 'relay' } }));
                 this.emit(run, 'agent-message', { taskId, content });
             },
             stop: async (taskId, reason) => {

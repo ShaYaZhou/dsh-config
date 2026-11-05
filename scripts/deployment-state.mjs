@@ -20,6 +20,10 @@ function rowKey(row){
 export function mergeManaged(base,live,next,label='managed configuration'){
  if(equal(live,base))return next;
  if(equal(next,base)||equal(live,next))return live;
+ if(next===ABSENT&&Array.isArray(base)&&Array.isArray(live)&&[...base,...live].every(value=>typeof value==='string')){
+  const local=live.filter(value=>!base.includes(value));
+  return local.length?local:ABSENT;
+ }
  if(object(live)&&object(next)&&(object(base)||base===ABSENT)){
   const keys=new Set([...Object.keys(base===ABSENT?{}:base),...Object.keys(next),...Object.keys(live)]);
   return Object.fromEntries([...keys].flatMap(key=>{
@@ -95,7 +99,15 @@ export function reconcileDeployment(home,files,previous,{parseYaml,emitYaml}){
    try{return file.endsWith('.json')?JSON.parse(text):parseYaml(text);}
    catch{throw new Error('Cannot safely parse '+file+'; no configuration values printed');}
   };
-  const desired=parse(desiredText),merged=mergeManaged(parse(baseText),parse(liveText),desired,file);
+  const desired=parse(desiredText),base=parse(baseText),live=parse(liveText);
+  const next=file.endsWith('/package.json')?structuredClone(desired):desired;
+  // A new latest policy must not overwrite an independently changed local registry pin.
+  if(file.endsWith('/package.json'))for(const group of ['dependencies','devDependencies','optionalDependencies'])
+   for(const [name,spec]of Object.entries(next[group]??{})){
+    const local=live[group]?.[name],previous=base[group]?.[name];
+    if(spec==='latest'&&typeof local==='string'&&typeof previous==='string'&&local!==previous&&/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(local))next[group][name]=previous;
+   }
+  const merged=mergeManaged(base,live,next,file);
   if(equal(merged,desired))continue;
   if(file.endsWith('/package.json')){
    for(const group of ['dependencies','devDependencies','optionalDependencies'])for(const spec of Object.values(merged[group]??{})){

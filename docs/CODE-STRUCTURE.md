@@ -5,11 +5,11 @@
 | `scripts/harness.mjs`、`deployment-state.mjs` | 生成配置、打包、安装、合并配置、漂移检查、备份与回滚 |
 | `scripts/node-command.mjs`、`installation-audit.mjs` | 选择稳定 Node 入口，核对安装声明与宿主版本 |
 | `config/`、`presets/native/` | 当前配置模板与原生恢复基线 |
-| `plugins/external-workflow/` | 上游 Workflow，rc5 适配集中在 `lib/rc5-subagents.js` |
+| `plugins/external-workflow/` | 未修改的上游 Workflow，兼容性由上游声明和宿主检查决定 |
 | `plugins/browser-review/` | 内嵌浏览器截图与批注 |
 | `plugins/dynamic-ui-view/` | 原生对话中的交互卡片 |
 | `plugins/liclick-adapter/` | LiClick 网关与画布适配 |
-| `plugins/desktop-commands/`、`delete-session/`、`file-links/` | 桌面命令、可恢复删除和文件预览 |
+| `plugins/desktop-commands/`、`file-links/` | 桌面命令和文件预览 |
 | `plugins/btw/`、`rewind/`、`codex-hooks/` | 有来源记录的第三方适配包 |
 | `plugins/enhancement-settings/`、`idle-settings/` | 独立功能设置、压缩阈值 |
 | `modules/` | 独立浏览器、压缩、RTK、Claude 上下文模块 |

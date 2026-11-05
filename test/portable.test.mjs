@@ -7,10 +7,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import {pathToFileURL} from 'node:url';
-import {bindRuntimeDependencies,latestDependencies,repository,renderPlan as renderBasePlan,renderDailyPlan,settingsFrom,emitYaml,parseArgs,status,capture,staleModulePaths} from '../scripts/harness.mjs';
+import {assertMatchingRuntimes,bindRuntimeDependencies,latestDependencies,repository,renderPlan as renderBasePlan,renderDailyPlan,settingsFrom,emitYaml,parseArgs,status,capture,staleModulePaths} from '../scripts/harness.mjs';
 import {createHash} from 'node:crypto';
 import {deploymentInputs} from '../scripts/deployment-state.mjs';
 const hash=p=>createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+
+test('matching desktop and CLI releases do not depend on the npm latest channel',()=>{
+ assert.doesNotThrow(()=>assertMatchingRuntimes('0.2.2-rc.1','0.2.2-rc.1'));
+ assert.doesNotThrow(()=>assertMatchingRuntimes('9.0.0','9.0.0'));
+ assert.throws(()=>assertMatchingRuntimes('0.2.2-rc.1','0.2.1-rc.5'),/Install @deepseek-ai\/dsh@0.2.2-rc.1/);
+ assert.throws(()=>assertMatchingRuntimes('invalid','invalid'),/Invalid runtime version/);
+});
 const settings=settingsFrom(path.join(repository,'config/local.example.json'),{});
 const plugins=JSON.parse(fs.readFileSync(path.join(repository,'provenance.json'),'utf8')).plugins;
 

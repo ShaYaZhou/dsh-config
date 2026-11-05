@@ -308,6 +308,9 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
  if(!clean&&!dryRun)checkRtk();
  const runtime=globalRuntime();
  const runtimeVersion=readJson(path.join(runtime,'..','package.json')).version;
+ const command=runner();
+ const desktopVersion=execute(command.executable,['--expose-internals',command.cli,'--version'],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1'}}).trim();
+ assertMatchingRuntimes(desktopVersion,runtimeVersion);
  const plan = records => {
   const files=clean ? renderPlan(home,settings,records,{clean:true}) : renderDailyPlan(home,settings,records);
   for(const profile of plannedProfiles(files)){
@@ -345,11 +348,6 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
  prepare(preview);
  if(dryRun){console.log('Would manage '+preview.size+' files in the selected DSH_HOME; source templates remain unchanged.');return preview;}
  assert(new URL(settings.proxyBaseUrl).hostname!=='proxy.example.invalid','Configure .local/settings.json or OPENAI_BASE_URL before deploying');
- const command=runner();
- const version=execute(command.executable,['--expose-internals',command.cli,'--version'],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1'}});
- const latestRuntime=JSON.parse(execute(process.execPath,[npmCli(),'view','@deepseek-ai/dsh@latest','version','--json']));
- assert.equal(runtimeVersion,latestRuntime,'Update the desktop app and global @deepseek-ai/dsh@latest before installing');
- assert.equal(version.trim(),runtimeVersion,'Desktop and global CLI versions must match');
  assert.equal(migrateLiangshen(home,{dryRun:true}).count,0,'Legacy sessions remain; quit Harness and run: node scripts/harness.mjs migrate-liangshen');
  const records=build({clean});const files=plan(records);
  const {baselines}=prepare(files);
@@ -479,6 +477,11 @@ export function saveLocks(home){
  for(const profile of ['desktop','headless'])
   assert(fs.existsSync(path.join(home,'profiles',profile,'pnpm-lock.yaml')),'Install first to generate a local lockfile');
  console.log('Local installation lockfiles retained; no pinned templates are written to the repository.');
+}
+export function assertMatchingRuntimes(desktopVersion,cliVersion){
+ const version=/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
+ assert(version.test(desktopVersion)&&version.test(cliVersion),'Invalid runtime version');
+ assert.equal(cliVersion,desktopVersion,'Desktop and CLI versions must match. Install @deepseek-ai/dsh@'+desktopVersion+'; npm latest may be a different release channel.');
 }
 export function bindRuntimeDependencies(manifest,runtimeVersion){
  assert(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(runtimeVersion),'Invalid native runtime version');

@@ -1,15 +1,16 @@
 # DeepSeek Harness 可迁移配置
 
-安装时跟随 npm `latest` 发布通道，不固定上游包版本。桌面与全局 CLI 必须同步升级并保持一致。保留原生 Standard/PTC、官方 computer-use、上游 Mnemon，以及按需 Workflow、浏览器批注、dynamic-ui、LiClick 接入和桌面辅助功能。
+DSH 运行时以实际桌面版本为准，全局 CLI 必须与桌面同版，不要求等于 npm `latest` 标签。独立上游插件仍按各自的 `latest` 声明更新。保留原生 Standard/PTC、官方 computer-use、上游 Mnemon，以及按需 Workflow、浏览器批注、dynamic-ui、LiClick 接入和桌面辅助功能。
 
 仓库不保存凭据、个人绝对路径、会话或记忆。安装器在目标电脑生成路径，并备份受管理文件。修改模板后需要重新部署才能生效。
 
 ## 安装
 
-准备匹配版本的 Harness 桌面程序、Node.js 22.19+（22 系列）或 24+、浏览器和 RTK。RTK 安装及 Windows 自检见 [技能与环境](docs/SKILLS-ALIGNMENT.md)。
+准备 Harness 桌面程序、该版本要求的 Node.js、浏览器和 RTK。0.2.2 系列要求 Node.js 至少 24.9。RTK 安装及 Windows 自检见 [技能与环境](docs/SKILLS-ALIGNMENT.md)。先在桌面“关于”中确认版本，再安装同版 CLI；下面的版本号只是示例，不是安装器的固定约束。
 
 ```powershell
-rtk npm install --global @deepseek-ai/dsh@latest
+$dshVersion = "0.2.2-rc.1" # 替换为桌面“关于”显示的版本
+rtk npm install --global "@deepseek-ai/dsh@$dshVersion"
 ```
 
 将 `config/local.example.json` 复制到 `.local/settings.json`，填写 proxy 地址、默认模型和权限预设。API key 使用 `OPENAI_API_KEY` 或 Harness 凭据配置，不写入 Git。默认模型必须存在于配置模型目录。
@@ -36,7 +37,7 @@ rtk proxy node scripts/harness.mjs status
 完整安装清单、技能与 Hook 对齐范围、外部服务前置条件及明确排除项见 [安装对齐说明](docs/INSTALLATION-PARITY.md)。`status` 也会列出本机额外安装但未纳入仓库的包和 bundle，避免将“无文件漂移”误认为“所有插件已同步”。
 
 - [桌面配置](docs/DAILY-PTC.md)：Mnemon、Hooks/RTK、压缩阈值及独立功能开关。
-- [Workflow](docs/WORKFLOW.md)：`/workflow 任务内容`，rc5 适配和恢复边界。
+- [Workflow](docs/WORKFLOW.md)：上游原版 `/workflow`，兼容性和恢复边界。
 - [OpenSpec](docs/OPENSPEC.md)：按需规格技能，没有强制分工或自动嵌套交付策略。
 - [浏览器与桌面控制](docs/BROWSER-COMPUTER-USE.md)：截图、批注及官方 computer-use。
 - [桌面命令](docs/DESKTOP-COMMANDS.md)：会话导航和 Rewind。
@@ -66,9 +67,9 @@ rtk npm test
 rtk proxy node scripts/harness.mjs install --home <隔离测试目录> --settings <隔离设置文件>
 ```
 
-每次安装通过原生插件管理器更新声明为 `latest` 的上游包；已有本机固定版本和本地修改版不被强制替换。官方 `@deepseek-ai/*` 插件声明为 `${DSH_RUNTIME_VERSION}`，安装时自动跟随最新版 DSH 的实际版本：部分官方插件的 npm `latest` 标签仍指向旧 alpha，不能独立用它升级。没有写死 rc.5 数字。锁文件只在目标电脑生成，用于记录实际安装和回滚，不再从仓库分发；`lock` 命令仅检查本地锁文件，不写回固定模板。`latest` 不等于 `next` 或 `alpha`，也不绕过供应链、发布时间与兼容性检查。
+每次安装通过原生插件管理器更新声明为 `latest` 的上游包；已有本机固定版本和本地修改版不被强制替换。官方 `@deepseek-ai/*` 插件声明为 `${DSH_RUNTIME_VERSION}`，安装时自动跟随已安装桌面的实际版本：部分官方插件的 npm `latest` 标签仍指向旧 alpha，不能独立用它升级。没有写死 rc.5 数字。锁文件只在目标电脑生成，用于记录实际安装和回滚，不再从仓库分发；`lock` 命令仅检查本地锁文件，不写回固定模板。`latest` 不等于 `next` 或 `alpha`，也不绕过供应链、发布时间与兼容性检查。
 
-本地修改版仍由仓库构建，保留版本元数据、来源及已验证的宿主兼容范围；这不是上游版本锁。带补丁的上游包保留补丁，若最新版不再适用则安装失败并保留备份，不能静默丢掉修复。宿主升级后仍须通过实际加载与功能验收。真实宿主测试见 `scripts/test-external-workflow.cjs`，需要隔离 `DSH_HOME` 与匹配的 `DSH_NATIVE_ROOT`；它使用固定模型输出验证子代理生命周期，不发送真实模型请求。
+本地修改版仍由仓库构建，保留版本元数据、来源及已验证的宿主兼容范围；这不是上游版本锁。带补丁的上游包保留补丁，若最新版不再适用则安装失败并保留备份，不能静默丢掉修复。宿主升级后仍须通过实际加载与功能验收。通用宿主测试见 `scripts/test-runtime-compatibility.cjs`，需要隔离 `DSH_HOME` 与匹配的 `DSH_NATIVE_ROOT`；Workflow 和 Hooks 当前按未挂载验收。`scripts/test-external-workflow.cjs` 保留作上游兼容性恢复后的专项测试，当前不能作为通过证明。
 
 退出 Harness 后，恢复最近一次安装备份：
 

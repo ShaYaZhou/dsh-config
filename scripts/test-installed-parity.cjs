@@ -28,8 +28,8 @@ async function main(){
   const {agent}=await ctx.sessionController.resolveAgent(made.sessionId);
   const rtk=await agent.ctx.get('skills').get('rtk-reference',{scope:agent,cwd});
   assert.equal(path.resolve(rtk.path),path.resolve(home,'skills/rtk-reference/SKILL.md'),'DSH corrected RTK skill must outrank shared older definitions');
-  assert(agent.ctx.tools.get('send_meme',agent));assert(agent.ctx.tools.get('run_workflow',agent));
-  assert(!ctx.get('hooksController').review().hooks.some(row=>row.command?.includes('rtk-hooks.mjs')),'Generated RTK hooks must already be trusted');
+  assert(agent.ctx.tools.get('send_meme',agent));assert(!agent.ctx.tools.get('run_workflow',agent));
+  assert(!ctx.get('hooksController'),'Original Hooks must remain unmounted pending upstream compatibility');
   const catalog=path.join(home,'skills');
   const sources=JSON.parse(fs.readFileSync(path.join(__dirname,'../config/skill-sources.json'),'utf8'));
   for(const name of Object.keys(sources)){
@@ -37,7 +37,7 @@ async function main(){
    const found=await agent.ctx.get('skills').get(name,{scope:agent,cwd});
    assert.equal(path.resolve(found.path),path.resolve(target),name+' must use the managed DSH copy');
   }
-  console.log('INSTALLED_PARITY_PASS '+JSON.stringify({failed:0,addedSkills:Object.keys(sources).length,communityPlugins:4,rtkWinner:'DSH managed skill',hooks:'trusted'}));
+  console.log('INSTALLED_PARITY_PASS '+JSON.stringify({failed:0,addedSkills:Object.keys(sources).length,communityPlugins:4,rtkWinner:'DSH managed skill',hooks:'unmounted'}));
   passed=true;
  }finally{await runtime.shutdown.shutdown(passed?0:1);}
 }

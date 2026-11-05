@@ -28,10 +28,19 @@ test('daily profile uses native PTC, private browsers and the requested enhancem
  const home=path.join(os.tmpdir(),'daily profile with spaces');
  const plan=renderDailyPlan(home,settingsFrom(path.join(repository,'config/local.example.json'),{}));
  const daily=JSON.parse(plan.get('profiles/desktop/package.json'));
- for(const name of ['dsh-mnemon','dsh-codex-hooks','@local/dsh-idle-settings','dsh-meme','dsh-whale-widget','dsh-comfyui','dsh-ego-browser']) {
+ for(const name of ['dsh-mnemon','@local/dsh-idle-settings','dsh-meme','dsh-whale-widget','dsh-comfyui','dsh-ego-browser']) {
   assert(daily.dependencies[name]); assert(daily.dsh.profile.bundles.includes(name));
  }
+ for(const name of ['dsh-codex-hooks']){
+  assert(daily.dependencies[name]);assert(!daily.dsh.profile.bundles.includes(name));
+ }
+ assert(!daily.dependencies['@dsh-external/workflow']);
+ assert(!daily.dsh.profile.bundles.includes('@dsh-external/workflow'));
  assert(![...plan.keys()].some(file=>file.startsWith('profiles/enhanced/')));
+ assert(!daily.dependencies['@local/dsh-delete-session']);
+ assert(!daily.dsh.profile.bundles.includes('@local/dsh-delete-session'));
+ assert(daily.dependencies['@michengai/dsh-archive-manager']);
+ assert(daily.dsh.profile.bundles.includes('@michengai/dsh-archive-manager'));
  for(const name of ['@dsh-external/dsh-memory','@local/dsh-memory-policy','@local/dsh-workflow-ptc','@local/dsh-tool-workflow','@local/dsh-ultracode-control','@local/dsh-rtk-shell','@local/dsh-sidebar-layout','@kenz1117/dsh-ui-usage-billing'])assert(!daily.dependencies[name]);
  const patch=JSON.parse(plan.get('profiles/desktop/cordis.patch.yml'));
  assert.equal(patch.find(p=>p.id==='agent-preset-registry').config.default,'ptc');

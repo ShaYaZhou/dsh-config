@@ -45,6 +45,11 @@ test('three-way deployment preserves market additions, model edits and user remo
  const next={dependencies:{owned:'3',newUI:'1'},bundles:['owned','removed','newUI'],providers:{a:{model:'old'}}};
  assert.deepEqual(mergeManaged(base,live,next),{dependencies:{owned:'3',newUI:'1',market:'2'},bundles:['owned','newUI','market'],providers:{a:{model:'user'},local:{model:'extra'}}});
 });
+
+test('removing a managed string list retains only independently added local values',()=>{
+ assert.deepEqual(mergeManaged({exceptions:['old-managed']},{exceptions:['old-managed','local-choice']},{}),{exceptions:['local-choice']});
+ assert.deepEqual(mergeManaged({exceptions:['old-managed']},{exceptions:[]},{}),{});
+});
 test('native keyed patch rows preserve local overrides while updating independent defaults',()=>{
  const base=[{id:'models',config:{providers:{a:{model:'old'}}}},{insert:[{id:'one',disabled:true}]}];
  const live=[...structuredClone(base),{id:'one',disabled:false}];live[0].config.providers.local={model:'custom'};
@@ -89,6 +94,19 @@ test('legacy drift cannot be silently adopted and uncaptured runtime code is pro
   assert.throws(()=>reconcileDeployment(home,new Map([[file,'new instructions']]),{files:{[file]:'old'}},{parseYaml:JSON.parse,emitYaml:JSON.stringify}),/trusted deployment baseline/);
   fs.writeFileSync(path.join(home,'runtime.mjs'),'local edit');fs.writeFileSync(path.join(home,'source.mjs'),'repository edit');
   assert.throws(()=>assertNoUncapturedCode(home,{sources:{'runtime.mjs':'source.mjs'},files:{'runtime.mjs':'old'}},home),/Uncaptured/);
+ }finally{fs.rmSync(home,{recursive:true,force:true});}
+});
+
+test('introducing latest retains a separately updated local registry pin',()=>{
+ const home=fs.mkdtempSync(path.join(os.tmpdir(),'dsh-local-pin-'));
+ try{
+  const file='profiles/desktop/package.json',base={dependencies:{archive:'1.1.14'}},live={dependencies:{archive:'1.2.7'}},next={dependencies:{archive:'latest'}};
+  for(const [name,value]of [[file,live],[baselinePath(file),base]]){fs.mkdirSync(path.dirname(path.join(home,name)),{recursive:true});fs.writeFileSync(path.join(home,name),JSON.stringify(value));}
+  const files=new Map([[file,JSON.stringify(next)]]);
+  const previous={generatedHashes:{[baselinePath(file)]:createHash('sha256').update(JSON.stringify(base)).digest('hex')}};
+  const result=reconcileDeployment(home,files,previous,{parseYaml:JSON.parse,emitYaml:JSON.stringify});
+  assert.equal(JSON.parse(files.get(file)).dependencies.archive,'1.2.7');
+  assert.equal(JSON.parse(result.baselines.get(baselinePath(file))).dependencies.archive,'latest');
  }finally{fs.rmSync(home,{recursive:true,force:true});}
 });
 test('deployment input fingerprints detect changed, added and removed deployment sources',()=>{

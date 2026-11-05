@@ -18,7 +18,6 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { resolve } from 'node:path'
 
 import {
   DEFAULT_ADDITIONAL_CONTEXT_LIMIT,
@@ -64,11 +63,6 @@ const MATCH_INPUT_EXTRACTORS = {
 
 /** Does the hook apply to the current event payload? */
 export function hookApplies(hook, eventName, context) {
-  if (hook.group === 'projects') {
-    if (!context?.cwd || !hook.sourcePath) return false
-    const canonical = value => process.platform === 'win32' ? resolve(value).toLowerCase() : resolve(value)
-    if (canonical(hook.sourcePath) !== canonical(join(context.cwd, '.dsh', 'hooks.json'))) return false
-  }
   // `firstStepOnly`: skip the later steps of a turn without starting the command at all.
   if (hook.handler?.firstStepOnly === true && FIRST_STEP_EVENTS.has(eventName) && context?.firstStep === false) return false
   const mapping = EVENT_MAP[eventName]

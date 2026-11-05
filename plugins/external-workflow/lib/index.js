@@ -1,4 +1,3 @@
-import {rc5Subagents} from "./rc5-subagents.js";
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import z from '@deepseek-ai/schemastery';
@@ -20,7 +19,7 @@ export * from './author.js';
 export * from './scoped-review.js';
 export * from './engine.js';
 export const name = 'dsh-external-workflow';
-export const inject = ['subagents', 'tools', 'sessions', 'agents'];
+export const inject = ['subagents', 'tools'];
 export const Config = z.object({
     projectDirectory: z.string().default('.dsh/workflows'),
     personalDirectory: z.string().default('workflows'),
@@ -167,7 +166,7 @@ function hasCurrentWorkflowHandoff(agent, grants) {
     const expectedMessageId = grants.get(agent);
     if (expectedMessageId === undefined)
         return false;
-    const events = agent.session.snapshotEvents() ?? [];
+    const events = agent.session.events ?? [];
     for (let index = events.length - 1; index >= 0; index -= 1) {
         const event = events[index];
         if (event.type === 'turn/start' || event.type === 'turn/end')
@@ -687,7 +686,7 @@ export function apply(ctx, config) {
     const userQuestions = ctx.get('userQuestions');
     ctx.plugin(DynamicWorkflowService, {
         config: resolved,
-        subagents: rc5Subagents(ctx),
+        subagents: ctx.subagents,
         ...(approval === undefined ? {} : { approval }),
         ...(jobs === undefined ? {} : { jobs }),
         ...(userQuestions === undefined ? {} : { userQuestions }),

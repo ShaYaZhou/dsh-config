@@ -3,17 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { hookApplies } from '../plugins/codex-hooks/lib/events.js';
 import { hookHash, readStateFile, writeStateFile } from '../plugins/codex-hooks/lib/core.js';
 import { configureRtkHook, renderRtkHooks } from '../scripts/harness.mjs';
-
-test('project hooks never run in another workspace',()=>{
-  const cwd=path.join(os.tmpdir(),'project-one');
-  const hook={group:'projects',sourcePath:path.join(cwd,'.dsh','hooks.json')};
-  assert(hookApplies(hook,'agent/created',{cwd}));
-  assert(!hookApplies(hook,'agent/created',{cwd:path.join(os.tmpdir(),'project-two')}));
-  assert(!hookApplies(hook,'agent/created',{}));
-});
 
 test('RTK setup approves only managed handlers and preserves user choices',()=>{
   const home=fs.mkdtempSync(path.join(os.tmpdir(),'rtk-hook-'));

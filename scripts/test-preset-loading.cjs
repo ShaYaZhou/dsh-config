@@ -49,11 +49,11 @@ async function main() {
         assert.equal(await vm.runInNewContext(code+'\n'+call,{spawn:blocked,clearTimeout,setTimeout}),false,'Denied executable probes must return unavailable, not throw a timer error');
       }
     }
-    for (const service of ['dynamicWorkflows'])
-      assert(ctx.get(service), service + ' failed to load');
+    for (const service of ['dynamicWorkflows','hooksController'])
+      assert(!ctx.get(service), service + ' must remain unmounted pending upstream compatibility');
     if(profile==='desktop'){
       const plugins=await ctx.pluginManager.listPlugins();
-      for(const id of ['browser-review','file-links','desktop-commands','delete-session','dsh-rewind-plugin','dynamic-ui-view','enhancement-settings','michengai-btw','archify-skill-filesystem','better-sidebar','skills-manager','michengai-code-review','dsh-external-workflow','ui-workspace-archive-manager','michengai-simplify','dsh-init']){
+      for(const id of ['browser-review','file-links','desktop-commands','dsh-rewind-plugin','dynamic-ui-view','enhancement-settings','michengai-btw','archify-skill-filesystem','better-sidebar','skills-manager','michengai-code-review','ui-workspace-archive-manager','michengai-simplify','dsh-init']){
         if(id==='skills-manager'&&process.env.DSH_VERIFY_MANAGED_SKILLS==='1')continue;
         const row=plugins.find(row=>row.patchId===id);
         assert(row?.enabled&&row.fiberPhase==='active',id+' is missing or inactive');
@@ -67,8 +67,13 @@ async function main() {
       const tools = agent.ctx.tools;
       assert(tools.get('read', agent), preset + ' missing read');
       if (['standard', 'ptc'].includes(preset)) {
-        for(const name of ['workflow_list','run_workflow','workflow_manage']) assert(tools.get(name,agent), preset+' missing '+name);
-        assert.equal(tools.modeFor(agent), preset === 'ptc' ? 'ptc' : 'native');
+        for(const name of ['workflow_list','run_workflow','workflow_manage']) assert(!tools.get(name,agent), preset+' unexpectedly exposes paused '+name);
+        if(typeof tools.modeFor==='function')assert.equal(tools.modeFor(agent), preset === 'ptc' ? 'ptc' : 'native');
+        else {
+          const {NativeToolExecutor}=await import(pathToFileURL(path.join(native,'dsh-tool-executor-native/lib/index.js')));
+          const {PtcExecutor}=await import(pathToFileURL(path.join(native,'dsh-tool-executor-ptc/lib/index.js')));
+          assert(tools.selectExecutor(agent) instanceof (preset==='ptc'?PtcExecutor:NativeToolExecutor),preset+' selected the wrong executor');
+        }
         {
           const commands=ctx.commands.list(agent).map(command=>command.name);
           for(const name of ['init','simplify','review','btw','rewind'])assert(commands.includes(name),name+' absent from command registry');

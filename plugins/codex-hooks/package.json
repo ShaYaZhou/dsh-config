@@ -1,6 +1,6 @@
 {
   "name": "dsh-codex-hooks",
-  "version": "0.6.0-local.1",
+  "version": "0.6.0",
   "description": "Codex-style hook management for DeepSeek Harness: hooks.json discovered from config, plugins and projects, each hook pinned to a sha256 fingerprint you approve before it runs, with a review dialog in the composer, a /hooks browser and per-hook run stats.",
   "license": "MIT",
   "repository": {
@@ -36,12 +36,19 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "lib",
+    "lib/index.js",
+    "lib/core.js",
+    "lib/events.js",
+    "lib/runs.js",
     "client.js",
     "cordis.patch.yml",
-    "locale",
+    "locale/en.json",
+    "locale/zh.json",
     "icon.svg",
-    "LICENSE"
+    "README.zh.md",
+    "docs/screenshots",
+    "examples/echo-hook.mjs",
+    "examples/approval-allow.mjs"
   ],
   "dsh": {
     "bundle": {
@@ -56,8 +63,5 @@
         "@deepseek-ai/dsh-client-ui-chat"
       ]
     }
-  },
-  "peerDependencies": {
-    "@deepseek-ai/dsh-typert-protocol": "0.2.1-rc.5"
   }
 }

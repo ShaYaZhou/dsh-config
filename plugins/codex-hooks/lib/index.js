@@ -14,9 +14,7 @@ import * as core from './core.js'
 import { EVENT_DESCRIPTIONS, executeHook, hookApplies } from './events.js'
 import { RUN_LIMIT, createRunLog, eventRows, hooksCommandText, hookTitle } from './runs.js'
 
-import { Remote, RemoteError, TypertRemoteService, principalOf } from '@deepseek-ai/dsh-typert-protocol'
-const remoteInitializers = []
-export const inject = ["typert", "commands"]
+const DESCRIPTOR_KEY = '@deepseek-ai/dsh-typert-protocol/remote-methods'
 const MAX_CONCURRENT_ASYNC = 8
 /** How long a discovery result may serve repeated reads (the stats poll). */
 const CATALOG_TTL_MS = 2000
@@ -420,59 +418,60 @@ class HooksCore {
  * Remote namespace `hooks` (SRC, hand rolled — no typert import)
  * ------------------------------------------------------------------ */
 
-class HooksController extends TypertRemoteService {
-  constructor(ctx, hooks) {
-    super(ctx, 'hooksController', { namespace: 'hooks' })
+class HooksController {
+  constructor(hooks) {
     this.hooks = hooks
-    for (const initialize of remoteInitializers) initialize.call(this)
-  }
-  assertOwner() {
-    if (principalOf(this.ctx.invocation)) throw new RemoteError('gateway/forbidden', 'Hook management is local-owner only', {})
-    this.ctx.invocation?.signal?.throwIfAborted()
+    this.typertRemote = Object.freeze({
+      service: this,
+      serviceKey: 'hooksController',
+      namespace: 'hooks',
+    })
   }
 
   list() {
-    this.assertOwner()
     return this.hooks.listHooks()
   }
 
   setEnabled(key, enabled, expected) {
-    this.assertOwner()
     return this.hooks.setEnabled(key, enabled, expected)
   }
 
   setTrusted(key, trusted, expected) {
-    this.assertOwner()
     return this.hooks.setTrusted(key, trusted, expected)
   }
 
   testHook(key) {
-    this.assertOwner()
     return this.hooks.testHook(key)
   }
 
   stats(turn) {
-    this.assertOwner()
     return this.hooks.stats(turn)
   }
 
   review() {
-    this.assertOwner()
     return { hooks: this.hooks.review() }
   }
 
   trustAll() {
-    this.assertOwner()
     return this.hooks.trustAll()
   }
 }
 
-for (const name of ['list','setEnabled','setTrusted','testHook','stats','review','trustAll']) {
-  Remote(name)(HooksController.prototype[name], {
-    kind:'method', name, private:false, static:false,
-    addInitializer: fn => remoteInitializers.push(fn),
-  })
-}
+Object.defineProperty(HooksController.prototype, DESCRIPTOR_KEY, {
+  value: {
+    version: 1,
+    methods: [
+      { method: 'list', invocation: { kind: 'direct' } },
+      { method: 'setEnabled', invocation: { kind: 'direct' } },
+      { method: 'setTrusted', invocation: { kind: 'direct' } },
+      { method: 'testHook', invocation: { kind: 'direct' } },
+      { method: 'stats', invocation: { kind: 'direct' } },
+      { method: 'review', invocation: { kind: 'direct' } },
+      { method: 'trustAll', invocation: { kind: 'direct' } },
+    ],
+  },
+  configurable: true,
+})
 
 /* ------------------------------------------------------------------ *
  * Plugin entry point
@@ -486,12 +485,25 @@ function registerCommand(ctx, hooks) {
     description: 'View and manage lifecycle hooks.',
     handler: () => ({ kind: 'success', text: hooks.commandText() }),
   }
-  ctx.effect(() => ctx.commands.register(definition), 'dsh-codex-hooks: /hooks command')
+  const register = (commands) => {
+    if (!commands || typeof commands.register !== 'function') return
+    if (typeof ctx.effect === 'function') ctx.effect(() => commands.register(definition), 'dsh-codex-hooks: /hooks command')
+    else commands.register(definition)
+  }
+  // Wait for the service instead of racing it: plugin load order is not ours to choose.
+  // ctx.inject() mounts a child plugin whose body gets a context, not the service.
+  if (typeof ctx.inject === 'function') {
+    ctx.inject(['commands'], (inner) =>
+      register(typeof inner?.register === 'function' ? inner : (inner?.get?.('commands') ?? inner?.commands)),
+    )
+    return
+  }
+  register((typeof ctx.get === 'function' ? ctx.get('commands') : undefined) ?? ctx.commands)
 }
 
 export function apply(ctx, config) {
   const hooks = new HooksCore(ctx, config ?? {})
-  new HooksController(ctx, hooks)
+  ctx.provide('hooksController', new HooksController(hooks))
   registerCommand(ctx, hooks)
   const isFirstStep = core.createStepTracker()
 
