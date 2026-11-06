@@ -20,7 +20,7 @@ dsh-mnemon 提供分层记忆和管理界面，@mnemon-dev/mnemon 提供本地 C
 
 按用户最新要求，Mnemon 使用上游发布包，并仅保留下述设置页修复，不再加载本地禁写服务或父子会话禁写补丁。记忆行为由 Mnemon 原生能力和用户设置决定。旧 dsh-memory 文件保留，不自动导入或删除；它们不会因此自动出现在 Mnemon 召回中。
 
-记忆授权仍由上游控制；本仓库另有前端防误操作补丁，区分“默认来源”与“显式空列表”，不修改后端权限。读写工具报 `not offered` 时先检查范围组合，详见[记忆来源选择](MNEMON-SOURCE-SELECTION.md)。
+记忆界面和授权均使用上游实现，不再应用本地前端补丁。读写工具报 `not offered` 时先检查范围组合，详见[记忆来源选择](MNEMON-SOURCE-SELECTION.md)。
 
 ## Hooks 与 RTK
 

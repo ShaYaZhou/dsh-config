@@ -219,28 +219,7 @@
       ],
       "policy": "Independent desktop capabilities; native presets with optional Workflow."
     },
-    "dependencyPatches": {
-      "dsh-better-sidebar@0.28.0": {
-        "source": "https://github.com/omdsh-dev/DSH-better-sidebar",
-        "patch": "config/patches/dsh-better-sidebar.patch",
-        "reason": "Fix synchronous denied-spawn timer initialization in search/archive probes; retain existing fallback and permission limits.",
-        "mechanism": "native pnpm-workspace patchedDependencies"
-      },
-      "dshmarket": {
-        "source": "installed upstream dshmarket",
-        "patch": "config/patches/dshmarket.patch",
-        "reason": "Classify ordinary dependencies without DSH metadata or observed loader rows as libraries; never infer MCP liveness.",
-        "testedVersion": "1.73.9",
-        "mechanism": "native pnpm-workspace patchedDependencies"
-      },
-      "dsh-mnemon": {
-        "source": "https://github.com/omdsh-dev/dsh-mnemon",
-        "patch": "config/patches/dsh-mnemon.patch",
-        "testedVersion": "0.5.40",
-        "reason": "Display inherited scoped sources accurately and confirm explicit empty selections; preserve unset and readonly semantics without changing Host authorization.",
-        "mechanism": "native pnpm-workspace patchedDependencies"
-      }
-    },
+    "dependencyPatches": {},
     "dailySkills": {
       "source": "skills and .dsh/skills",
       "mode": "native filesystem provider, on-demand content",

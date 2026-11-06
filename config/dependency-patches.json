@@ -1,6 +1,3 @@
 {
-  "dsh-better-sidebar": "patches/dsh-better-sidebar.patch",
-  "@ninkch/dsh-infinite-canvas": "patches/dsh-infinite-canvas.patch",
-  "dshmarket": "patches/dshmarket.patch",
-  "dsh-mnemon": "patches/dsh-mnemon.patch"
+  "@ninkch/dsh-infinite-canvas": "patches/dsh-infinite-canvas.patch"
 }
