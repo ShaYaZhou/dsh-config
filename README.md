@@ -30,7 +30,7 @@ rtk proxy node scripts/harness.mjs status
 
 重新打开 Harness。安装器自身不会关闭应用，不改写会话、记忆或用户 worktree。配置会合并用户更改；遇到冲突或未捕获的部署代码修改时停止，不强行覆盖。
 
-自定义安装位置可设置本机环境变量 `DSH_APP_DIR`，或 `DSH_EXECUTABLE` 与 `DSH_CLI_JS`；自定义 Node 可设置 `NPM_CLI_JS`。Windows 已有实机验证，其他平台仍需当地验收。
+自定义安装位置可设置本机环境变量 `DSH_APP_DIR`，或 `DSH_EXECUTABLE` 与 `DSH_CLI_JS`；自定义 Node 可设置 `NPM_CLI_JS`。安装器的默认应用路径是 Windows 位置，macOS 上必须设置两个文件变量，例如 `DSH_EXECUTABLE=/Applications/DeepSeek Harness.app/Contents/MacOS/DeepSeek Harness`、`DSH_CLI_JS=/Applications/DeepSeek Harness.app/Contents/Resources/app.asar/dsh/node_modules/@deepseek-ai/dsh-desktop-host/lib/cli.js`。Windows 已有实机验证，其他平台仍需当地验收。
 
 ## 当前功能
 

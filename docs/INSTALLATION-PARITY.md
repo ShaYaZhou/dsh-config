@@ -30,7 +30,7 @@
 
 Agentero 注意：本机对 `agentero-dsh-pdf` 另有服务注入名修复——PDF 客户端注入的是宿主提供的 `agentero` 服务，而上游包仍声明包名 `agentero-dsh-host`。补丁已纳入 `config/patches/agentero-dsh-pdf.patch`，对 0.1.4 和 0.1.6 均验证可应用；补丁不绑定具体版本，上游改名后安装会因上下文不匹配而失败并保留备份，不会静默丢失修复。
 
-> 升级提示：如果这些插件此前已由插件管理器安装，`profiles/desktop/package.json` 里的解析范围（如 `^0.1.4`）与模板的 `latest` 会触发一次三方合并冲突。退出 Harness 后把对应条目改成模板声明或移除，再重试。旧部署若已有 `agentero-dsh-pdf@0.1.4` 的 `patchedDependencies` 条目和 `patches/agentero-dsh-pdf@0.1.4.patch`，也要一并删除；新补丁使用不带版本号的键，依赖升级到 0.1.6 后旧键会触发 pnpm `ERR_PNPM_UNUSED_PATCH`。
+> 升级提示：本机已由插件管理器新增的依赖（本次四款社区插件，以及 git-graph、today-todo、notion-mcp）在模板里是 `latest` / `@artifact`，本机 profile 里则是 `^x.y.z` 或绝对 `file:`；直接部署会在这几个键上触发三方合并冲突。退出 Harness 后把对应条目改成模板声明或移除，再重试。旧部署若已有 `agentero-dsh-pdf@0.1.4` 的 `patchedDependencies` 条目和 `patches/agentero-dsh-pdf@0.1.4.patch`，也要一并删除；新补丁使用不带版本号的键，依赖升级到 0.1.6 后旧键会触发 pnpm `ERR_PNPM_UNUSED_PATCH`。
 
 ### 本机追加的本地包与官方 bundle
 
