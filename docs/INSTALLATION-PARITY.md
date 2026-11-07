@@ -28,9 +28,17 @@
 | [dsh-context](https://github.com/bowenliang123/dsh-context) | 0.81.2 | 使用本机会话与上下文，相关历史不分发 |
 | [agentero-dsh](https://github.com/poco-ai/agentero-dsh-plugin) | 0.1.4 | 自行安装 Agentero CLI、建立 Vault，并在设置中选择 CLI 和 Vault 路径；论文和笔记不分发 |
 
-Agentero 注意：本机对 `agentero-dsh-pdf@0.1.4` 另有服务注入名修复；查询时 npm 0.1.6 仍声明旧服务名。这项本机补丁尚未纳入共享清单，因此不能仅凭安装 Agentero 就宣称首次安装的 PDF 入口已通过验收。
+Agentero 注意：本机对 `agentero-dsh-pdf` 另有服务注入名修复——PDF 客户端注入的是宿主提供的 `agentero` 服务，而上游包仍声明包名 `agentero-dsh-host`。补丁已纳入 `config/patches/agentero-dsh-pdf.patch`，对 0.1.4 和 0.1.6 均验证可应用；补丁不绑定具体版本，上游改名后安装会因上下文不匹配而失败并保留备份，不会静默丢失修复。
 
-个人目录里的 Notion／Today Todo 本地包及其绝对路径不直接导出为共享安装依赖；安装器继续保留已有本机附加插件。
+> 升级提示：如果这些插件此前已由插件管理器安装，`profiles/desktop/package.json` 里的解析范围（如 `^0.1.4`）与模板的 `latest` 会触发一次三方合并冲突。退出 Harness 后把对应条目改成模板声明或移除，再重试。旧部署若已有 `agentero-dsh-pdf@0.1.4` 的 `patchedDependencies` 条目和 `patches/agentero-dsh-pdf@0.1.4.patch`，也要一并删除；新补丁使用不带版本号的键，依赖升级到 0.1.6 后旧键会触发 pnpm `ERR_PNPM_UNUSED_PATCH`。
+
+### 本机追加的本地包与官方 bundle
+
+- `@local/dsh-today-todo`、`@local/dsh-notion-mcp` 已从个人工作目录收入 `plugins/today-todo/`、`plugins/notion-mcp/`，安装时由仓库打包并以 `@artifact` 引用，不再写入个人绝对路径。待办数据、Notion 凭据和页面内容不随仓库分发。
+  - today-todo：本地 `~/.dsh/today-todo/tasks.json` 为真源；Notion 同步需自备 token 与数据库，且只写插件自己创建的页面。
+  - notion-mcp：仅在环境变量 `NOTION_TOKEN` 存在时启用官方 `@notionhq/notion-mcp-server`。
+- `@linxin666/dsh-client-ui-git-graph` 加入 desktop 依赖和 bundle。
+- 本机已启用的官方 `@deepseek-ai/dsh-experimental-session-titles-bundle`、`@deepseek-ai/dsh-experimental-forge-bundle` 补入 bundle 声明。
 
 ## 配置与 Hook
 

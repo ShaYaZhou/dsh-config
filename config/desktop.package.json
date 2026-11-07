@@ -4,6 +4,8 @@
   "dependencies": {
     "@playwright/mcp": "latest",
     "@local/dsh-shared": "@artifact/shared",
+    "@local/dsh-notion-mcp": "@artifact/notion-mcp",
+    "@local/dsh-today-todo": "@artifact/today-todo",
     "dshmarket": "latest",
     "@local/dsh-enhancement-settings": "@artifact/enhancement-settings",
     "@local/dsh-dynamic-ui-view": "@artifact/dynamic-ui-view",
@@ -36,7 +38,8 @@
     "dsh-media-desk": "latest",
     "dsh-guizang-design": "latest",
     "dsh-context": "latest",
-    "agentero-dsh": "latest"
+    "agentero-dsh": "latest",
+    "@linxin666/dsh-client-ui-git-graph": "latest"
   },
   "dsh": {
     "profile": {
@@ -79,6 +82,11 @@
         "dsh-whale-widget",
         "dsh-ego-browser",
         "dsh-meme",
+        "@local/dsh-today-todo",
+        "@local/dsh-notion-mcp",
+        "@linxin666/dsh-client-ui-git-graph",
+        "@deepseek-ai/dsh-experimental-session-titles-bundle",
+        "@deepseek-ai/dsh-experimental-forge-bundle",
         "dsh-media-desk",
         "dsh-guizang-design",
         "dsh-context",

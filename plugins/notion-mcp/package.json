@@ -1,0 +1,22 @@
+{
+  "name": "@local/dsh-notion-mcp",
+  "version": "1.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Notion MCP 桥：把官方 @notionhq/notion-mcp-server 挂进 Harness，出现 mcp__notion__* 工具",
+  "icon": "./icon.svg",
+  "exports": {
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

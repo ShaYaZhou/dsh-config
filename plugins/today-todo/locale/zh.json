@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "今日待办",
+    "description": "侧栏常驻入口 + 独立面板：一眼看到今天还没做完的事，勾选即落盘；配置 Notion Token 与数据库 ID 后与 Notion 双向同步。"
+  }
+}

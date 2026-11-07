@@ -1,0 +1,16 @@
+diff --git a/package.json b/package.json
+index e1be68175c3fc0a56ac470cbbb857955c64267b5..7a4d92a25d1e03f1c5c1a5f8ecf4f1b2c3d4e5f6 100644
+--- a/package.json
++++ b/package.json
+@@ -22,10 +22,10 @@
+   ],
+   "dsh": {
+     "client": {
+       "platform": "web",
+       "inject": [
+-        "agentero-dsh-host"
++        "agentero"
+       ]
+     }
+   },
+   "peerDependencies": {

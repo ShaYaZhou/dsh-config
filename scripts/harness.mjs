@@ -22,7 +22,10 @@ const configuration=name=>readJson(path.join(repository,'config',name));
 const provenance=readJson(path.join(repository,'provenance.json'));
 const stamp=()=>new Date().toISOString().replaceAll(':','-').replaceAll('.','-');
 
-function dependencyPatches(manifest){
+function dependencyPatches(manifest,{includeTransitive=false}={}){
+ // Desktop patches may target a dependency of a bundle (for example agentero-dsh-pdf); the daily
+ // desktop manifest is the only profile that receives patchedDependencies.
+ if(includeTransitive)return {...configuration('dependency-patches.json')};
  return Object.fromEntries(Object.entries(configuration('dependency-patches.json')).filter(([key])=>Object.entries(manifest.dependencies??{}).some(([name,version])=>key===name+'@'+version||key===name)));
 }
 
@@ -129,9 +132,9 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
   const id=spec.slice(10);daily.dependencies[pkg]='file:../../local-plugins/'+(artifacts[id]?.filename??id+'-preview.tgz');
  }
  files.set('profiles/desktop/package.json',json(daily));
- files.set('profiles/desktop/pnpm-workspace.yaml',json({...JSON.parse(files.get('profiles/desktop/pnpm-workspace.yaml')),patchedDependencies:dependencyPatches(daily),
+ files.set('profiles/desktop/pnpm-workspace.yaml',json({...JSON.parse(files.get('profiles/desktop/pnpm-workspace.yaml')),patchedDependencies:dependencyPatches(daily,{includeTransitive:true}),
  }));
- for(const relative of Object.values(dependencyPatches(daily))){
+ for(const relative of Object.values(dependencyPatches(daily,{includeTransitive:true}))){
   assert(/^patches\/[a-z0-9-]+\.patch$/.test(relative),'Unsupported dependency patch path');
   files.set('profiles/desktop/'+relative,fs.readFileSync(path.join(repository,'config',relative),'utf8'));
  }
@@ -385,7 +388,7 @@ export function install(home,settings,{dryRun=false,refreshLock=false,clean=fals
    const library=path.join(repository,'plugins',plugin.id,'lib');
    const pluginRoot=path.join(repository,'plugins',plugin.id);
    for(const name of fs.readdirSync(pluginRoot).filter(name=>/\.m?js$/.test(name)))sources['profiles/desktop/node_modules/'+plugin.package+'/'+name]='plugins/'+plugin.id+'/'+name;
-   for(const entry of fs.readdirSync(library,{withFileTypes:true}))if(entry.isFile()&&/\.m?js$/.test(entry.name))sources['profiles/desktop/node_modules/'+plugin.package+'/lib/'+entry.name]='plugins/'+plugin.id+'/lib/'+entry.name;
+   if(fs.existsSync(library))for(const entry of fs.readdirSync(library,{withFileTypes:true}))if(entry.isFile()&&/\.m?js$/.test(entry.name))sources['profiles/desktop/node_modules/'+plugin.package+'/lib/'+entry.name]='plugins/'+plugin.id+'/lib/'+entry.name;
   }
   if(!clean){
    for(const name of fs.readdirSync(path.join(repository,'modules')).filter(name=>name.endsWith('.mjs'))){

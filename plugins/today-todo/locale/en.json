@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Today Todo",
+    "description": "A pinned sidebar entry and full panel for today's unfinished work. Checking a box writes it to disk; connect a Notion token and database for two-way sync."
+  }
+}

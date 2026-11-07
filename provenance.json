@@ -145,6 +145,32 @@
       }
     },
     {
+      "id": "today-todo",
+      "package": "@local/dsh-today-todo",
+      "version": "1.6.4",
+      "license": "UNLICENSED",
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "changes": [
+          "Sidebar entry and standalone panel for a cross-day todo timeline; ~/.dsh/today-todo/tasks.json stays the local source of truth.",
+          "Optional two-way Notion database sync only edits pages the plugin created and skips page bodies changed in Notion; credentials stay in the local config file or NOTION_TOKEN.",
+          "Registers a today_todo tool that shares the same state and logic as the panel."
+        ]
+      }
+    },
+    {
+      "id": "notion-mcp",
+      "package": "@local/dsh-notion-mcp",
+      "version": "1.0.1",
+      "license": "UNLICENSED",
+      "localChanges": {
+        "unpublishedLocalBuild": true,
+        "changes": [
+          "Bundle-only bridge that starts the official @notionhq/notion-mcp-server over stdio only when NOTION_TOKEN is present; the row stays disabled otherwise."
+        ]
+      }
+    },
+    {
       "id": "codex-hooks",
       "package": "dsh-codex-hooks",
       "version": "0.6.0",
@@ -226,6 +252,16 @@
         "testedVersion": "0.28.2",
         "nativeLayoutVersion": "0.2.1-rc.5",
         "reason": "Restore denied-spawn timer initialization guard; cap native left global-panel navigation height, reuse native scrollbar styling and provide an accessible persistent navigation/workspace resize separator; bound the native right Start guide scrollport so all tool cards remain reachable. Native navigation labels require renewed UI validation on host upgrades. Scroll styles precede upstream CSS to avoid its unclosed reduced-motion media block.",
+        "mechanism": "native pnpm-workspace patchedDependencies"
+      },
+      "agentero-dsh-pdf": {
+        "source": "https://github.com/poco-ai/agentero-dsh-plugin",
+        "patch": "config/patches/agentero-dsh-pdf.patch",
+        "testedVersions": [
+          "0.1.4",
+          "0.1.6"
+        ],
+        "reason": "The PDF client injects the host client service name 'agentero'; upstream package.json still declares the package name 'agentero-dsh-host'. Verified against both the locally installed 0.1.4 and npm latest 0.1.6; the patch applies cleanly to either.",
         "mechanism": "native pnpm-workspace patchedDependencies"
       }
     },

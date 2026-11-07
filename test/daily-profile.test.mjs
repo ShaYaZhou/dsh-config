@@ -28,8 +28,11 @@ test('daily profile uses native PTC, private browsers and the requested enhancem
  const home=path.join(os.tmpdir(),'daily profile with spaces');
  const plan=renderDailyPlan(home,settingsFrom(path.join(repository,'config/local.example.json'),{}));
  const daily=JSON.parse(plan.get('profiles/desktop/package.json'));
- for(const name of ['dsh-mnemon','@local/dsh-idle-settings','dsh-meme','dsh-whale-widget','dsh-comfyui','dsh-ego-browser','dsh-media-desk','dsh-guizang-design','dsh-context','agentero-dsh']) {
+ for(const name of ['dsh-mnemon','@local/dsh-idle-settings','dsh-meme','dsh-whale-widget','dsh-comfyui','dsh-ego-browser','dsh-media-desk','dsh-guizang-design','dsh-context','agentero-dsh','@local/dsh-today-todo','@local/dsh-notion-mcp','@linxin666/dsh-client-ui-git-graph']) {
   assert(daily.dependencies[name]); assert(daily.dsh.profile.bundles.includes(name));
+ }
+ for(const name of ['@deepseek-ai/dsh-experimental-session-titles-bundle','@deepseek-ai/dsh-experimental-forge-bundle']){
+  assert(daily.dsh.profile.bundles.includes(name));
  }
  for(const name of ['dsh-codex-hooks']){
   assert(daily.dependencies[name]);assert(!daily.dsh.profile.bundles.includes(name));

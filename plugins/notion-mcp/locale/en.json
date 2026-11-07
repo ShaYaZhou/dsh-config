@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Notion MCP",
+    "description": "Bridges the official Notion MCP server into Harness, adding mcp__notion__* tools for page search, page creation, and database schema reads. Requires the NOTION_TOKEN environment variable; the row stays disabled without it."
+  }
+}

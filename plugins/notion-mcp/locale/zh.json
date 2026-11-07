@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Notion MCP",
+    "description": "把 Notion 官方 MCP 服务器接进 Harness：出现 mcp__notion__* 工具，可以搜索页面、建页、读数据库结构。需要环境变量 NOTION_TOKEN，未设置时本行保持关闭。"
+  }
+}

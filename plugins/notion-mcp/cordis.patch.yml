@@ -1,0 +1,21 @@
+# Notion MCP 桥。
+#
+# 只在环境变量 NOTION_TOKEN 存在时才启用这一行：没 token 的 MCP 服务器只会
+# 启动失败并刷一堆重连日志。不想用环境变量，就把下面两处 !!js 换成你的字面量
+# （注意 profile 的 cordis.patch.yml 会进版本管理/分享，别把 token 写进去）。
+#
+# 注意 `!!js !expr` 这种写法 YAML 会当成两个 tag 直接报错，表达式必须加引号。
+- insert:
+    - id: notion-mcp
+      name: '@deepseek-ai/dsh-mcp-client'
+      disabled: !!js "!process.env.NOTION_TOKEN"
+      config:
+        transport: stdio
+        serverName: notion
+        command: npx
+        args:
+          - '-y'
+          - '@notionhq/notion-mcp-server'
+        env:
+          NOTION_TOKEN: !!js "process.env.NOTION_TOKEN || ''"
+        failOnStartupError: false
