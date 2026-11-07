@@ -32,7 +32,11 @@
     "dsh-comfyui": "latest",
     "dsh-ego-browser": "latest",
     "dsh-meme": "latest",
-    "dsh-whale-widget": "latest"
+    "dsh-whale-widget": "latest",
+    "dsh-media-desk": "latest",
+    "dsh-guizang-design": "latest",
+    "dsh-context": "latest",
+    "agentero-dsh": "latest"
   },
   "dsh": {
     "profile": {
@@ -74,7 +78,11 @@
         "@deepseek-ai/dsh-experimental-cot-translation-bundle",
         "dsh-whale-widget",
         "dsh-ego-browser",
-        "dsh-meme"
+        "dsh-meme",
+        "dsh-media-desk",
+        "dsh-guizang-design",
+        "dsh-context",
+        "agentero-dsh"
       ]
     }
   }

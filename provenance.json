@@ -219,7 +219,16 @@
       ],
       "policy": "Independent desktop capabilities; native presets with optional Workflow."
     },
-    "dependencyPatches": {},
+    "dependencyPatches": {
+      "dsh-better-sidebar": {
+        "source": "https://github.com/omdsh-dev/DSH-better-sidebar",
+        "patch": "config/patches/dsh-better-sidebar.patch",
+        "testedVersion": "0.28.2",
+        "nativeLayoutVersion": "0.2.1-rc.5",
+        "reason": "Restore denied-spawn timer initialization guard; cap native left global-panel navigation height, reuse native scrollbar styling and provide an accessible persistent navigation/workspace resize separator; bound the native right Start guide scrollport so all tool cards remain reachable. Native navigation labels require renewed UI validation on host upgrades. Scroll styles precede upstream CSS to avoid its unclosed reduced-motion media block.",
+        "mechanism": "native pnpm-workspace patchedDependencies"
+      }
+    },
     "dailySkills": {
       "source": "skills and .dsh/skills",
       "mode": "native filesystem provider, on-demand content",
@@ -249,6 +258,32 @@
     "installedPlugins": {
       "manifest": "config/desktop.package.json",
       "notes": "Includes all desktop dependencies and enabled bundle declarations observed on the owner machine; credentials and runtime data are not distributed."
+    }
+  },
+  "communityAdditions": {
+    "date": "2026-11-07",
+    "policy": "Track npm latest with native release-age and compatibility checks; observed installed versions are not install constraints. Personal data and credentials are excluded.",
+    "packages": {
+      "dsh-media-desk": {
+        "source": "git+https://github.com/woniuniuniu/dsh-media-desk.git",
+        "observedInstalledVersion": "2.6.0",
+        "bundle": "cordis.patch.yml"
+      },
+      "dsh-guizang-design": {
+        "source": "git+https://github.com/op7418/dsh-guizang-design.git",
+        "observedInstalledVersion": "0.1.4",
+        "bundle": "cordis.patch.yml"
+      },
+      "dsh-context": {
+        "source": "git+https://github.com/bowenliang123/dsh-context.git",
+        "observedInstalledVersion": "0.81.2",
+        "bundle": "cordis.patch.yml"
+      },
+      "agentero-dsh": {
+        "source": "git+https://github.com/poco-ai/agentero-dsh-plugin.git",
+        "observedInstalledVersion": "0.1.4",
+        "bundle": "cordis.patch.yml"
+      }
     }
   }
 }

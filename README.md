@@ -69,7 +69,16 @@ rtk proxy node scripts/harness.mjs install --home <隔离测试目录> --setting
 
 每次安装通过原生插件管理器更新声明为 `latest` 的上游包；已有本机固定版本和本地修改版不被强制替换。官方 `@deepseek-ai/*` 插件声明为 `${DSH_RUNTIME_VERSION}`，安装时自动跟随已安装桌面的实际版本：部分官方插件的 npm `latest` 标签仍指向旧 alpha，不能独立用它升级。没有写死 rc.5 数字。锁文件只在目标电脑生成，用于记录实际安装和回滚，不再从仓库分发；`lock` 命令仅检查本地锁文件，不写回固定模板。`latest` 不等于 `next` 或 `alpha`，也不绕过供应链、发布时间与兼容性检查。
 
-本地修改版仍由仓库构建，保留版本元数据、来源及已验证的宿主兼容范围；这不是上游版本锁。仅无限画布保留 LiClick 接入补丁；Sidebar、插件市场和 Mnemon 使用未打补丁的上游包。无限画布新版若不兼容该补丁，安装应失败并保留备份，不静默丢弃 LiClick 功能。宿主升级后仍须通过实际加载与功能验收。通用宿主测试见 `scripts/test-runtime-compatibility.cjs`，需要隔离 `DSH_HOME` 与匹配的 `DSH_NATIVE_ROOT`；Workflow 和 Hooks 当前按未挂载验收。`scripts/test-external-workflow.cjs` 保留作上游兼容性恢复后的专项测试，当前不能作为通过证明。
+本地修改版仍由仓库构建，保留版本元数据、来源及已验证的宿主兼容范围；这不是上游版本锁。插件市场和 Mnemon 使用未打补丁的上游包。目前保留：
+
+- 无限画布：LiClick 接入补丁。新版不兼容时安装失败并保留备份，不静默丢弃功能。
+- Better Sidebar：工具探测异常修复；左侧插件导航独立滚动并复用原生滚动条样式；导航/工作区之间可拖动分隔条，支持方向键调整、双击恢复默认及保存高度；右侧“开始”页使用限定高度的独立滚动容器。
+
+侧栏适配基于原生 0.2.1-rc.5，宿主升级需重新验收。滚动样式独立放在上游样式之前，避免 0.28.2 未闭合的减少动画条件吞掉规则。Mac 已验证左右两区分别滚动至末尾、“更多”菜单不被裁剪；分隔条已通过隔离 DOM 交互、边界、取消、保存、重置和卸载测试；2026-11-07 用户在 Mac 桌面手动确认可正常拖动调整上下两区。Windows 界面尚未实测。
+
+原生布局反馈：[DSH Discussion #12500](https://github.com/deepseek-ai/deepseek-harness/discussions/12500)。上游 CSS 缺括号已有 [Sidebar #955](https://github.com/omdsh-dev/DSH-better-sidebar/issues/955)，维护者已回复修复，不重复提交。分隔条集成回归：`node scripts/test-sidebar-navigation.mjs <隔离 profile> <已安装 jsdom 的项目目录>`。
+
+通用宿主测试见 `scripts/test-runtime-compatibility.cjs`，需要隔离 `DSH_HOME` 与匹配的 `DSH_NATIVE_ROOT`；Workflow 和 Hooks 当前按未挂载验收。`scripts/test-external-workflow.cjs` 保留作上游兼容性恢复后的专项测试，当前不能作为通过证明。
 
 退出 Harness 后，恢复最近一次安装备份：
 

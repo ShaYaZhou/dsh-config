@@ -1,0 +1,671 @@
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -2672,6 +2672,7 @@
+ function verify(binary) {
+ 	return new Promise((resolve) => {
+ 		let settled = false;
++		let timer;
+ 		const finish = (ok) => {
+ 			if (settled) return;
+ 			settled = true;
+@@ -2685,7 +2686,7 @@
+ 			finish(false);
+ 			return;
+ 		}
+-		const timer = setTimeout(() => {
++		timer = setTimeout(() => {
+ 			child.kill();
+ 			finish(false);
+ 		}, PROBE_TIMEOUT_MS$1);
+@@ -4112,6 +4113,7 @@
+ function probeTool(bin, spawner) {
+ 	return new Promise((resolve) => {
+ 		let settled = false;
++		let timer;
+ 		const finish = (ok) => {
+ 			if (settled) return;
+ 			settled = true;
+@@ -4128,7 +4130,7 @@
+ 			finish(false);
+ 			return;
+ 		}
+-		const timer = setTimeout(() => {
++		timer = setTimeout(() => {
+ 			child.kill();
+ 			finish(false);
+ 		}, PROBE_TIMEOUT_MS);
+--- a/src/search-engines.ts
++++ b/src/search-engines.ts
+@@ -179,6 +179,7 @@
+ function verify(binary: string): Promise<boolean> {
+   return new Promise((resolve) => {
+     let settled = false
++    let timer: ReturnType<typeof setTimeout> | undefined
+     const finish = (ok: boolean): void => {
+       if (settled) return
+       settled = true
+@@ -192,7 +193,7 @@
+       finish(false)
+       return
+     }
+-    const timer = setTimeout(() => {
++    timer = setTimeout(() => {
+       child.kill()
+       finish(false)
+     }, PROBE_TIMEOUT_MS)
+--- a/src/archive-tools.ts
++++ b/src/archive-tools.ts
+@@ -90,6 +90,7 @@
+ function probeTool(bin: string, spawner: ArchiveSpawn): Promise<boolean> {
+   return new Promise<boolean>((resolve) => {
+     let settled = false
++    let timer: ReturnType<typeof setTimeout> | undefined
+     const finish = (ok: boolean): void => {
+       if (settled) return
+       settled = true
+@@ -103,7 +104,7 @@
+       finish(false)
+       return
+     }
+-    const timer = setTimeout(() => {
++    timer = setTimeout(() => {
+       child.kill()
+       finish(false)
+     }, PROBE_TIMEOUT_MS)
+--- a/src/client/layout.css
++++ b/src/client/layout.css
+@@ -1,2 +1,67 @@
++/* Native left navigation, verified against Harness 0.2.1-rc.5.
++ * Keep sessions visible when many plugins register global panels.
++ * Scope to the native navigation accessible label; never style conversation lists. */
++nav[aria-label="全局面板"], nav[aria-label="Global panels"] {
++  max-height: var(--dsh-navigation-height, min(36vh, 320px));
++  height: var(--dsh-navigation-height, auto);
++  min-height: 0;
++  flex: 0 1 auto;
++  overflow-y: auto;
++  overflow-x: hidden;
++  overscroll-behavior-y: contain;
++}
++nav[aria-label="全局面板"] > *, nav[aria-label="Global panels"] > * {
++  flex-shrink: 0;
++}
++
++/* The native Start tab is a bounded scrollport, not a growing flex child.
++ * Safe centering keeps the first card reachable when the list overflows. */
++[data-sidebar-right-guide]:not([hidden]) {
++  height: 100%;
++  min-height: 0;
++  min-width: 0;
++  flex: 1 1 0;
++  overflow-y: auto;
++  overflow-x: hidden;
++  overscroll-behavior-y: contain;
++  scrollbar-gutter: stable;
++  justify-content: safe center;
++  padding-block: 24px;
++}
++[data-sidebar-right-guide] > * {
++  flex-shrink: 0;
++}
++
++/* Reuse native scrollbar tokens; do not enable CSS scrollbar-width, which
++ * overrides Chromium's native themed ::-webkit-scrollbar rules. */
++.dsh-navigation-divider {
++  flex: 0 0 12px;
++  cursor: row-resize;
++  touch-action: none;
++  user-select: none;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  border-radius: 4px;
++  margin: -4px 4px 4px;
++}
++.dsh-navigation-divider::before {
++  content: '';
++  width: 32px;
++  height: 2px;
++  border-radius: 2px;
++  background: var(--dsw-alias-border-l3);
++}
++.dsh-navigation-divider:hover::before,
++.dsh-navigation-divider[data-dragging]::before {
++  width: 48px;
++  background: var(--dsw-alias-label-tertiary);
++}
++.dsh-navigation-divider:focus-visible {
++  outline: 2px solid var(--dsw-focus-ring-color, #4d6bfe);
++  outline-offset: -2px;
++}
++.dsh-navigation-divider[hidden] { display: none; }
++
+ /**
+  * Layout push: the bottom workbench occupies layout instead of floating over
+--- a/src/client/index.tsx
++++ b/src/client/index.tsx
+@@ -1,2 +1,3 @@
++import { registerNavigationResize } from './native/sidebar-navigation.ts'
+ /**
+  * Client half of dsh-better-sidebar: resolves the user's "Side card"
+@@ -195,4 +196,5 @@
+   // The bottom workbench's expand/collapse button in DSH's session header
+   // (the header's corner seat belongs to the native sidebar's own control).
++  ctx.effect(registerNavigationResize, 'dsh-better-sidebar: navigation divider')
+   ctx.effect(
+     () => registerBottomToggle(ctx, sidebarStore),
+diff --git a/src/client/native/sidebar-navigation.ts b/src/client/native/sidebar-navigation.ts
+new file mode 100644
+--- /dev/null
++++ b/src/client/native/sidebar-navigation.ts
+@@ -0,0 +1,114 @@
++/** Native rc.5 layout adapter. Own only the separator and navigation sizing. */
++export function registerNavigationResize(): () => void {
++  const selector = 'nav[aria-label="全局面板"], nav[aria-label="Global panels"]'
++  const key = 'dsh-better-sidebar.navigation-height.v1'
++  const mounted = new Map<HTMLElement, () => void>()
++  let saved: number | null = null
++  try {
++    const value = Number(localStorage.getItem(key))
++    if (Number.isFinite(value) && value >= 72) saved = value
++  } catch { /* A storage restriction must not disable resizing. */ }
++  const mount = (nav: HTMLElement): void => {
++    if (mounted.has(nav)) return
++    const root = nav.parentElement
++    const region = nav.nextElementSibling
++    if (!root || !(region instanceof HTMLElement) || !Array.from(region.classList).some(c => c.endsWith('_regionArea'))) return
++    const bar = document.createElement('div')
++    bar.className = 'dsh-navigation-divider'
++    bar.setAttribute('role', 'separator')
++    bar.setAttribute('aria-orientation', 'horizontal')
++    bar.setAttribute('aria-label', nav.getAttribute('aria-label') === '全局面板' ? '调整插件导航与工作区高度' : 'Resize navigation and workspaces')
++    bar.tabIndex = 0
++    nav.after(bar)
++    const events = new AbortController()
++    let desired = saved
++    let drag: { y: number; height: number; desired: number | null } | null = null
++    let max = 320
++    let min = 72
++    const layout = (): void => {
++      if (!nav.isConnected) return
++      const rect = nav.getBoundingClientRect()
++      const visible = rect.width >= 120 && root.getBoundingClientRect().height > 0
++      bar.hidden = !visible
++      if (!visible) return
++      const available = rect.height + region.getBoundingClientRect().height
++      max = Math.max(0, available - Math.min(120, available * .4))
++      min = Math.min(72, max)
++      const value = Math.round(Math.max(min, Math.min(max, desired ?? Math.min(innerHeight * .36, 320))))
++      nav.style.setProperty('--dsh-navigation-height', value + 'px')
++      bar.setAttribute('aria-valuemin', String(Math.round(min)))
++      bar.setAttribute('aria-valuemax', String(Math.round(max)))
++      bar.setAttribute('aria-valuenow', String(value))
++    }
++    const persist = (): void => {
++      saved = desired
++      try {
++        if (desired === null) localStorage.removeItem(key)
++        else localStorage.setItem(key, String(desired))
++      } catch { /* Keep the in-memory layout usable. */ }
++    }
++    bar.addEventListener('pointerdown', (event: PointerEvent) => {
++      if (event.button !== 0) return
++      event.preventDefault()
++      bar.focus()
++      drag = { y: event.clientY, height: nav.getBoundingClientRect().height, desired }
++      bar.setPointerCapture(event.pointerId)
++      bar.dataset.dragging = ''
++    }, { signal: events.signal })
++    bar.addEventListener('pointermove', (event: PointerEvent) => {
++      if (!drag) return
++      desired = Math.max(min, Math.min(max, drag.height + event.clientY - drag.y))
++      layout()
++    }, { signal: events.signal })
++    bar.addEventListener('pointerup', (event: PointerEvent) => {
++      if (!drag) return
++      drag = null
++      delete bar.dataset.dragging
++      if (bar.hasPointerCapture(event.pointerId)) bar.releasePointerCapture(event.pointerId)
++      persist()
++    }, { signal: events.signal })
++    const cancel = (): void => {
++      if (!drag) return
++      desired = drag.desired
++      drag = null
++      delete bar.dataset.dragging
++      layout()
++    }
++    bar.addEventListener('pointercancel', cancel, { signal: events.signal })
++    bar.addEventListener('lostpointercapture', cancel, { signal: events.signal })
++    bar.addEventListener('dblclick', () => { desired = null; layout(); persist() }, { signal: events.signal })
++    bar.addEventListener('keydown', (event: KeyboardEvent) => {
++      if (event.key === 'Escape') { cancel(); return }
++      if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return
++      event.preventDefault()
++      desired = event.key === 'Home' ? min : event.key === 'End' ? max
++        : Math.max(min, Math.min(max, nav.getBoundingClientRect().height + (event.key === 'ArrowDown' ? 24 : -24)))
++      layout()
++      persist()
++    }, { signal: events.signal })
++    const resize = new ResizeObserver(layout)
++    resize.observe(root)
++    resize.observe(nav)
++    layout()
++    mounted.set(nav, () => {
++      events.abort()
++      resize.disconnect()
++      nav.style.removeProperty('--dsh-navigation-height')
++      bar.remove()
++      mounted.delete(nav)
++    })
++  }
++  const discover = (node: Element): void => {
++    if (node.matches(selector) && node instanceof HTMLElement) mount(node)
++    node.querySelectorAll<HTMLElement>(selector).forEach(mount)
++  }
++  discover(document.body)
++  const observer = new MutationObserver(records => {
++    for (const [nav, dispose] of mounted) if (!nav.isConnected) dispose()
++    for (const record of records) for (const node of record.addedNodes) {
++      if (node instanceof Element) discover(node)
++    }
++  })
++  observer.observe(document.body, { childList: true, subtree: true })
++  return () => { observer.disconnect(); for (const dispose of [...mounted.values()]) dispose() }
++}
+--- a/lib/client.js
++++ b/lib/client.js
+@@ -32769,8 +32769,188 @@
+ 			tag.dataset.plugin = "dsh-better-sidebar";
+ 			tag.dataset.pluginCss = tagId;
+-			tag.textContent = css;
++			tag.textContent = `/* Native left navigation, verified against Harness 0.2.1-rc.5.
++ * Keep sessions visible when many plugins register global panels.
++ * Scope to the native navigation accessible label; never style conversation lists. */
++nav[aria-label="全局面板"], nav[aria-label="Global panels"] {
++  max-height: var(--dsh-navigation-height, min(36vh, 320px));
++  height: var(--dsh-navigation-height, auto);
++  min-height: 0;
++  flex: 0 1 auto;
++  overflow-y: auto;
++  overflow-x: hidden;
++  overscroll-behavior-y: contain;
++}
++nav[aria-label="全局面板"] > *, nav[aria-label="Global panels"] > * {
++  flex-shrink: 0;
++}
++
++/* The native Start tab is a bounded scrollport, not a growing flex child.
++ * Safe centering keeps the first card reachable when the list overflows. */
++[data-sidebar-right-guide]:not([hidden]) {
++  height: 100%;
++  min-height: 0;
++  min-width: 0;
++  flex: 1 1 0;
++  overflow-y: auto;
++  overflow-x: hidden;
++  overscroll-behavior-y: contain;
++  scrollbar-gutter: stable;
++  justify-content: safe center;
++  padding-block: 24px;
++}
++[data-sidebar-right-guide] > * {
++  flex-shrink: 0;
++}
++
++/* Reuse native scrollbar tokens; do not enable CSS scrollbar-width, which
++ * overrides Chromium's native themed ::-webkit-scrollbar rules. */
++.dsh-navigation-divider {
++  flex: 0 0 12px;
++  cursor: row-resize;
++  touch-action: none;
++  user-select: none;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  border-radius: 4px;
++  margin: -4px 4px 4px;
++}
++.dsh-navigation-divider::before {
++  content: '';
++  width: 32px;
++  height: 2px;
++  border-radius: 2px;
++  background: var(--dsw-alias-border-l3);
++}
++.dsh-navigation-divider:hover::before,
++.dsh-navigation-divider[data-dragging]::before {
++  width: 48px;
++  background: var(--dsw-alias-label-tertiary);
++}
++.dsh-navigation-divider:focus-visible {
++  outline: 2px solid var(--dsw-focus-ring-color, #4d6bfe);
++  outline-offset: -2px;
++}
++.dsh-navigation-divider[hidden] { display: none; }
++
++` + css;
+ 			document.head.appendChild(tag);
+ 		}
+ 		//#endregion
++/** Native rc.5 layout adapter. Own only the separator and navigation sizing. */
++function registerNavigationResize()             {
++  const selector = 'nav[aria-label="全局面板"], nav[aria-label="Global panels"]'
++  const key = 'dsh-better-sidebar.navigation-height.v1'
++  const mounted = new Map                         ()
++  let saved                = null
++  try {
++    const value = Number(localStorage.getItem(key))
++    if (Number.isFinite(value) && value >= 72) saved = value
++  } catch { /* A storage restriction must not disable resizing. */ }
++  const mount = (nav             )       => {
++    if (mounted.has(nav)) return
++    const root = nav.parentElement
++    const region = nav.nextElementSibling
++    if (!root || !(region instanceof HTMLElement) || !Array.from(region.classList).some(c => c.endsWith('_regionArea'))) return
++    const bar = document.createElement('div')
++    bar.className = 'dsh-navigation-divider'
++    bar.setAttribute('role', 'separator')
++    bar.setAttribute('aria-orientation', 'horizontal')
++    bar.setAttribute('aria-label', nav.getAttribute('aria-label') === '全局面板' ? '调整插件导航与工作区高度' : 'Resize navigation and workspaces')
++    bar.tabIndex = 0
++    nav.after(bar)
++    const events = new AbortController()
++    let desired = saved
++    let drag                                                               = null
++    let max = 320
++    let min = 72
++    const layout = ()       => {
++      if (!nav.isConnected) return
++      const rect = nav.getBoundingClientRect()
++      const visible = rect.width >= 120 && root.getBoundingClientRect().height > 0
++      bar.hidden = !visible
++      if (!visible) return
++      const available = rect.height + region.getBoundingClientRect().height
++      max = Math.max(0, available - Math.min(120, available * .4))
++      min = Math.min(72, max)
++      const value = Math.round(Math.max(min, Math.min(max, desired ?? Math.min(innerHeight * .36, 320))))
++      nav.style.setProperty('--dsh-navigation-height', value + 'px')
++      bar.setAttribute('aria-valuemin', String(Math.round(min)))
++      bar.setAttribute('aria-valuemax', String(Math.round(max)))
++      bar.setAttribute('aria-valuenow', String(value))
++    }
++    const persist = ()       => {
++      saved = desired
++      try {
++        if (desired === null) localStorage.removeItem(key)
++        else localStorage.setItem(key, String(desired))
++      } catch { /* Keep the in-memory layout usable. */ }
++    }
++    bar.addEventListener('pointerdown', (event              ) => {
++      if (event.button !== 0) return
++      event.preventDefault()
++      bar.focus()
++      drag = { y: event.clientY, height: nav.getBoundingClientRect().height, desired }
++      bar.setPointerCapture(event.pointerId)
++      bar.dataset.dragging = ''
++    }, { signal: events.signal })
++    bar.addEventListener('pointermove', (event              ) => {
++      if (!drag) return
++      desired = Math.max(min, Math.min(max, drag.height + event.clientY - drag.y))
++      layout()
++    }, { signal: events.signal })
++    bar.addEventListener('pointerup', (event              ) => {
++      if (!drag) return
++      drag = null
++      delete bar.dataset.dragging
++      if (bar.hasPointerCapture(event.pointerId)) bar.releasePointerCapture(event.pointerId)
++      persist()
++    }, { signal: events.signal })
++    const cancel = ()       => {
++      if (!drag) return
++      desired = drag.desired
++      drag = null
++      delete bar.dataset.dragging
++      layout()
++    }
++    bar.addEventListener('pointercancel', cancel, { signal: events.signal })
++    bar.addEventListener('lostpointercapture', cancel, { signal: events.signal })
++    bar.addEventListener('dblclick', () => { desired = null; layout(); persist() }, { signal: events.signal })
++    bar.addEventListener('keydown', (event               ) => {
++      if (event.key === 'Escape') { cancel(); return }
++      if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return
++      event.preventDefault()
++      desired = event.key === 'Home' ? min : event.key === 'End' ? max
++        : Math.max(min, Math.min(max, nav.getBoundingClientRect().height + (event.key === 'ArrowDown' ? 24 : -24)))
++      layout()
++      persist()
++    }, { signal: events.signal })
++    const resize = new ResizeObserver(layout)
++    resize.observe(root)
++    resize.observe(nav)
++    layout()
++    mounted.set(nav, () => {
++      events.abort()
++      resize.disconnect()
++      nav.style.removeProperty('--dsh-navigation-height')
++      bar.remove()
++      mounted.delete(nav)
++    })
++  }
++  const discover = (node         )       => {
++    if (node.matches(selector) && node instanceof HTMLElement) mount(node)
++    node.querySelectorAll             (selector).forEach(mount)
++  }
++  discover(document.body)
++  const observer = new MutationObserver(records => {
++    for (const [nav, dispose] of mounted) if (!nav.isConnected) dispose()
++    for (const record of records) for (const node of record.addedNodes) {
++      if (node instanceof Element) discover(node)
++    }
++  })
++  observer.observe(document.body, { childList: true, subtree: true })
++  return () => { observer.disconnect(); for (const dispose of [...mounted.values()]) dispose() }
++}
++
+ 		//#region src/client/index.tsx
+ 		/**
+@@ -32880,4 +33060,5 @@
+ 				}
+ 			}), "dsh-better-sidebar: native right-Sidebar registrations");
++			ctx.effect(registerNavigationResize, "dsh-better-sidebar: navigation divider");
+ 			ctx.effect(() => registerBottomToggle(ctx, sidebarStore), "dsh-better-sidebar: bottom-workbench toggle");
+ 			ctx.effect(() => () => {
+--- a/lib/client-registry.js
++++ b/lib/client-registry.js
+@@ -32769,8 +32769,188 @@
+ 			tag.dataset.plugin = "dsh-external/dsh-better-sidebar";
+ 			tag.dataset.pluginCss = tagId;
+-			tag.textContent = css;
++			tag.textContent = `/* Native left navigation, verified against Harness 0.2.1-rc.5.
++ * Keep sessions visible when many plugins register global panels.
++ * Scope to the native navigation accessible label; never style conversation lists. */
++nav[aria-label="全局面板"], nav[aria-label="Global panels"] {
++  max-height: var(--dsh-navigation-height, min(36vh, 320px));
++  height: var(--dsh-navigation-height, auto);
++  min-height: 0;
++  flex: 0 1 auto;
++  overflow-y: auto;
++  overflow-x: hidden;
++  overscroll-behavior-y: contain;
++}
++nav[aria-label="全局面板"] > *, nav[aria-label="Global panels"] > * {
++  flex-shrink: 0;
++}
++
++/* The native Start tab is a bounded scrollport, not a growing flex child.
++ * Safe centering keeps the first card reachable when the list overflows. */
++[data-sidebar-right-guide]:not([hidden]) {
++  height: 100%;
++  min-height: 0;
++  min-width: 0;
++  flex: 1 1 0;
++  overflow-y: auto;
++  overflow-x: hidden;
++  overscroll-behavior-y: contain;
++  scrollbar-gutter: stable;
++  justify-content: safe center;
++  padding-block: 24px;
++}
++[data-sidebar-right-guide] > * {
++  flex-shrink: 0;
++}
++
++/* Reuse native scrollbar tokens; do not enable CSS scrollbar-width, which
++ * overrides Chromium's native themed ::-webkit-scrollbar rules. */
++.dsh-navigation-divider {
++  flex: 0 0 12px;
++  cursor: row-resize;
++  touch-action: none;
++  user-select: none;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  border-radius: 4px;
++  margin: -4px 4px 4px;
++}
++.dsh-navigation-divider::before {
++  content: '';
++  width: 32px;
++  height: 2px;
++  border-radius: 2px;
++  background: var(--dsw-alias-border-l3);
++}
++.dsh-navigation-divider:hover::before,
++.dsh-navigation-divider[data-dragging]::before {
++  width: 48px;
++  background: var(--dsw-alias-label-tertiary);
++}
++.dsh-navigation-divider:focus-visible {
++  outline: 2px solid var(--dsw-focus-ring-color, #4d6bfe);
++  outline-offset: -2px;
++}
++.dsh-navigation-divider[hidden] { display: none; }
++
++` + css;
+ 			document.head.appendChild(tag);
+ 		}
+ 		//#endregion
++/** Native rc.5 layout adapter. Own only the separator and navigation sizing. */
++function registerNavigationResize()             {
++  const selector = 'nav[aria-label="全局面板"], nav[aria-label="Global panels"]'
++  const key = 'dsh-better-sidebar.navigation-height.v1'
++  const mounted = new Map                         ()
++  let saved                = null
++  try {
++    const value = Number(localStorage.getItem(key))
++    if (Number.isFinite(value) && value >= 72) saved = value
++  } catch { /* A storage restriction must not disable resizing. */ }
++  const mount = (nav             )       => {
++    if (mounted.has(nav)) return
++    const root = nav.parentElement
++    const region = nav.nextElementSibling
++    if (!root || !(region instanceof HTMLElement) || !Array.from(region.classList).some(c => c.endsWith('_regionArea'))) return
++    const bar = document.createElement('div')
++    bar.className = 'dsh-navigation-divider'
++    bar.setAttribute('role', 'separator')
++    bar.setAttribute('aria-orientation', 'horizontal')
++    bar.setAttribute('aria-label', nav.getAttribute('aria-label') === '全局面板' ? '调整插件导航与工作区高度' : 'Resize navigation and workspaces')
++    bar.tabIndex = 0
++    nav.after(bar)
++    const events = new AbortController()
++    let desired = saved
++    let drag                                                               = null
++    let max = 320
++    let min = 72
++    const layout = ()       => {
++      if (!nav.isConnected) return
++      const rect = nav.getBoundingClientRect()
++      const visible = rect.width >= 120 && root.getBoundingClientRect().height > 0
++      bar.hidden = !visible
++      if (!visible) return
++      const available = rect.height + region.getBoundingClientRect().height
++      max = Math.max(0, available - Math.min(120, available * .4))
++      min = Math.min(72, max)
++      const value = Math.round(Math.max(min, Math.min(max, desired ?? Math.min(innerHeight * .36, 320))))
++      nav.style.setProperty('--dsh-navigation-height', value + 'px')
++      bar.setAttribute('aria-valuemin', String(Math.round(min)))
++      bar.setAttribute('aria-valuemax', String(Math.round(max)))
++      bar.setAttribute('aria-valuenow', String(value))
++    }
++    const persist = ()       => {
++      saved = desired
++      try {
++        if (desired === null) localStorage.removeItem(key)
++        else localStorage.setItem(key, String(desired))
++      } catch { /* Keep the in-memory layout usable. */ }
++    }
++    bar.addEventListener('pointerdown', (event              ) => {
++      if (event.button !== 0) return
++      event.preventDefault()
++      bar.focus()
++      drag = { y: event.clientY, height: nav.getBoundingClientRect().height, desired }
++      bar.setPointerCapture(event.pointerId)
++      bar.dataset.dragging = ''
++    }, { signal: events.signal })
++    bar.addEventListener('pointermove', (event              ) => {
++      if (!drag) return
++      desired = Math.max(min, Math.min(max, drag.height + event.clientY - drag.y))
++      layout()
++    }, { signal: events.signal })
++    bar.addEventListener('pointerup', (event              ) => {
++      if (!drag) return
++      drag = null
++      delete bar.dataset.dragging
++      if (bar.hasPointerCapture(event.pointerId)) bar.releasePointerCapture(event.pointerId)
++      persist()
++    }, { signal: events.signal })
++    const cancel = ()       => {
++      if (!drag) return
++      desired = drag.desired
++      drag = null
++      delete bar.dataset.dragging
++      layout()
++    }
++    bar.addEventListener('pointercancel', cancel, { signal: events.signal })
++    bar.addEventListener('lostpointercapture', cancel, { signal: events.signal })
++    bar.addEventListener('dblclick', () => { desired = null; layout(); persist() }, { signal: events.signal })
++    bar.addEventListener('keydown', (event               ) => {
++      if (event.key === 'Escape') { cancel(); return }
++      if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return
++      event.preventDefault()
++      desired = event.key === 'Home' ? min : event.key === 'End' ? max
++        : Math.max(min, Math.min(max, nav.getBoundingClientRect().height + (event.key === 'ArrowDown' ? 24 : -24)))
++      layout()
++      persist()
++    }, { signal: events.signal })
++    const resize = new ResizeObserver(layout)
++    resize.observe(root)
++    resize.observe(nav)
++    layout()
++    mounted.set(nav, () => {
++      events.abort()
++      resize.disconnect()
++      nav.style.removeProperty('--dsh-navigation-height')
++      bar.remove()
++      mounted.delete(nav)
++    })
++  }
++  const discover = (node         )       => {
++    if (node.matches(selector) && node instanceof HTMLElement) mount(node)
++    node.querySelectorAll             (selector).forEach(mount)
++  }
++  discover(document.body)
++  const observer = new MutationObserver(records => {
++    for (const [nav, dispose] of mounted) if (!nav.isConnected) dispose()
++    for (const record of records) for (const node of record.addedNodes) {
++      if (node instanceof Element) discover(node)
++    }
++  })
++  observer.observe(document.body, { childList: true, subtree: true })
++  return () => { observer.disconnect(); for (const dispose of [...mounted.values()]) dispose() }
++}
++
+ 		//#region src/client/index.tsx
+ 		/**
+@@ -32880,4 +33060,5 @@
+ 				}
+ 			}), "dsh-better-sidebar: native right-Sidebar registrations");
++			ctx.effect(registerNavigationResize, "dsh-better-sidebar: navigation divider");
+ 			ctx.effect(() => registerBottomToggle(ctx, sidebarStore), "dsh-better-sidebar: bottom-workbench toggle");
+ 			ctx.effect(() => () => {

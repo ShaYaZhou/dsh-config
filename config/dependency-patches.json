@@ -1,3 +1,4 @@
 {
-  "@ninkch/dsh-infinite-canvas": "patches/dsh-infinite-canvas.patch"
+  "@ninkch/dsh-infinite-canvas": "patches/dsh-infinite-canvas.patch",
+  "dsh-better-sidebar": "patches/dsh-better-sidebar.patch"
 }

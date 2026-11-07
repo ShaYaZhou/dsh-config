@@ -17,6 +17,21 @@
 
 同时补入本机已启用的官方 bundle：会话搜索、持久终端、智能体团队、Ralph、插件市场、徽章技能、Inspector、自动授权审查、语音输入、Git worktree 和思考翻译。加上上表六项，共补齐 17 个 bundle 声明。这些是本机原有的官方功能，不是恢复已删除的自建 Team/worktree。
 
+## 2026-11-07 新增社区插件
+
+以下四项同时加入 desktop 依赖和 bundle，安装时按 `latest` 与原生供应链规则解析。本机版本只记录同步时的安装状态，不代表新版本已验收，也不复制本机的临时版本固定。
+
+| 插件 | 同步时本机版本 | 首次使用配置 |
+|---|---|---|
+| [dsh-media-desk](https://github.com/woniuniuniu/dsh-media-desk) | 2.6.0 | 文案使用已配置模型；图片生成需在插件设置填写自己的图片服务配置与密钥 |
+| [dsh-guizang-design](https://github.com/op7418/dsh-guizang-design) | 0.1.4 | 由插件提供设计入口及技能；不复制本机技能目录的个人修改 |
+| [dsh-context](https://github.com/bowenliang123/dsh-context) | 0.81.2 | 使用本机会话与上下文，相关历史不分发 |
+| [agentero-dsh](https://github.com/poco-ai/agentero-dsh-plugin) | 0.1.4 | 自行安装 Agentero CLI、建立 Vault，并在设置中选择 CLI 和 Vault 路径；论文和笔记不分发 |
+
+Agentero 注意：本机对 `agentero-dsh-pdf@0.1.4` 另有服务注入名修复；查询时 npm 0.1.6 仍声明旧服务名。这项本机补丁尚未纳入共享清单，因此不能仅凭安装 Agentero 就宣称首次安装的 PDF 入口已通过验收。
+
+个人目录里的 Notion／Today Todo 本地包及其绝对路径不直接导出为共享安装依赖；安装器继续保留已有本机附加插件。
+
 ## 配置与 Hook
 
 - Mnemon：`config/mnemon.json` 保存三层策略及本地 embedding 配置。对应环境需要 Ollama 在本机 11434 端口服务并准备 `nomic-embed-text`；没有该服务时，应在 Mnemon 设置关闭 embedding 或改为自己的服务。不会同步 API key 或记忆数据。
