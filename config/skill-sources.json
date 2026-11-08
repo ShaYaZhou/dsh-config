@@ -275,6 +275,13 @@
     "localChanges": [],
     "licenseFile": "licenses/Ponytail-LICENSE.txt"
   },
+  "ub-mode": {
+    "source": "unclebob/ub-mode",
+    "sourceUrl": "https://github.com/unclebob/ub-mode.git",
+    "localChanges": [],
+    "licenseFile": "licenses/UncleBob-ub-mode-LICENSE.txt",
+    "implementation": "Upstream SKILL.md copied verbatim. The crapper, dryer and mutator quality gates are separate upstream CLIs; this repository does not install or vendor them."
+  },
   "updating-openspec-instructions": {
     "source": "yu-iskw/openspec-skills",
     "sourceUrl": "https://github.com/yu-iskw/openspec-skills.git",
