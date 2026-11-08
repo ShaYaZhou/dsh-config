@@ -65,7 +65,7 @@ test('daily profile uses native PTC, private browsers and the requested enhancem
  assert.deepEqual(optional.filter(p=>!p.disabled).map(p=>p.id),['claude-context']);
  for(const row of optional) assert(plan.has('profiles/desktop/agent-capabilities/'+path.basename(new URL(row.name).pathname)));
  assert.deepEqual(JSON.parse(plan.get('cordis.patch.yml')),[]);
- assert.equal(patch.find(p=>p.id==='mnemon').config.embedding.model,'nomic-embed-text');
+ assert.equal(patch.find(p=>p.id==='mnemon').config.embedding.model,'qwen3-embedding:0.6b');
  assert(!Object.hasOwn(patch.find(p=>p.id==='mnemon').config.embedding,'apiKey'));
  for(const id of ['mnemon-strategy-scoped','mnemon-strategy-auto-capture','mnemon-strategy-light-context'])assert.equal(patch.find(p=>p.id===id).disabled,false);
  assert.deepEqual(JSON.parse(plan.get('dsh-expression.json')),{sendGear:'active',pickerSendOnClick:false});

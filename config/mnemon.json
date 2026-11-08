@@ -2,7 +2,7 @@
   "embedding": {
     "enabled": true,
     "endpoint": "http://127.0.0.1:11434",
-    "model": "nomic-embed-text",
+    "model": "qwen3-embedding:0.6b",
     "protocol": "auto"
   },
   "memoryView": {

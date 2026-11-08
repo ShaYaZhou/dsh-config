@@ -42,7 +42,7 @@ Agentero 注意：本机对 `agentero-dsh-pdf` 另有服务注入名修复——
 
 ## 配置与 Hook
 
-- Mnemon：`config/mnemon.json` 保存三层策略及本地 embedding 配置。对应环境需要 Ollama 在本机 11434 端口服务并准备 `nomic-embed-text`；没有该服务时，应在 Mnemon 设置关闭 embedding 或改为自己的服务。不会同步 API key 或记忆数据。
+- Mnemon：`config/mnemon.json` 保存三层策略及本地 embedding 配置。对应环境需要 Ollama 在本机 11434 端口服务并准备 `qwen3-embedding:0.6b`（1024 维，中英多语言；此前的 `nomic-embed-text` 是英文模型，中文记忆检索质量差）；没有该服务时，应在 Mnemon 设置关闭 embedding 或改为自己的服务。换模型后旧向量与新向量不同维度，必须在记忆空间点「补齐」重算，否则混维向量会让相似度失去意义。不会同步 API key 或记忆数据。
 - 表情包和 Whale：`config/plugin-preferences.json` 保存通用显示默认值；首次接管已有设置时保留本机字段，后续三方合并保留个人更改。角色、图库路径、订阅、账本和浏览器位置不上传。
 - RTK：同步两条 dsh-codex-hooks 定义和 `rtk-hooks.mjs`。路径按目标电脑生成，精确信任在安装时生成，不复制本机信任记录。
 - Orca：按用户要求不加入共享 DSH Hook 配置，不复制或分发外部应用生成的文件。本机原有、非受管的外部应用配置不代表仓库依赖。
