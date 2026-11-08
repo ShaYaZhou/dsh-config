@@ -19,7 +19,7 @@ async function main(){
  const patch=path.join(home,'mnemon-view-test.patch.json');
  fs.writeFileSync(patch,JSON.stringify([
   {id:'orca-agent-hooks',disabled:true},{id:'desktop-product-telemetry',disabled:true},{id:'product-analytics',disabled:true},
-  {id:'mnemon',config:{storageScope:'custom',runtimeUserScope:'storage',dataDir:path.join(home,'mnemon'),cliPath:path.join(home,'profiles/desktop/node_modules/@mnemon-dev/mnemon/bin/mnemon.js'),embedding:{enabled:true,endpoint:'http://127.0.0.1:11434',model:'nomic-embed-text',protocol:'ollama'},memoryView:{strategyTypeId:'default-three-tier',entries:{
+  {id:'mnemon',config:{storageScope:'custom',runtimeUserScope:'storage',dataDir:path.join(home,'mnemon'),cliPath:path.join(home,'profiles/desktop/node_modules/@mnemon-dev/mnemon/bin/mnemon.js'),embedding:{enabled:true,endpoint:'http://127.0.0.1:11434',model:'qwen3-embedding:0.6b',protocol:'ollama'},memoryView:{strategyTypeId:'default-three-tier',entries:{
    'include:mnemon-strategy-scoped':{config:bad?{sourceKeys:[]}:readOnly?{writableSourceKeys:[]}:{}}
   }}}}
  ]));
