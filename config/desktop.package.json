@@ -39,7 +39,8 @@
     "dsh-guizang-design": "latest",
     "dsh-context": "latest",
     "agentero-dsh": "latest",
-    "@linxin666/dsh-client-ui-git-graph": "latest"
+    "@linxin666/dsh-client-ui-git-graph": "latest",
+    "billion-context": "latest"
   },
   "dsh": {
     "profile": {
@@ -90,7 +91,8 @@
         "dsh-media-desk",
         "dsh-guizang-design",
         "dsh-context",
-        "agentero-dsh"
+        "agentero-dsh",
+        "billion-context"
       ]
     }
   }

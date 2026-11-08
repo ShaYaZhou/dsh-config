@@ -49,13 +49,20 @@ Agentero 注意：本机对 `agentero-dsh-pdf` 另有服务注入名修复——
 - 旧 `claude-hooks.json`、`hooks/rtk-gate.js` 当前未挂载，不重新启用；已卸载插件的兼容豁免不同步。
 - 全局 AGENTS 已与模板一致，无额外个人段落需要导出。
 
+## 2026-11-08 新增插件
+
+| 插件 | 同步时本机版本 | 说明 |
+|---|---|---|
+| [billion-context](https://github.com/ranxianglei/billion-context) | 0.1.213 | 本机由插件管理器装入后收入 desktop 依赖与 bundle（MIT）。它在 bundle 层关闭宿主 `compaction-basic` 的 auto，自己接管压缩与预设注入，并给 DeepSeek 行补 `MALFORMED_RESPONSE` 重试；压缩行为以插件配置为准，卸载要从 bundle 移除而不是禁用 gate 条目。 |
+
 ## 技能
 
-`config/skill-sources.json` 记录新增 44 项技能的来源和必要修改：27 项 lark 技能、LiClick、find-skills、5 项 Ponytail 附属技能、inline-figure、9 项兼容旧入口名的自写 OpenSpec CLI 包装。自写包装固定调用 1.14.3，未复制缺少独立许可文本的旧包装原文；原有 6 项官方 OpenSpec 技能保留。HTML、JSX、XML、PNG 和 LiClick 脚本锁文件一起分发，PNG 按二进制复制。
+`config/skill-sources.json` 记录新增 45 项技能的来源和必要修改：27 项 lark 技能、LiClick、find-skills、5 项 Ponytail 附属技能、ub-mode、inline-figure、9 项兼容旧入口名的自写 OpenSpec CLI 包装。自写包装固定调用 1.14.3，未复制缺少独立许可文本的旧包装原文；原有 6 项官方 OpenSpec 技能保留。HTML、JSX、XML、PNG 和 LiClick 脚本锁文件一起分发，PNG 按二进制复制。
 
 - lark 技能需安装 `@larksuite/cli` 并使用自己的飞书授权；本机核对版本为 1.0.84。来源为 larksuite/cli，许可文本保留在 `licenses/Lark-CLI-MIT.txt`。
 - LiClick 需 Atlas CLI 与自己的登录态；3D 缩略图辅助脚本首次使用时按其 package-lock 安装依赖。生成能力本身由 Atlas/LiClick 服务提供。
 - inline-figure 可降级为 HTML；不因此宣称 DSH 已注册 visualize MCP。其 Windows 浏览器路径改为按环境变量发现。
+- ub-mode 原样分发上游 `SKILL.md`（unclebob/ub-mode，MIT，许可文本 `licenses/UncleBob-ub-mode-LICENSE.txt`）；它的 crapper、dryer、mutator 质量门是上游独立 CLI，本仓库不安装，也不把这些工具计入验收。
 - 新增共享技能及 RTK 修正版受管部署到 DSH 用户技能根，避免共享目录里的旧规则胜出；不修改其他应用的共享技能。若已有不同的 DSH 同名文件，安装会停止要求解决冲突。
 - skills-manager 的来源开关和禁用名单可复用；分类、排序等用户数据保留。
 

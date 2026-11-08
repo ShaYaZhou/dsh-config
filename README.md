@@ -39,6 +39,7 @@ rtk proxy node scripts/harness.mjs status
 - [桌面配置](docs/DAILY-PTC.md)：Mnemon、Hooks/RTK、压缩阈值及独立功能开关。
 - [Workflow](docs/WORKFLOW.md)：上游原版 `/workflow`，兼容性和恢复边界。
 - [OpenSpec](docs/OPENSPEC.md)：按需规格技能，没有强制分工或自动嵌套交付策略。
+- [ub-mode](skills/ub-mode/SKILL.md)：按需编码纪律技能，“First Make it Work → Then Make it Right → Follow Practice”；配套的 crapper/dryer/mutator 质量门是上游独立 CLI，不随仓库安装。
 - [浏览器与桌面控制](docs/BROWSER-COMPUTER-USE.md)：截图、批注及官方 computer-use。
 - [桌面命令](docs/DESKTOP-COMMANDS.md)：会话导航和 Rewind。
 - [LiClick](docs/LICLICK-ADAPTER.md)：无限画布模型目录与本机接入。
@@ -61,6 +62,8 @@ rtk proxy node scripts/harness.mjs install --dry-run
 受版本管理的插件、技能、全局 AGENTS 模板和 RTK Hook 定义都由安装器分发。Hook 中的 Node 与脚本路径按目标电脑生成，安装检查会验证 RTK JSON Hook 接口。现有个人开关、其他 Hook 和凭据通过配置合并保留；因此“对齐”指受管代码和定义一致，不意味着覆盖他人的账号、模型、权限或历史。LiClick 仍需各自的 Atlas 登录态，Mnemon 数据各自保留。
 
 原生技能发现允许项目或用户目录中的同名技能覆盖随配置分发的版本。需要完全相同的技能行为时，也应核对技能管理器中的实际来源；安装器不会擅自删除其他目录的个人技能。
+
+插件管理器安装或更新插件时会把版本写成精确号。安装器保留这类本机固定，但任何 `update --latest`（市场和安装器都只处理声明为 `latest` 的依赖）都不会再带上它们，于是包被永久固定在旧版。要恢复跟随 latest，退出 Harness 后把该条目改回 `latest` 再部署；本机已把 `@michengai/dsh-archive-manager`、`dsh-ego-browser` 改回，部署后为 1.2.8 与 0.9.10。市场状态里也可能留下没有对应包的旧禁用名，可清理 `profiles/desktop/.dsh-market/state.json` 的 `disabled` 项，只删名字，不动包数据和会话。
 
 ```powershell
 rtk npm test
