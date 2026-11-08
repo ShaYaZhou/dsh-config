@@ -66,22 +66,13 @@
     {
       "id": "rewind",
       "package": "dsh-rewind-plugin",
-      "version": "0.19.0-local.1",
+      "version": "0.19.2",
       "license": "MIT",
       "upstream": {
         "type": "git",
         "url": "git+https://github.com/SiriLee/dsh-rewind.git"
       },
-      "localChanges": {
-        "unpublishedLocalBuild": true,
-        "baseVersion": "0.19.0",
-        "date": "2026-10-27",
-        "changes": [
-          "Code-only restore through the original snapshot journal under native maintenance lock.",
-          "Do not report complete file restoration when no checkpoint was restored or restoration was partial.",
-          "Migrate candidate and preview queries to upstream read-only connection RPC without conversation records; retain file-only restore and honest partial-restore reporting."
-        ]
-      }
+      "localChanges": false
     },
     {
       "id": "desktop-commands",

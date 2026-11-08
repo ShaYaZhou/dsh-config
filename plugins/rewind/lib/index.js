@@ -4,10 +4,6 @@ import { copyFile as copyFile2, rm as rm2, stat as stat2, unlink } from "node:fs
 import z from "@deepseek-ai/schemastery";
 
 // src/locales.ts
-function preferredLocale(preference) {
-  if (typeof preference !== "string") return "en";
-  return preference.toLowerCase().split("-")[0] === "zh" ? "zh" : "en";
-}
 var en = {
   "plan.skip": "  not restored: {path} ({reason})",
   "skipReason.oversized": "over the {limit} backup limit, so the recorded state predates untracked edits",
@@ -100,7 +96,64 @@ var zh = {
   "cleanup.clearFailed": "\u65E0\u6CD5\u6E05\u9664\u4F1A\u8BDD {sessionId}\uFF1A{detail}\u3002",
   "cleanup.usage": "\u7528\u6CD5\uFF1A\n  /snapshot-auto-cleanup                 \u67E5\u770B\u72B6\u6001\n  /snapshot-auto-cleanup on|off          \u5F00\u542F/\u5173\u95ED\u81EA\u52A8\u6E05\u7406\n  /snapshot-auto-cleanup max-age <\u5929\u6570>  \u8BBE\u7F6E\u5931\u6D3B\u9608\u503C\uFF08\u5929\uFF09\n  /snapshot-auto-cleanup run [--apply]   \u9884\u6F14\uFF0C\u6216\u52A0 --apply \u6267\u884C\n  /snapshot-auto-cleanup run --current [--apply]  \u9884\u6F14/\u6E05\u9664\u672C\u4F1A\u8BDD\u5FEB\u7167"
 };
-var HOST_DICTS = { en, zh };
+var ja = {
+  "plan.skip": "  \u5FA9\u5143\u5BFE\u8C61\u5916\uFF1A{path}\uFF08{reason}\uFF09",
+  "skipReason.oversized": "{limit} \u306E\u30D0\u30C3\u30AF\u30A2\u30C3\u30D7\u4E0A\u9650\u3092\u8D85\u3048\u3066\u3044\u308B\u305F\u3081\u3001\u8A18\u9332\u3055\u308C\u305F\u72B6\u614B\u306F\u672A\u8FFD\u8DE1\u306E\u7DE8\u96C6\u3088\u308A\u524D\u306E\u3082\u306E\u3067\u3059",
+  "error.invalidTarget": '\u5BFE\u8C61 "{raw}" \u3092\u89E3\u6790\u3067\u304D\u307E\u305B\u3093\uFF08<index> \u307E\u305F\u306F @<seq> \u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\uFF09',
+  "sep.list": "\u3001",
+  "sep.clause": "\uFF1B",
+  "failures.suffix": "\uFF1B{count} \u4EF6\u306E\u30D5\u30A1\u30A4\u30EB\u3092\u5FA9\u5143\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\uFF1A{list}",
+  "failures.item": "{path}\uFF08{message}\uFF09",
+  "inflight": "\u3053\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u3067\u306F\u65E2\u306B\u5DFB\u304D\u623B\u3057\u304C\u5B9F\u884C\u4E2D\u3067\u3059\u3002\u304A\u5F85\u3061\u304F\u3060\u3055\u3044\u3002",
+  "stopFailed": "\u5B9F\u884C\u4E2D\u306E\u30A8\u30FC\u30B8\u30A7\u30F3\u30C8\u3092\u505C\u6B62\u3067\u304D\u306A\u304B\u3063\u305F\u305F\u3081\u3001\u5DFB\u304D\u623B\u3057\u3092\u30AD\u30E3\u30F3\u30BB\u30EB\u3057\u307E\u3057\u305F\u3002\u3082\u3046\u4E00\u5EA6\u304A\u8A66\u3057\u304F\u3060\u3055\u3044\u3002",
+  "cancelled": "\u5DFB\u304D\u623B\u3057\u3092\u30AD\u30E3\u30F3\u30BB\u30EB\u3057\u307E\u3057\u305F\u3002",
+  "failed": "\u5DFB\u304D\u623B\u3057\u306B\u5931\u6557\u3057\u307E\u3057\u305F\uFF1A{error}\u3002\u30BB\u30C3\u30B7\u30E7\u30F3\u306F\u5909\u66F4\u3055\u308C\u3066\u3044\u307E\u305B\u3093\u3002",
+  "restore.count": "{count} \u4EF6\u306E\u30D5\u30A1\u30A4\u30EB\u3092\u5FA9\u5143\u3057\u307E\u3057\u305F",
+  "delete.count": "{count} \u4EF6\u306E\u30D5\u30A1\u30A4\u30EB\u3092\u524A\u9664\u3057\u307E\u3057\u305F",
+  "skip.count": "{count} \u4EF6\u306E\u30D1\u30B9\u3092\u30B9\u30AD\u30C3\u30D7\u3057\u307E\u3057\u305F",
+  "noRestorable": "\uFF1B\u5BFE\u8C61\u3088\u308A\u5F8C\u306B\u5FA9\u5143\u3067\u304D\u308B\u66F8\u8FBC\u307F\u7CFB\u306E\u5909\u66F4\u306F\u3042\u308A\u307E\u305B\u3093",
+  "backupOff": "\u30B9\u30CA\u30C3\u30D7\u30B7\u30E7\u30C3\u30C8\u306E\u30D0\u30C3\u30AF\u30A2\u30C3\u30D7\u304C\u7121\u52B9\u306A\u305F\u3081\u3001\u5FA9\u5143\u304C\u4E0D\u5B8C\u5168\u306B\u306A\u308B\u53EF\u80FD\u6027\u304C\u3042\u308A\u307E\u3059",
+  "storeUnsupported": "\u30D5\u30A1\u30A4\u30EB\u3092\u5FA9\u5143\u3067\u304D\u307E\u305B\u3093\uFF1A\u3053\u308C\u3089\u306E\u30B9\u30CA\u30C3\u30D7\u30B7\u30E7\u30C3\u30C8\u306F\u3001\u3053\u306E\u30D7\u30E9\u30B0\u30A4\u30F3\u304C\u7406\u89E3\u3067\u304D\u308B\u5F62\u5F0F\u3088\u308A\u65B0\u3057\u3044\u4FDD\u5B58\u5F62\u5F0F\uFF08v{version}\uFF09\u3092\u4F7F\u3063\u3066\u3044\u307E\u3059\u3002\u4F55\u3082\u5909\u66F4\u3055\u308C\u3066\u3044\u307E\u305B\u3093\u3002\u30D7\u30E9\u30B0\u30A4\u30F3\u3092\u66F4\u65B0\u3059\u308B\u304B\u3001\u3053\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u306E\u30B9\u30CA\u30C3\u30D7\u30B7\u30E7\u30C3\u30C8\u3092\u6D88\u53BB\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+  "success": "seq {targetSeq} \u3068\u305D\u308C\u4EE5\u964D\u3092\u64A4\u56DE\u3057\u307E\u3057\u305F\uFF08\u4F1A\u8A71\u306F\u4EE5\u524D\u306E\u72B6\u614B\u306B\u623B\u308A\u307E\u3057\u305F\uFF09{restore}\u3002",
+  "noUserMessages": "\u3053\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u306B\u306F\u307E\u3060\u5DFB\u304D\u623B\u3057\u3067\u304D\u308B\u30E6\u30FC\u30B6\u30FC\u30E1\u30C3\u30BB\u30FC\u30B8\u304C\u3042\u308A\u307E\u305B\u3093\u3002",
+  "command.description": "\u4F1A\u8A71\u3084\u30D5\u30A1\u30A4\u30EB\u3092\u4EE5\u524D\u306E\u6642\u70B9\u307E\u3067\u5DFB\u304D\u623B\u3057\u307E\u3059",
+  "command.undoDescription": "/rewind \u306E\u30A8\u30A4\u30EA\u30A2\u30B9",
+  "engine.description": "dsh-rewind \u306E\u5185\u90E8\u30B3\u30DE\u30F3\u30C9",
+  "engine.rejected": "\u5185\u90E8\u30B3\u30DE\u30F3\u30C9\u3067\u3059\u3002/rewind \u307E\u305F\u306F /undo \u3092\u4F7F\u3063\u3066\u304F\u3060\u3055\u3044\u3002",
+  "engine.inputHint": "@<seq> chat|both",
+  "cleanup.description": "\u30BB\u30C3\u30B7\u30E7\u30F3\u306E\u30B9\u30CA\u30C3\u30D7\u30B7\u30E7\u30C3\u30C8\u30D0\u30C3\u30AF\u30A2\u30C3\u30D7\u306E\u81EA\u52D5\u30AF\u30EA\u30FC\u30F3\u30A2\u30C3\u30D7\u3092\u7BA1\u7406\u3057\u307E\u3059",
+  "cleanup.inputHint": "on | off | max-age <\u65E5\u6570> | run [--apply] [--current]",
+  "cleanup.status": "\u81EA\u52D5\u30AF\u30EA\u30FC\u30F3\u30A2\u30C3\u30D7\uFF1A{state}\u3002\u6700\u5927\u4FDD\u6301\u671F\u9593\uFF1A{days} \u65E5\u3002",
+  "cleanup.enabled": "\u6709\u52B9",
+  "cleanup.disabled": "\u7121\u52B9",
+  "cleanup.onOk": "\u81EA\u52D5\u30AF\u30EA\u30FC\u30F3\u30A2\u30C3\u30D7\u3092\u6709\u52B9\u306B\u3057\u307E\u3057\u305F\u3002",
+  "cleanup.offOk": "\u81EA\u52D5\u30AF\u30EA\u30FC\u30F3\u30A2\u30C3\u30D7\u3092\u7121\u52B9\u306B\u3057\u307E\u3057\u305F \u2014 \u3059\u3079\u3066\u306E\u30B9\u30CA\u30C3\u30D7\u30B7\u30E7\u30C3\u30C8\u304C\u4FDD\u6301\u3055\u308C\u307E\u3059\u3002",
+  "cleanup.maxAgeOk": "\u81EA\u52D5\u30AF\u30EA\u30FC\u30F3\u30A2\u30C3\u30D7\u306E\u6700\u5927\u4FDD\u6301\u671F\u9593\u3092 {days} \u65E5\u306B\u8A2D\u5B9A\u3057\u307E\u3057\u305F\u3002",
+  "cleanup.cfgInvalid": '\u30B9\u30CA\u30C3\u30D7\u30B7\u30E7\u30C3\u30C8\u306E\u30AF\u30EA\u30FC\u30F3\u30A2\u30C3\u30D7\u8A2D\u5B9A\u304C\u7121\u52B9\u3067\u3059\uFF1A{detail}\u3002\u4F55\u3082\u5B9F\u884C\u3055\u308C\u3066\u3044\u307E\u305B\u3093\u3002"on|off|max-age" \u3067\u8A2D\u5B9A\u3092\u30EA\u30BB\u30C3\u30C8\u3057\u3066\u304F\u3060\u3055\u3044\u3002',
+  "cleanup.saveFailed": "\u30AF\u30EA\u30FC\u30F3\u30A2\u30C3\u30D7\u8A2D\u5B9A\u3092\u4FDD\u5B58\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\uFF1A{detail}\u3002",
+  "cleanup.runDry": "\u30C9\u30E9\u30A4\u30E9\u30F3\uFF1A{deleted} \u4EF6\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u306E\u30B9\u30CA\u30C3\u30D7\u30B7\u30E7\u30C3\u30C8\u30D0\u30C3\u30AF\u30A2\u30C3\u30D7\u3092\u524A\u9664\u3057\u3001{freed} \u30D0\u30A4\u30C8\u3092\u89E3\u653E\u3057\u307E\u3059\u3002\u5B9F\u969B\u306B\u524A\u9664\u3059\u308B\u306B\u306F --apply \u3092\u4ED8\u3051\u3066\u518D\u5B9F\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+  "cleanup.runApply": "{deleted} \u4EF6\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u306E\u30B9\u30CA\u30C3\u30D7\u30B7\u30E7\u30C3\u30C8\u30D0\u30C3\u30AF\u30A2\u30C3\u30D7\u3092\u524A\u9664\u3057\u3001{freed} \u30D0\u30A4\u30C8\u3092\u89E3\u653E\u3057\u307E\u3057\u305F\u3002{kept} \u4EF6\u3092\u4FDD\u6301\u3057\u3001\u6B8B\u308A\u306F {remaining} \u30D0\u30A4\u30C8\u3067\u3059\u3002",
+  "cleanup.runFailed": "\u30AF\u30EA\u30FC\u30F3\u30A2\u30C3\u30D7\u306B\u5931\u6557\u3057\u307E\u3057\u305F\uFF1A{detail}\u3002",
+  "cleanup.skipped": "\uFF08\u30A2\u30AF\u30C6\u30A3\u30D6\u306A\u30BB\u30C3\u30B7\u30E7\u30F3 {skipped} \u4EF6\u3092\u30B9\u30AD\u30C3\u30D7\u3057\u307E\u3057\u305F\u3002\uFF09",
+  "cleanup.clearDry": "\u30C9\u30E9\u30A4\u30E9\u30F3\uFF1A\u73FE\u5728\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u306E\u30B9\u30CA\u30C3\u30D7\u30B7\u30E7\u30C3\u30C8 {entries} \u4EF6\u3092\u6D88\u53BB\u3057\u3001{bytes} \u30D0\u30A4\u30C8\u3092\u89E3\u653E\u3057\u307E\u3059\u3002\u5B9F\u969B\u306B\u524A\u9664\u3059\u308B\u306B\u306F --apply \u3092\u4ED8\u3051\u3066\u518D\u5B9F\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+  "cleanup.clearApply": "\u73FE\u5728\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u306E\u30B9\u30CA\u30C3\u30D7\u30B7\u30E7\u30C3\u30C8 {entries} \u4EF6\u3092\u6D88\u53BB\u3057\u3001{bytes} \u30D0\u30A4\u30C8\u3092\u89E3\u653E\u3057\u307E\u3057\u305F\u3002\u3053\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u306F\u73FE\u5728\u306E\u72B6\u614B\u304B\u3089\u65B0\u3057\u304F\u30B9\u30CA\u30C3\u30D7\u30B7\u30E7\u30C3\u30C8\u3092\u8A18\u9332\u3057\u307E\u3059\u3002",
+  "cleanup.clearActive": "\u30BB\u30C3\u30B7\u30E7\u30F3 {sessionId} \u3092\u6D88\u53BB\u3067\u304D\u307E\u305B\u3093\uFF1A\u30BB\u30C3\u30B7\u30E7\u30F3\u306F\u307E\u3060\u5B9F\u884C\u4E2D\u3067\u3001\u505C\u6B62\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u30A2\u30A4\u30C9\u30EB\u72B6\u614B\u306B\u306A\u3063\u3066\u304B\u3089\u3082\u3046\u4E00\u5EA6\u304A\u8A66\u3057\u304F\u3060\u3055\u3044\u3002",
+  "cleanup.clearCancelled": "\u6D88\u53BB\u3092\u30AD\u30E3\u30F3\u30BB\u30EB\u3057\u307E\u3057\u305F\u3002",
+  "cleanup.clearFailed": "\u30BB\u30C3\u30B7\u30E7\u30F3 {sessionId} \u3092\u6D88\u53BB\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\uFF1A{detail}\u3002",
+  "cleanup.usage": "\u4F7F\u3044\u65B9\uFF1A\n  /snapshot-auto-cleanup                 \u72B6\u614B\u3092\u8868\u793A\n  /snapshot-auto-cleanup on|off          \u81EA\u52D5\u30AF\u30EA\u30FC\u30F3\u30A2\u30C3\u30D7\u306E\u6709\u52B9/\u7121\u52B9\n  /snapshot-auto-cleanup max-age <\u65E5\u6570>  \u30A2\u30A4\u30C9\u30EB\u3057\u304D\u3044\u5024\u3092\u8A2D\u5B9A\n  /snapshot-auto-cleanup run [--apply]   \u30C9\u30E9\u30A4\u30E9\u30F3\u3001\u307E\u305F\u306F --apply \u3067\u5B9F\u884C\n  /snapshot-auto-cleanup run --current [--apply]   \u30C9\u30E9\u30A4\u30E9\u30F3\uFF0F\u73FE\u5728\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u306E\u30B9\u30CA\u30C3\u30D7\u30B7\u30E7\u30C3\u30C8\u3092\u6D88\u53BB"
+};
+var HOST_DICTS = { en, zh, ja };
+var DEFAULT_HOST_LOCALE = "en";
+function isHostLocale(tag) {
+  return Object.hasOwn(HOST_DICTS, tag);
+}
+function preferredLocale(preference) {
+  if (typeof preference !== "string") return DEFAULT_HOST_LOCALE;
+  const tag = preference.toLowerCase();
+  if (isHostLocale(tag)) return tag;
+  const primary = tag.split("-")[0];
+  return primary !== void 0 && isHostLocale(primary) ? primary : DEFAULT_HOST_LOCALE;
+}
 function translate(lang, key, params = {}) {
   const dict = HOST_DICTS[lang] ?? en;
   let text = dict[key] ?? key;
@@ -367,10 +420,13 @@ function refToSource(raw, sessionDir) {
   if (typeof ref.text === "string") return textSourceOf(ref.text);
   return void 0;
 }
+function sessionRelativeRef(sessionDir, file) {
+  return relative(sessionDir, file).split(sep).join("/");
+}
 function sourceToRef(source, sessionDir, entryPath) {
   if (source === null) return null;
   if (source.kind === "blob") {
-    const blob = relative(sessionDir, source.path);
+    const blob = sessionRelativeRef(sessionDir, source.path);
     if (!isSafeBackupRef(blob)) throw new Error(`unsafe backup ref ${blob} for ${entryPath}`);
     return { blob };
   }
@@ -713,7 +769,7 @@ var SnapshotStore = class _SnapshotStore {
    * the call id would produce a dangling reference.
    */
   refOfRead(sessionId, entry) {
-    if (entry.file !== void 0) return relative(this.sessionDir(sessionId), entry.file);
+    if (entry.file !== void 0) return sessionRelativeRef(this.sessionDir(sessionId), entry.file);
     return this.entryRefOf(sessionId, entry.callId, entry.anchorSeq);
   }
   /** Drop every in-memory trace of one session (its directory is gone). */
@@ -1781,7 +1837,7 @@ var SnapshotStore = class _SnapshotStore {
       for (const action of journal.actions) {
         const source = action.before;
         if (source === null || source.kind !== "blob") continue;
-        const ref = relative(sessionDir, source.path);
+        const ref = sessionRelativeRef(sessionDir, source.path);
         if (!isSafeBackupRef(ref)) continue;
         const anchor = refAnchorOf(ref);
         if (Number.isSafeInteger(anchor)) pinned.add(anchor);
@@ -2584,40 +2640,6 @@ function dropPendingSteering(agent) {
     agent.inbox.remove(message.id);
   }
 }
-export function completeFileRestore(outcome) {
-  return outcome?.supported === true && outcome.restored + outcome.deleted > 0 && outcome.failed === 0 && outcome.skipped === 0;
-}
-async function restoreFiles(ctx, store, fs, agent, plan, checkpointingEnabled, details = {}) {
-    let restore = "";
-    {
-      let outcome;
-      try {
-        outcome = await store.restoreAfter(agent.session.id, plan.targetSeq, (path) => unlink(path));
-      } catch (error) {
-        if (!(error instanceof UnknownStoreVersionError)) throw error;
-        const version = await store.readStoreVersion(agent.session.id);
-        restore = `${t("sep.clause")}${t("storeUnsupported", { version: version ?? error.version })}`;
-      }
-      if (outcome !== void 0) {
-        Object.assign(details, {supported:true,restored:outcome.restored.length,deleted:outcome.deleted.length,failed:outcome.failed.length,skipped:outcome.skipped.length});
-        await syncRestoreObservations(ctx, fs, agent, outcome);
-        const parts = [];
-        if (outcome.restored.length > 0) parts.push(t("restore.count", { count: outcome.restored.length }));
-        if (outcome.deleted.length > 0) parts.push(t("delete.count", { count: outcome.deleted.length }));
-        if (outcome.skipped.length > 0) {
-          parts.push(t("skip.count", { count: outcome.skipped.length }));
-          const capped = await store.uncoveredPaths(agent.session.id).catch(() => []);
-          const skippedLines = renderSkipped(outcome, capped, store.fileCapBytes);
-          if (skippedLines !== "") parts.push(skippedLines);
-        }
-        if (!checkpointingEnabled) parts.push(t("backupOff"));
-        restore = parts.length > 0 ? `${t("sep.clause")}${parts.join(t("sep.list"))}` : t("noRestorable");
-        restore += renderFailures(outcome.failed);
-      }
-    }
-
-return restore;
-}
 async function executeRewind(ctx, store, fs, invocation, rawTarget, mode, inflight, checkpointingEnabled) {
   const { agent } = invocation;
   const sessionId = agent.session.id;
@@ -2632,23 +2654,6 @@ async function executeRewind(ctx, store, fs, invocation, rawTarget, mode, inflig
       if (!stopped) {
         return { kind: "error", text: t("stopFailed") };
       }
-    }
-    if (mode === "code") {
-      let maintenance;
-      try {
-        maintenance = agent.runMaintenance(async maintenanceSignal => {
-          AbortSignal.any([invocation.signal, maintenanceSignal]).throwIfAborted();
-          let plan;
-          try { plan = resolveOrError(agent.session.snapshotEvents(), agent.session.surface.nodes, rawTarget); }
-          catch (error) { return rewindErrorResult(error); }
-          const outcome = {};
-          const restore = await restoreFiles(ctx, store, fs, agent, plan, checkpointingEnabled, outcome);
-          return completeFileRestore(outcome)
-            ? {kind:"success",text:"Files restored; conversation retained. " + restore}
-            : {kind:"error",text:"文件还原未完整完成，或没有记录可用快照；对话保持不变。" + restore};
-        });
-      } catch (error) { return {kind:"error",text:"Cannot restore while queued work is pending: " + error.message}; }
-      return await maintenance;
     }
     dropPendingSteering(agent);
     if (invocation.signal.aborted) {
@@ -2673,11 +2678,32 @@ async function executeRewind(ctx, store, fs, invocation, rawTarget, mode, inflig
         text: t("failed", { error: error instanceof Error ? error.message : String(error) })
       };
     }
-    const outcome = {};
-    const restore = mode === "both" ? await restoreFiles(ctx, store, fs, agent, plan, checkpointingEnabled, outcome) : "";
-    if (mode === "both" && !completeFileRestore(outcome)) return {
-      kind:"error",text:"对话已回退，但文件还原未完整完成，或没有记录可用快照。" + restore,sourceEventSeq:event.seq
-    };
+    let restore = "";
+    if (mode === "both") {
+      let outcome;
+      try {
+        outcome = await store.restoreAfter(agent.session.id, plan.targetSeq, (path) => unlink(path));
+      } catch (error) {
+        if (!(error instanceof UnknownStoreVersionError)) throw error;
+        const version = await store.readStoreVersion(agent.session.id);
+        restore = `${t("sep.clause")}${t("storeUnsupported", { version: version ?? error.version })}`;
+      }
+      if (outcome !== void 0) {
+        await syncRestoreObservations(ctx, fs, agent, outcome);
+        const parts = [];
+        if (outcome.restored.length > 0) parts.push(t("restore.count", { count: outcome.restored.length }));
+        if (outcome.deleted.length > 0) parts.push(t("delete.count", { count: outcome.deleted.length }));
+        if (outcome.skipped.length > 0) {
+          parts.push(t("skip.count", { count: outcome.skipped.length }));
+          const capped = await store.uncoveredPaths(agent.session.id).catch(() => []);
+          const skippedLines = renderSkipped(outcome, capped, store.fileCapBytes);
+          if (skippedLines !== "") parts.push(skippedLines);
+        }
+        if (!checkpointingEnabled) parts.push(t("backupOff"));
+        restore = parts.length > 0 ? `${t("sep.clause")}${parts.join(t("sep.list"))}` : t("noRestorable");
+        restore += renderFailures(outcome.failed);
+      }
+    }
     return {
       kind: "success",
       text: t("success", { targetSeq: plan.targetSeq, restore }),
@@ -2712,7 +2738,7 @@ async function handleRewind(ctx, store, fs, invocation, inflight, checkpointingE
   const parts = input.split(/\s+/);
   const target = parts[0];
   const mode = parts[1];
-  if (mode !== void 0 && mode !== "chat" && mode !== "both" && mode !== "code") {
+  if (mode !== void 0 && mode !== "chat" && mode !== "both") {
     return { kind: "error", text: t("engine.rejected") };
   }
   if (mode === void 0) return { kind: "error", text: t("engine.rejected") };
@@ -2906,7 +2932,6 @@ function apply(ctx, config) {
       yield ctx.commands.register({
         name: "rewind",
         description: t("command.description"),
-        input: {hint:"[@消息序号 chat|code|both]"},
         handler: rewindHandler
       });
     } catch (error) {
@@ -2916,7 +2941,6 @@ function apply(ctx, config) {
       yield ctx.commands.register({
         name: "undo",
         description: t("command.undoDescription"),
-        input: {hint:"[@消息序号 chat|code|both]"},
         handler: rewindHandler
       });
     } catch (error) {
@@ -3049,7 +3073,6 @@ export {
   DEFAULT_FILE_CHECKPOINTING_ENABLED,
   ENGINE_COMMAND,
   SnapshotStore,
-  createRewindRpcHandler,
   apply,
   inject,
   name,

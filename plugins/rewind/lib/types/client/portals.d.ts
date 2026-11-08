@@ -171,22 +171,6 @@ export declare function writeComposer(text: string, facade: ComposerDraftWriter 
  */
 export declare function runRewindAndFill(session: SessionFace, seq: number, mode: 'chat' | 'both', isMainViewSession: (sessionId: string) => boolean, chatOf: ChatOf, watchChat: ChatWatch, setComposerText: (sessionId: string, text: string) => boolean, restoreImages?: (sessionId: string, images: readonly MessageImageRef[]) => Promise<void>): Promise<void>;
 /**
- * The snapshot seq a rendered seat stands for.
- *
- * A seat carries two keys: `data-chat-anchor-key` (the FLOW key, which for a
- * step/process part is the composite `["<nodeKey>", "<part>"]`) and
- * `data-chat-node-key` (always the plain node key). Resolving only the flow key
- * made every grouped process row — the "正在分析/已完成分析" step rows, tool
- * groups — unresolvable, so a withdrawn one could never be hidden and stayed on
- * screen after a rewind. This mirrors the official viewport's own identity read
- * (`anchorKey === key || nodeKey === key`).
- *
- * @param element - one rendered seat.
- * @param chat - the live chat snapshot the seat belongs to.
- * @returns the node's `anchorSeq`, or undefined when the seat has no resolvable node.
- */
-export declare function resolveSeatAnchorSeq(element: HTMLElement, chat: HiddenChat | undefined): number | undefined;
-/**
  * Locate the actions container of a user/steering seat row — the element the
  * ↶ button portals into (the copy/branch IconActions row).
  *
@@ -204,56 +188,11 @@ export declare function resolveSeatAnchorSeq(element: HTMLElement, chat: HiddenC
  */
 export declare function actionsContainerOf(row: HTMLElement | undefined): HTMLElement | undefined;
 /**
- * Hide every rendered seat a rewind withdrew, plus the step/process GROUP shells
- * those seats empty.
- *
- * A seat's seq comes from `resolveSeatAnchorSeq`: `data-chat-anchor-key` (the
- * FLOW key, composite for a step/process part) with `data-chat-node-key` (always
- * the plain node key) as the fallback. A group shell is different: it carries
- * the composite `group:<json>` anchor, which resolves to no chat node — the
- * group is a view construct, not a message. It is therefore judged by its
- * members, which THIS batch already holds: a shell whose every member seat is
- * withdrawn has no live content left, so it is hidden too. That is what stops a
- * fully withdrawn "analysis completed" / "command executed" group from staying
- * on screen as an expandable empty row. A shell keeps one live member only if
- * that member is genuinely on the surface, in which case the shell stays; a
- * shell the batch carries no member of is left alone.
- *
- * A MEMBER is a real chat node seat — `ChatNodeSeat` is the one shape that
- * writes `data-chat-node-key` beside the anchor key. An anchor-only descendant
- * (the tool call tree's own `call:<callId>` row, or a third-party anchor) is
- * nested decoration: it resolves to no chat node, so it does NOT vote on the
- * shell's emptiness. Counting such a row as "still live" is what left a fully
- * withdrawn "command executed" tool group on screen as an empty expandable row
- * after every member below it had been hidden.
- *
- * Every hidden element carries `data-dsh-rewind-hidden` (see
- * `docs/contract/client-contract.md`).
- *
- * @param chat - the live chat snapshot the seats belong to.
- * @param seats - this refresh's seat batch (every `[data-chat-anchor-key]`).
- * @param hiddenSeqs - anchor seqs withdrawn by the executed rewinds.
- * @param hidden - elements this pass has hidden, so a re-created row is re-judged.
- */
-export declare function hideWithdrawnSeats(chat: HiddenChat | undefined, seats: Iterable<HTMLElement>, hiddenSeqs: ReadonlySet<number>, hidden: Set<HTMLElement>): void;
-/**
- * Undo every hide the given set recorded, so a live disable (or a session-slot
- * collapse) cannot leave the transcript truncated.
- *
- * The hide is the plugin's OWN mutation of host rows ({@link hideWithdrawnSeats}),
- * and nothing else would ever revert it: a disposed bridge runs no further
- * refresh, so rows it hid would stay hidden with no affordance to bring them
- * back.
- *
- * @param hidden - the elements this bridge currently hides; emptied.
- */
-export declare function showHiddenSeats(hidden: Set<HTMLElement>): void;
-/**
  * Collect the portal targets of one session: user rows × snapshot nodes.
  * Exported as a test seam — the DOM→targets pairing that drives the ↶ button
  * is otherwise only reachable through a full React portal render.
  */
-export declare function collectTargets(chat: HiddenChat, hiddenSeqs: ReadonlySet<number>): readonly PortalTarget[];
+export declare function collectTargets(chat: HiddenChat): readonly PortalTarget[];
 /**
  * The session-kind slice the durable-target gate reads — the session
  * snapshot's `subagent` cell, the Harness's own runtime signal for a
@@ -285,9 +224,8 @@ export declare function isRewindInertSession(snapshot: SessionKindLike): boolean
  * pure, directly testable decision.
  * @param snapshot - the session snapshot carrying the `subagent` cell.
  * @param chat - the session's chat snapshot, or undefined while unavailable.
- * @param hiddenSeqs - anchor seqs withdrawn by previous rewinds.
  */
-export declare function collectDurableTargets(snapshot: SessionKindLike, chat: HiddenChat | undefined, hiddenSeqs: ReadonlySet<number>): readonly PortalTarget[];
+export declare function collectDurableTargets(snapshot: SessionKindLike, chat: HiddenChat | undefined): readonly PortalTarget[];
 /**
  * The pending bubble row's compared text and its message-attachment block
  * count, read from a CLONE (the live row is never touched).
@@ -320,7 +258,7 @@ interface RewindPortalsProps extends RewindBridgeDeps {
  * synchronous full-transcript scan inside a commit microtask.
  *
  * The refresh is driven by the three inputs its targets are made of: the chat
- * snapshot (`hiddenSeqsOf`), the session's `inbox` projection (the pending
+ * snapshot's visible order, the session's `inbox` projection (the pending
  * occurrences — see `syncInboxSubscription`), and the DOM (row/actions mounts,
  * via the scoped observer).
  */

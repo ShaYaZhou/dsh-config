@@ -43,7 +43,6 @@ export interface CandidateChat {
 /** A user/steering row subset; only fields the listing reads are real. */
 export interface CandidateUserNode {
     readonly kind: string;
-    readonly anchorSeq?: number;
     readonly data: {
         readonly seq: number;
         readonly time: number;
@@ -64,26 +63,18 @@ export declare function messagePreviewOf(message: {
 export declare function formatCandidateTime(time: number): string;
 /**
  * List the selectable rewind candidates of a session chat snapshot: user and
- * steering rows still on the surface (not hidden by a previous rewind), the
- * newest `limit` kept, newest first — the top row is the default highlight,
+ * steering rows still on the surface (withdrawn rows are absent from `order`),
+ * the newest `limit` kept, newest first — the top row is the default highlight,
  * i.e. the most recent message and the most common rewind target.
  * @param snap - the session chat snapshot.
- * @param hidden - anchor seqs withdrawn by rewinds (from `hiddenSeqsOf`).
  * @param limit - maximum number of candidates to return.
  */
-export declare function rewindCandidatesOf(snap: CandidateChat, hidden: ReadonlySet<number>, limit?: number): RewindCandidate[];
-/** The candidates of a live chat snapshot, withdrawn rows already excluded. */
+export declare function rewindCandidatesOf(snap: CandidateChat, limit?: number): RewindCandidate[];
+/** The candidates of a live chat snapshot; withdrawn rows are already excluded from `order`. */
 export declare function rewindCandidatesOfChat(snap: CandidateChat): RewindCandidate[];
 /**
- * Parse the host's candidate-list encoding (see `formatCandidateList` in
- * src/rewind.ts) into typed candidates. Malformed lines are skipped; a
- * missing/zero header yields an empty list.
- */
-export declare function rewindCandidatesFromHostText(text: string): RewindCandidate[];
-/**
- * Map typed candidates to popupSelect rows (the host-derived path). The
- * popupSelect sources its options from the FULL host surface via the
- * `__candidates` channel instead of the windowed chat snapshot.
+ * Map typed candidates to popupSelect rows. The list comes from the host over
+ * RPC, so it covers the FULL host surface rather than the windowed chat snapshot.
  */
 export declare function rewindOptionsFromCandidates(candidates: readonly RewindCandidate[], t: Translate): SelectOption[];
 export {};

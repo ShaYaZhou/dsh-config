@@ -23,7 +23,7 @@ async function main(){
   if(daily){assert.equal(agent.ctx.tools.modeFor(agent),'ptc');assert(tools.some(t=>t.name==='mcp__playwright__browser_navigate'));}
   assert(tools.some(t=>t.name==='read'));assert(tools.some(t=>t.name==='write'));assert(tools.some(t=>['pwsh','bash'].includes(t.name)));
   const presets=await ctx.get('agentPresets').list();assert(presets.some(p=>p.id==='standard'));
-  if(tuned){assert(tools.find(t=>t.name==='spawn_teammate').parameters.properties.isolation);assert(tools.some(t=>t.name==='job_output'));for(const id of ['explore','planner','reviewer'])assert(presets.some(p=>p.id===id));assert(ctx.get('commands').find(agent,'rewind').input);assert(ctx.get('clientModules').graph().entries.some(row=>row.id==='@local/dsh-desktop-commands'));
+  if(tuned){assert(tools.find(t=>t.name==='spawn_teammate').parameters.properties.isolation);assert(tools.some(t=>t.name==='job_output'));for(const id of ['explore','planner','reviewer'])assert(presets.some(p=>p.id===id));assert(ctx.get('commands').find(agent,'rewind'));assert(ctx.get('clientModules').graph().entries.some(row=>row.id==='@local/dsh-desktop-commands'));
    for(const name of ['cua_driver_native__get_window_state','cua_driver_native__browser_prepare','mcp__playwright__browser_highlight','mcp__playwright__browser_annotate'])assert(tools.some(t=>t.name===name),'Missing browser/computer tool: '+name);
    assert(ctx.get('clientModules').graph().entries.some(row=>row.id==='@local/dsh-browser-review'));
    for(const suffix of ['explore','propose','apply-change','update-change','sync-specs','archive-change']){

@@ -1,7 +1,5 @@
 /**
- * Pure computation of the chat rows a rewind hides from the rendered
- * transcript. Extracted from the client plugin (`src/client/index.ts`) so the
- * multi-rewind cut logic stays unit-testable without a DOM.
+ * Pure Chat-snapshot readers and executed-rewind cut derivation.
  *
  * @module dsh-rewind/client/hidden
  */
@@ -15,35 +13,39 @@ export declare const ENGINE_COMMAND = "rewind-plugin";
 export declare const LEGACY_ENGINE_COMMAND = "rewind";
 /** Engine command names the client recognizes. */
 export declare const ENGINE_COMMANDS: ReadonlySet<string>;
-/** A chat-snapshot view node as the hiding / composer-refill logic reads it.
- * The harness's view node shape plus the `anchorSeq` the chat snapshot carries
- * (the plugin reads `anchorSeq` off each node; it is not declared on the
- * harness's `ConversationViewNode`). */
+/** A Chat-snapshot view node as the client readers see it. */
 export interface ChatConversationViewNode {
     readonly key: string;
     readonly kind?: string;
     readonly data?: unknown;
     readonly anchorSeq: number;
-    /** Owning Turn as the chat snapshot carries it; its `turn` and `start` are read
-     * (see `addWithdrawnTurnChrome`). */
+    /** Owning Turn, when the node has one (used by the visibility summary pass). */
     readonly location?: {
         readonly turn?: {
             readonly turn?: unknown;
             readonly start?: unknown;
         };
     };
+    /** Chat-only row visibility; absent on older test doubles. */
+    readonly visibility?: 'visible' | 'hidden';
 }
-/** Minimal chat snapshot reader the hiding logic needs. */
+/** Minimal Chat-snapshot reader the client helpers need. */
 export interface HiddenChat {
     readonly order: readonly string[];
     readonly nodes: {
         get(key: string): ChatConversationViewNode | undefined;
-    };
-    /** Turn-keyed node index; absent on older snapshots, which the chrome pass tolerates. */
-    readonly locations?: {
-        getTurn(turn: number): readonly string[];
+        /** Every materialized node, including hidden ones. Absent on older snapshots. */
+        values?(): readonly ChatConversationViewNode[];
     };
 }
+/**
+ * Every materialized Chat node, preferring the store's own values (which also
+ * includes rows the visibility layer hid) and falling back to the visible
+ * order for older snapshots / test doubles.
+ * @param chat - the live chat snapshot, when available.
+ * @returns all nodes in store insertion order.
+ */
+export declare function chatNodesOf(chat: HiddenChat | undefined): readonly ChatConversationViewNode[];
 /**
  * Reader for one session's live chat snapshot: the chat is served by the
  * `uiConversation` service's named "chat" view (contributed by
@@ -71,7 +73,7 @@ export declare function resolveChatWatch(resolveView: (sessionId: string) => {
 /**
  * Resolve the chat snapshot from the `uiConversation` "chat" view. The view's
  * `getSnapshot()` returns undefined until the named view is registered, which
- * degrades to `undefined` (no targets, no hiding — never a crash).
+ * degrades to `undefined` (no targets — never a crash).
  */
 export declare function chatSnapshotOf(chatView: {
     getSnapshot(): unknown;
@@ -119,7 +121,7 @@ export interface MessageImageRef {
 export declare function messageAttachmentsAt(chat: HiddenChat | undefined, seq: number): readonly MessageImageRef[] | undefined;
 /**
  * Extract the rewind target seq from a `/rewind` command's structured `args`
- * (e.g. `@5 chat`, `preview @5 both`). Locale-independent — never parses the
+ * (e.g. `@5 chat`). Locale-independent — never parses the
  * host's human outcome copy.
  */
 export declare function targetSeqOfArgs(args: string | null | undefined): number | undefined;
@@ -131,40 +133,18 @@ export declare function targetSeqOfArgs(args: string | null | undefined): number
  * never trigger a fill.
  */
 export declare function isExecutedRewindCommand(node: CommandNode, seq: number): boolean;
+/** One executed rewind's cut: the target seq through the marker's seq, inclusive. */
+export interface RewindCut {
+    /** First withdrawn anchor seq. */
+    readonly target: number;
+    /** Marker log seq, the last withdrawn anchor seq. */
+    readonly marker: number;
+}
 /**
- * Whether a preview outcome reports tracked file changes — the availability
- * of the "rewind conversation and code" option (Claude Code hides the
- * code-restore options when the checkpoint has no tracked changes).
- *
- * Reads ONLY the machine-readable `impact=<n>` trailer the host appends to
- * preview text. Older host output without the trailer is treated as having no
- * changes (never guesses from human copy). Absent text (undefined) degrades to
- * always-show so a working option is never hidden on a failed probe.
+ * Read every executed rewind cut from a node set. Internal probes never
+ * contribute; a success without a marker rewound nothing; a command whose
+ * args carry no `@<seq>` target has no recoverable span.
+ * @param nodes - every materialized Chat node.
+ * @returns one cut per marker-carrying successful engine command, in input order.
  */
-export declare function hasFileImpact(text: string | undefined): boolean;
-/** Whether the preview reports that new file checkpoints are disabled. */
-export declare function hasBackupDisabled(text: string | undefined): boolean;
-/**
- * True when an engine command node is the internal candidate-list probe
- * (`__candidates`) the popupSelect runs to fetch the FULL candidate
- * list from the host. Like previews, its flow node never surfaces in the
- * transcript — it only feeds the popup — so it is hidden in every state.
- */
-export declare function isCandidateCommand(command: CommandNode): boolean;
-/**
- * Anchor seqs that must be hidden from the rendered transcript so the user sees
- * the conversation as the agent sees it: every impact-preview flow node (it only
- * exists to feed the popover) and every SUCCESSFUL executed `/rewind` command
- * row, plus every message a rewind withdrew — the target, everything after it,
- * and the (unrendered) marker.
- *
- * Each executed rewind cuts ONE span `[target, marker]`, and callers must keep
- * the spans SEPARATE: collapsing them to `[min target, max marker]` would hide a
- * still-on-surface gap of new traffic between an earlier marker and a later
- * target. Endpoints come from the command nodes (`sourceEventSeq` is the
- * marker's log seq; the outcome text carries the target seq).
- *
- * A Turn whose rows were ALL withdrawn also contributes its Turn-process summary
- * row, whose own anchor can precede the target (see `addWithdrawnTurnChrome`).
- */
-export declare function hiddenSeqsOf(snap: HiddenChat): Set<number>;
+export declare function rewindCutsOf(nodes: Iterable<ChatConversationViewNode>): RewindCut[];

@@ -179,7 +179,7 @@ export interface LinkEntry {
 export type StoredEntry = CheckpointEntry | LinkEntry;
 /** True when an entry is a dedup link (carries `ref`, not `before`). */
 export declare function isLinkEntry(entry: StoredEntry): entry is LinkEntry;
-/** Per-file restore impact preview (`/rewind preview @seq both`). */
+/** Per-file restore impact preview (served by the host RPC channel). */
 export interface FileImpact {
     readonly path: string;
     /** `restore` = write the before content back; `delete` = remove the file. */

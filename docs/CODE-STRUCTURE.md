@@ -10,7 +10,7 @@
 | `plugins/dynamic-ui-view/` | 原生对话中的交互卡片 |
 | `plugins/liclick-adapter/` | LiClick 网关与画布适配 |
 | `plugins/desktop-commands/`、`file-links/` | 桌面命令和文件预览 |
-| `plugins/btw/`、`rewind/`、`codex-hooks/` | 有来源记录的第三方适配包 |
+| `plugins/btw/`、`rewind/`、`codex-hooks/` | 有来源记录的第三方包；BTW 保留定制，Rewind 和 Hooks 使用上游原版 |
 | `plugins/today-todo/`、`notion-mcp/` | 本地待办面板与 Notion MCP 桥；个人数据与凭据不随仓库分发 |
 | `plugins/enhancement-settings/`、`idle-settings/` | 独立功能设置、压缩阈值 |
 | `modules/` | 独立浏览器、压缩、RTK、Claude 上下文模块 |

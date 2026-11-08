@@ -8,9 +8,8 @@
  * so the plugin imports no conversation UI types and survives harness drift.
  * The command decoration (`ctx.commandUi.decorate`) makes a bare `/rewind` (or
  * its alias `/undo`) open the harness's own popupSelect instead of executing;
- * the parameterized `@<seq>` / `preview` forms stay internal channels the
- * button and the popover drive. The exported contract is specified in
- * `docs/contract/client-contract.md`.
+ * the parameterized `@<seq>` form stays the execution channel, while the
+ * popover's impact and candidate reads go over the host RPC channel.
  *
  * @module dsh-rewind/client
  */
@@ -46,8 +45,3 @@ export interface ClientContext {
  * @param ctx - client root context carrying `slots`, `sessions`, `locale` and `commandUi`.
  */
 export declare function apply(ctx: ClientContext): void;
-/**
- * Public contract — rewind visibility. Stable, semver-protected; the rest of
- * this module is internal. See `docs/contract/client-contract.md`.
- */
-export { hiddenSeqsOf, targetSeqOfArgs, type HiddenChat } from './hidden.ts';

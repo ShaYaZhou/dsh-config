@@ -1576,54 +1576,11 @@ async function candidatesOverRpc(connection, sessionId) {
 }
 
 // src/client/build-info.ts
-var PLUGIN_VERSION = true ? "0.19.0" : "dev";
+var PLUGIN_VERSION = true ? "0.19.2" : "dev";
 var PLUGIN_PACKAGE = "dsh-rewind-plugin";
-var BUILD_HASH = true ? "bccc8c9b" : "dev";
+var BUILD_HASH = true ? "cc2bb5b8" : "dev";
 
 // src/client/locales.ts
-var zh = {
-  "button.aria": "\u56DE\u9000\u5230\u6B64\u6D88\u606F",
-  "button.title": "\u56DE\u9000",
-  "button.retract.aria": "\u56DE\u9000\u5230\u6B64\u63D2\u8BDD\u6D88\u606F",
-  "button.retract.title": "\u56DE\u9000",
-  "popover.title": "\u56DE\u9000\u5230\u8FD9\u6761\u6D88\u606F",
-  "popover.noText": "\uFF08\u65E0\u6587\u672C\uFF09",
-  "popover.retract.title": "\u56DE\u9000\u5230\u8FD9\u6761\u63D2\u8BDD\u6D88\u606F",
-  "popover.retract.target": "\u63D2\u8BDD\u4E2D \xB7 {preview}",
-  "popover.retract.hint": "\u64A4\u56DE\u8FD9\u6761\u53CA\u4E4B\u540E\u7684\u63D2\u8BDD\u6D88\u606F\uFF0C\u4E0D\u6253\u65AD\u5F53\u524D\u751F\u6210",
-  "popover.retract.confirm": "\u786E\u8BA4\u56DE\u9000",
-  "popover.chat": "\u4EC5\u56DE\u9000\u5BF9\u8BDD",
-  "popover.chat.hint": "\u4EC5\u56DE\u9000\u4E0A\u4E0B\u6587\uFF0C\u4E0D\u52A8\u5DE5\u4F5C\u533A\u6587\u4EF6",
-  "popover.both": "\u56DE\u9000\u5BF9\u8BDD\u548C\u6587\u4EF6",
-  "popover.both.hint": "\u56DE\u9000\u4E0A\u4E0B\u6587\u5E76\u8FD8\u539F\u5DE5\u4F5C\u533A\u6587\u4EF6",
-  "popover.checking": "\u6B63\u5728\u68C0\u67E5\u6587\u4EF6\u53D8\u66F4\u2026",
-  "popover.noChanges": "\u65E0\u53EF\u8FD8\u539F\u7684\u6587\u4EF6\u53D8\u66F4",
-  "popover.backupDisabled": "\u5FEB\u7167\u5907\u4EFD\u5DF2\u5173\u95ED\uFF0C\u8FD8\u539F\u53EF\u80FD\u4E0D\u5145\u5206",
-  "popover.cancel": "\u53D6\u6D88",
-  "popover.impact.loading": "\u6B63\u5728\u83B7\u53D6\u5F71\u54CD\u6E05\u5355\u2026",
-  "popover.impact.failed": "\u65E0\u6CD5\u83B7\u53D6\u5F71\u54CD\u6E05\u5355\uFF1A{message}",
-  "popover.impact.none": "\u76EE\u6807\u4E4B\u540E\u6CA1\u6709\u8DDF\u8E2A\u5230\u7684\u5199\u7C7B\u53D8\u66F4\uFF0C\u65E0\u9700\u8FD8\u539F\u6587\u4EF6\u3002",
-  "popover.impact.restore": "\u8FD8\u539F {path}",
-  "popover.impact.delete": "\u5220\u9664 {path}",
-  "popover.confirm": "\u786E\u8BA4\u56DE\u9000",
-  "popover.back": "\u8FD4\u56DE",
-  "backup.title": "\u5FEB\u7167\u5907\u4EFD",
-  "backup.on": "\u5F00\u542F\u540E\u81EA\u52A8\u521B\u5EFA\u6587\u4EF6\u5FEB\u7167\uFF0C\u7528\u4E8E\u6587\u4EF6\u8FD8\u539F\u3002",
-  "backup.off": "\u5173\u95ED\u540E\u4E0D\u518D\u521B\u5EFA\u6587\u4EF6\u5FEB\u7167\uFF1B\u5173\u95ED\u671F\u95F4\u7684\u6587\u4EF6\u6539\u52A8\u65E0\u6CD5\u8FD8\u539F\u3002",
-  "cleanup.auto": "\u81EA\u52A8\u6E05\u7406",
-  "cleanup.auto.on": "\u5F00\u542F\u540E\u6309\u4E0D\u6D3B\u8DC3\u5929\u6570\u81EA\u52A8\u6E05\u7406\u8FC7\u671F\u4F1A\u8BDD\u5FEB\u7167\u3002",
-  "cleanup.auto.off": "\u5173\u95ED\u540E\u4E0D\u4F1A\u81EA\u52A8\u6E05\u7406\u5FEB\u7167\u3002",
-  "cleanup.maxAge": "\u4E0D\u6D3B\u8DC3\u65F6\u95F4\uFF08\u5929\uFF09",
-  "cleanup.maxAge.hint": "\u8D85\u8FC7\u8BE5\u5929\u6570\u672A\u6D3B\u52A8\u7684\u4F1A\u8BDD\u5FEB\u7167\u4F1A\u88AB\u6E05\u7406\u3002",
-  "cleanup.invalid": "\u8BF7\u586B\u6B63\u6574\u6570\uFF1B\u7559\u7A7A\u8868\u793A\u4F7F\u7528\u9ED8\u8BA4\u503C",
-  "cleanup.overridden": "\u5DF2\u8986\u76D6",
-  "cleanup.reset": "\u6062\u590D\u9ED8\u8BA4",
-  "cleanup.save": "\u4FDD\u5B58",
-  "cleanup.saving": "\u4FDD\u5B58\u4E2D\u2026",
-  "cleanup.saveFailed": "\u672C\u90E8\u7F72\u6CA1\u6709\u63A5\u53D7\u8FD9\u4E9B\u503C\uFF0C\u5DF2\u4FDD\u7559\u4F9B\u4F60\u4FEE\u6539",
-  "cleanup.readonly": "\u672C\u90E8\u7F72\u7684\u8BBE\u7F6E\u4E3A\u53EA\u8BFB",
-  "cleanup.unavailable": "\u8BE5\u63D2\u4EF6\u5F53\u524D\u672A\u52A0\u8F7D\uFF0C\u6682\u65F6\u65E0\u6CD5\u914D\u7F6E"
-};
 var en = {
   "button.aria": "Rewind to this message",
   "button.title": "Rewind",
@@ -1667,6 +1624,93 @@ var en = {
   "cleanup.readonly": "This deployment stores settings read-only",
   "cleanup.unavailable": "This plugin is not loaded, so it cannot be configured right now"
 };
+var zh = {
+  "button.aria": "\u56DE\u9000\u5230\u6B64\u6D88\u606F",
+  "button.title": "\u56DE\u9000",
+  "button.retract.aria": "\u56DE\u9000\u5230\u6B64\u63D2\u8BDD\u6D88\u606F",
+  "button.retract.title": "\u56DE\u9000",
+  "popover.title": "\u56DE\u9000\u5230\u8FD9\u6761\u6D88\u606F",
+  "popover.noText": "\uFF08\u65E0\u6587\u672C\uFF09",
+  "popover.retract.title": "\u56DE\u9000\u5230\u8FD9\u6761\u63D2\u8BDD\u6D88\u606F",
+  "popover.retract.target": "\u63D2\u8BDD\u4E2D \xB7 {preview}",
+  "popover.retract.hint": "\u64A4\u56DE\u8FD9\u6761\u53CA\u4E4B\u540E\u7684\u63D2\u8BDD\u6D88\u606F\uFF0C\u4E0D\u6253\u65AD\u5F53\u524D\u751F\u6210",
+  "popover.retract.confirm": "\u786E\u8BA4\u56DE\u9000",
+  "popover.chat": "\u4EC5\u56DE\u9000\u5BF9\u8BDD",
+  "popover.chat.hint": "\u4EC5\u56DE\u9000\u4E0A\u4E0B\u6587\uFF0C\u4E0D\u52A8\u5DE5\u4F5C\u533A\u6587\u4EF6",
+  "popover.both": "\u56DE\u9000\u5BF9\u8BDD\u548C\u6587\u4EF6",
+  "popover.both.hint": "\u56DE\u9000\u4E0A\u4E0B\u6587\u5E76\u8FD8\u539F\u5DE5\u4F5C\u533A\u6587\u4EF6",
+  "popover.checking": "\u6B63\u5728\u68C0\u67E5\u6587\u4EF6\u53D8\u66F4\u2026",
+  "popover.noChanges": "\u65E0\u53EF\u8FD8\u539F\u7684\u6587\u4EF6\u53D8\u66F4",
+  "popover.backupDisabled": "\u5FEB\u7167\u5907\u4EFD\u5DF2\u5173\u95ED\uFF0C\u8FD8\u539F\u53EF\u80FD\u4E0D\u5145\u5206",
+  "popover.cancel": "\u53D6\u6D88",
+  "popover.impact.loading": "\u6B63\u5728\u83B7\u53D6\u5F71\u54CD\u6E05\u5355\u2026",
+  "popover.impact.failed": "\u65E0\u6CD5\u83B7\u53D6\u5F71\u54CD\u6E05\u5355\uFF1A{message}",
+  "popover.impact.none": "\u76EE\u6807\u4E4B\u540E\u6CA1\u6709\u8DDF\u8E2A\u5230\u7684\u5199\u7C7B\u53D8\u66F4\uFF0C\u65E0\u9700\u8FD8\u539F\u6587\u4EF6\u3002",
+  "popover.impact.restore": "\u8FD8\u539F {path}",
+  "popover.impact.delete": "\u5220\u9664 {path}",
+  "popover.confirm": "\u786E\u8BA4\u56DE\u9000",
+  "popover.back": "\u8FD4\u56DE",
+  "backup.title": "\u5FEB\u7167\u5907\u4EFD",
+  "backup.on": "\u5F00\u542F\u540E\u81EA\u52A8\u521B\u5EFA\u6587\u4EF6\u5FEB\u7167\uFF0C\u7528\u4E8E\u6587\u4EF6\u8FD8\u539F\u3002",
+  "backup.off": "\u5173\u95ED\u540E\u4E0D\u518D\u521B\u5EFA\u6587\u4EF6\u5FEB\u7167\uFF1B\u5173\u95ED\u671F\u95F4\u7684\u6587\u4EF6\u6539\u52A8\u65E0\u6CD5\u8FD8\u539F\u3002",
+  "cleanup.auto": "\u81EA\u52A8\u6E05\u7406",
+  "cleanup.auto.on": "\u5F00\u542F\u540E\u6309\u4E0D\u6D3B\u8DC3\u5929\u6570\u81EA\u52A8\u6E05\u7406\u8FC7\u671F\u4F1A\u8BDD\u5FEB\u7167\u3002",
+  "cleanup.auto.off": "\u5173\u95ED\u540E\u4E0D\u4F1A\u81EA\u52A8\u6E05\u7406\u5FEB\u7167\u3002",
+  "cleanup.maxAge": "\u4E0D\u6D3B\u8DC3\u65F6\u95F4\uFF08\u5929\uFF09",
+  "cleanup.maxAge.hint": "\u8D85\u8FC7\u8BE5\u5929\u6570\u672A\u6D3B\u52A8\u7684\u4F1A\u8BDD\u5FEB\u7167\u4F1A\u88AB\u6E05\u7406\u3002",
+  "cleanup.invalid": "\u8BF7\u586B\u6B63\u6574\u6570\uFF1B\u7559\u7A7A\u8868\u793A\u4F7F\u7528\u9ED8\u8BA4\u503C",
+  "cleanup.overridden": "\u5DF2\u8986\u76D6",
+  "cleanup.reset": "\u6062\u590D\u9ED8\u8BA4",
+  "cleanup.save": "\u4FDD\u5B58",
+  "cleanup.saving": "\u4FDD\u5B58\u4E2D\u2026",
+  "cleanup.saveFailed": "\u672C\u90E8\u7F72\u6CA1\u6709\u63A5\u53D7\u8FD9\u4E9B\u503C\uFF0C\u5DF2\u4FDD\u7559\u4F9B\u4F60\u4FEE\u6539",
+  "cleanup.readonly": "\u672C\u90E8\u7F72\u7684\u8BBE\u7F6E\u4E3A\u53EA\u8BFB",
+  "cleanup.unavailable": "\u8BE5\u63D2\u4EF6\u5F53\u524D\u672A\u52A0\u8F7D\uFF0C\u6682\u65F6\u65E0\u6CD5\u914D\u7F6E"
+};
+var ja = {
+  "button.aria": "\u3053\u306E\u30E1\u30C3\u30BB\u30FC\u30B8\u307E\u3067\u5DFB\u304D\u623B\u3059",
+  "button.title": "\u5DFB\u304D\u623B\u3057",
+  "button.retract.aria": "\u3053\u306E\u4FDD\u7559\u4E2D\u306E\u30E1\u30C3\u30BB\u30FC\u30B8\u307E\u3067\u5DFB\u304D\u623B\u3059",
+  "button.retract.title": "\u5DFB\u304D\u623B\u3057",
+  "popover.title": "\u3053\u306E\u30E1\u30C3\u30BB\u30FC\u30B8\u307E\u3067\u5DFB\u304D\u623B\u3059",
+  "popover.noText": "\uFF08\u30C6\u30AD\u30B9\u30C8\u306A\u3057\uFF09",
+  "popover.retract.title": "\u3053\u306E\u4FDD\u7559\u4E2D\u306E\u30E1\u30C3\u30BB\u30FC\u30B8\u307E\u3067\u5DFB\u304D\u623B\u3059",
+  "popover.retract.target": "\u4FDD\u7559\u4E2D \xB7 {preview}",
+  "popover.retract.hint": "\u3053\u306E\u4FDD\u7559\u4E2D\u306E\u30E1\u30C3\u30BB\u30FC\u30B8\u3068\u305D\u308C\u4EE5\u964D\u3092\u64A4\u56DE\u3057\u307E\u3059\u3002\u73FE\u5728\u306E\u751F\u6210\u306F\u4E2D\u65AD\u3057\u307E\u305B\u3093",
+  "popover.retract.confirm": "\u5DFB\u304D\u623B\u3057\u3092\u5B9F\u884C",
+  "popover.chat": "\u4F1A\u8A71\u306E\u307F\u5DFB\u304D\u623B\u3059",
+  "popover.chat.hint": "\u30B3\u30F3\u30C6\u30AD\u30B9\u30C8\u306E\u307F\u5BFE\u8C61\u3067\u3001\u30EF\u30FC\u30AF\u30B9\u30DA\u30FC\u30B9\u306F\u5909\u66F4\u3057\u307E\u305B\u3093",
+  "popover.both": "\u4F1A\u8A71\u3068\u30D5\u30A1\u30A4\u30EB\u3092\u5DFB\u304D\u623B\u3059",
+  "popover.both.hint": "\u30B3\u30F3\u30C6\u30AD\u30B9\u30C8\u3092\u5DFB\u304D\u623B\u3057\u3001\u30EF\u30FC\u30AF\u30B9\u30DA\u30FC\u30B9\u306E\u30D5\u30A1\u30A4\u30EB\u3092\u5FA9\u5143\u3057\u307E\u3059",
+  "popover.checking": "\u30D5\u30A1\u30A4\u30EB\u306E\u5909\u66F4\u3092\u78BA\u8A8D\u4E2D\u2026",
+  "popover.noChanges": "\u5FA9\u5143\u3067\u304D\u308B\u30D5\u30A1\u30A4\u30EB\u306E\u5909\u66F4\u306F\u3042\u308A\u307E\u305B\u3093",
+  "popover.backupDisabled": "\u30B9\u30CA\u30C3\u30D7\u30B7\u30E7\u30C3\u30C8\u304C\u7121\u52B9\u306A\u305F\u3081\u3001\u5FA9\u5143\u304C\u4E0D\u5B8C\u5168\u306B\u306A\u308B\u53EF\u80FD\u6027\u304C\u3042\u308A\u307E\u3059",
+  "popover.cancel": "\u30AD\u30E3\u30F3\u30BB\u30EB",
+  "popover.impact.loading": "\u5F71\u97FF\u30EA\u30B9\u30C8\u3092\u53D6\u5F97\u4E2D\u2026",
+  "popover.impact.failed": "\u5F71\u97FF\u30EA\u30B9\u30C8\u3092\u53D6\u5F97\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\uFF1A{message}",
+  "popover.impact.none": "\u5BFE\u8C61\u3088\u308A\u5F8C\u306B\u8FFD\u8DE1\u3055\u308C\u305F\u30D5\u30A1\u30A4\u30EB\u5909\u66F4\u306F\u3042\u308A\u307E\u305B\u3093\u3002\u5FA9\u5143\u3059\u308B\u3082\u306E\u306F\u3042\u308A\u307E\u305B\u3093\u3002",
+  "popover.impact.restore": "{path} \u3092\u5FA9\u5143",
+  "popover.impact.delete": "{path} \u3092\u524A\u9664",
+  "popover.confirm": "\u5DFB\u304D\u623B\u3057\u3092\u5B9F\u884C",
+  "popover.back": "\u623B\u308B",
+  "backup.title": "\u30B9\u30CA\u30C3\u30D7\u30B7\u30E7\u30C3\u30C8\u306E\u30D0\u30C3\u30AF\u30A2\u30C3\u30D7",
+  "backup.on": "\u6709\u52B9\u306B\u3059\u308B\u3068\u3001\u30D5\u30A1\u30A4\u30EB\u5FA9\u5143\u7528\u306E\u30B9\u30CA\u30C3\u30D7\u30B7\u30E7\u30C3\u30C8\u304C\u81EA\u52D5\u3067\u4F5C\u6210\u3055\u308C\u307E\u3059\u3002",
+  "backup.off": "\u7121\u52B9\u306B\u3059\u308B\u3068\u3001\u30D5\u30A1\u30A4\u30EB\u306E\u30B9\u30CA\u30C3\u30D7\u30B7\u30E7\u30C3\u30C8\u306F\u4F5C\u6210\u3055\u308C\u307E\u305B\u3093\u3002\u7121\u52B9\u306A\u9593\u306E\u30D5\u30A1\u30A4\u30EB\u5909\u66F4\u306F\u5FA9\u5143\u3067\u304D\u307E\u305B\u3093\u3002",
+  "cleanup.auto": "\u81EA\u52D5\u30AF\u30EA\u30FC\u30F3\u30A2\u30C3\u30D7",
+  "cleanup.auto.on": "\u6709\u52B9\u306B\u3059\u308B\u3068\u3001\u3057\u304D\u3044\u5024\u3092\u8D85\u3048\u3066\u30A2\u30A4\u30C9\u30EB\u72B6\u614B\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u306E\u30B9\u30CA\u30C3\u30D7\u30B7\u30E7\u30C3\u30C8\u304C\u81EA\u52D5\u3067\u524A\u9664\u3055\u308C\u307E\u3059\u3002",
+  "cleanup.auto.off": "\u7121\u52B9\u306B\u3059\u308B\u3068\u3001\u30B9\u30CA\u30C3\u30D7\u30B7\u30E7\u30C3\u30C8\u306F\u81EA\u52D5\u3067\u524A\u9664\u3055\u308C\u307E\u305B\u3093\u3002",
+  "cleanup.maxAge": "\u30A2\u30A4\u30C9\u30EB\u6642\u9593\uFF08\u65E5\uFF09",
+  "cleanup.maxAge.hint": "\u3053\u306E\u65E5\u6570\u3092\u8D85\u3048\u3066\u30A2\u30A4\u30C9\u30EB\u72B6\u614B\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u306E\u30B9\u30CA\u30C3\u30D7\u30B7\u30E7\u30C3\u30C8\u30D0\u30C3\u30AF\u30A2\u30C3\u30D7\u304C\u524A\u9664\u3055\u308C\u307E\u3059\u3002",
+  "cleanup.invalid": "\u6B63\u306E\u6574\u6570\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044\u3002\u7A7A\u6B04\u306E\u5834\u5408\u306F\u65E2\u5B9A\u5024\u3092\u4F7F\u3044\u307E\u3059",
+  "cleanup.overridden": "\u4E0A\u66F8\u304D\u6E08\u307F",
+  "cleanup.reset": "\u65E2\u5B9A\u5024\u306B\u623B\u3059",
+  "cleanup.save": "\u4FDD\u5B58",
+  "cleanup.saving": "\u4FDD\u5B58\u4E2D\u2026",
+  "cleanup.saveFailed": "\u3053\u306E\u30C7\u30D7\u30ED\u30A4\u30E1\u30F3\u30C8\u3067\u306F\u5024\u304C\u53D7\u3051\u4ED8\u3051\u3089\u308C\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u4FEE\u6B63\u3067\u304D\u308B\u3088\u3046\u5165\u529B\u306F\u4FDD\u6301\u3055\u308C\u3066\u3044\u307E\u3059",
+  "cleanup.readonly": "\u3053\u306E\u30C7\u30D7\u30ED\u30A4\u30E1\u30F3\u30C8\u3067\u306F\u8A2D\u5B9A\u304C\u8AAD\u307F\u53D6\u308A\u5C02\u7528\u3067\u3059",
+  "cleanup.unavailable": "\u3053\u306E\u30D7\u30E9\u30B0\u30A4\u30F3\u306F\u73FE\u5728\u8AAD\u307F\u8FBC\u307E\u308C\u3066\u3044\u306A\u3044\u305F\u3081\u3001\u8A2D\u5B9A\u3067\u304D\u307E\u305B\u3093"
+};
+var CLIENT_DICTS = { en, zh, ja };
 
 // src/client/settings-card.tsx
 var import_dsh_client_ui_primitives2 = require("@deepseek-ai/dsh-client-ui-primitives");
@@ -1797,7 +1841,7 @@ var COMPOSER_EDITABLE_SELECTOR2 = "[data-composer-input]";
 function apply(ctx) {
   rewindLog.info("boot", `loaded v${PLUGIN_VERSION} (build ${BUILD_HASH})`);
   ctx.effect(function* () {
-    yield ctx.locale.register(NS2, { zh, en });
+    yield ctx.locale.register(NS2, CLIENT_DICTS);
     const t = ctx.locale.bind(NS2);
     const connection = ctx.get("connection");
     registerPreviewCall((sessionId, seq) => previewOverRpc(connection, sessionId, seq));
@@ -1806,7 +1850,7 @@ function apply(ctx) {
     };
     const style = document.createElement("style");
     style.dataset.plugin = PLUGIN_PACKAGE;
-    style.textContent = STYLE + `.dsh-rewind-header{position:relative}.dsh-rewind-header summary{cursor:pointer;list-style:none;padding:4px 8px;border-radius:6px;color:var(--dsw-alias-label-primary)}.dsh-rewind-header[open]>div{position:absolute;top:100%;right:0;z-index:500;min-width:260px;max-width:420px;max-height:320px;overflow:auto;background:var(--dsw-specific-menu,var(--dsw-alias-bg-layer-3));color:var(--dsw-alias-label-primary);border:1px solid var(--dsw-alias-border-l2,#ccc);border-radius:8px;padding:6px;box-shadow:0 6px 24px #0002}.dsh-rewind-header button{display:block;width:100%;text-align:left;border:0;background:none;color:inherit;padding:8px;cursor:pointer}.dsh-rewind-header button:hover{background:var(--dsw-alias-interactive-bg-hover,#eee)}`;
+    style.textContent = STYLE;
     document.head.appendChild(style);
     installChatViewVisibility(ctx);
     const sessionOf = (sessionId) => ctx.sessions.binding(sessionId)?.session;
@@ -1989,20 +2033,6 @@ function apply(ctx) {
     for (const name2 of ["rewind", "undo"]) {
       yield commandUi.decorate({ name: name2, ...rewindPopupSpec });
     }
-    function HeaderRewind({sessionId}) {
-      const [rows,setRows]=import_react.useState([]);
-      const [status,setStatus]=import_react.useState('');
-      return import_react.createElement('details',{className:'dsh-rewind-header',onToggle:async event=>{
-        if(!event.currentTarget.open)return;
-        setRows([]);setStatus('正在读取回退位置…');
-        try {const options=await rewindPopupSpec.ui.options({sessionId});setRows(options);setStatus(options.length?'':'当前会话还没有可回退的消息');}
-        catch(error){setStatus(error.message??String(error));}
-      }},import_react.createElement('summary',{'aria-label':'回退 /rewind',title:'回退 /rewind'},'↶'),
-      import_react.createElement('div',{'aria-label':'选择回退位置'},status?import_react.createElement('p',{role:'status'},status):null,...rows.map(option=>import_react.createElement('button',{key:option.id,type:'button','aria-label':option.label,onClick:event=>{
-        event.currentTarget.closest('details').open=false;rewindPopupSpec.ui.onSelect(option,{sessionId});
-      }},option.label))));
-    }
-    yield slots.inject(HEADER_ACTIONS_SLOT,()=>slots.register({name:HEADER_ACTIONS_SLOT,id:'dsh-rewind-header',order:999},HeaderRewind));
     const composerSurface2 = () => document.querySelector(COMPOSER_EDITABLE_SELECTOR2);
     yield () => {
       closePopover();
