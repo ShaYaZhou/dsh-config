@@ -75,7 +75,7 @@ rtk proxy node scripts/harness.mjs install --home <隔离测试目录> --setting
 - Better Sidebar：工具探测异常修复；左侧插件导航独立滚动并复用原生滚动条样式；导航/工作区之间可拖动分隔条，支持方向键调整、双击恢复默认及保存高度；右侧“开始”页使用限定高度的独立滚动容器。
 - Agentero PDF：服务注入名修复。客户端注入宿主提供的 `agentero` 服务，上游包仍声明包名 `agentero-dsh-host`；补丁对 0.1.4/0.1.6 验证可应用，上游改名后安装会失败并保留备份。
 
-侧栏适配基于原生 0.2.1-rc.5，宿主升级需重新验收。滚动样式独立放在上游样式之前，避免 0.28.2 未闭合的减少动画条件吞掉规则。Mac 已验证左右两区分别滚动至末尾、“更多”菜单不被裁剪；分隔条已通过隔离 DOM 交互、边界、取消、保存、重置和卸载测试；2026-11-07 用户在 Mac 桌面手动确认可正常拖动调整上下两区。Windows 界面尚未实测。
+侧栏适配基于原生 0.2.1-rc.5 与上游 0.30.1，宿主或插件升级需重新验收。上游 0.30.1 已自带工具探测的定时器提前声明修复，补丁只保留仍未修复的 `probeTool` 一处；补丁的滚动样式仍放在上游样式之前，保持既有覆盖顺序。Mac 已验证左右两区分别滚动至末尾、“更多”菜单不被裁剪；分隔条已通过隔离 DOM 交互、边界、取消、保存、重置和卸载测试；2026-11-07 用户在 Mac 桌面手动确认可正常拖动调整上下两区。Windows 界面尚未实测。
 
 原生布局反馈：[DSH Discussion #12500](https://github.com/deepseek-ai/deepseek-harness/discussions/12500)。上游 CSS 缺括号已有 [Sidebar #955](https://github.com/omdsh-dev/DSH-better-sidebar/issues/955)，维护者已回复修复，不重复提交。分隔条集成回归：`node scripts/test-sidebar-navigation.mjs <隔离 profile> <已安装 jsdom 的项目目录>`。
 

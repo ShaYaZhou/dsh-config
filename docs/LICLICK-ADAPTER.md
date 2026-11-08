@@ -1,6 +1,6 @@
 # 无限画布接入 LiClick
 
-需要 PATH 中的独立 Node.js、已安装并登录的 `atlas-skillhub`，以及应用了本仓库补丁的无限画布与 `@local/dsh-liclick-adapter`。无限画布跟随 latest；补丁最近在 0.19.21 验证，升级后须重新检查。Atlas CLI 使用独立 Node 运行，避免 Electron 导致其命令参数解析错误。
+需要 PATH 中的独立 Node.js、已安装并登录的 `atlas-skillhub`，以及应用了本仓库补丁的无限画布与 `@local/dsh-liclick-adapter`。无限画布跟随 latest；补丁在 0.20.1 验证，升级后须重新检查。Atlas CLI 使用独立 Node 运行，避免 Electron 导致其命令参数解析错误。
 
 打开无限画布 → 设置 → **接入 / 刷新 LiClick 模型**。这一步仅检查登录与读取模型目录，不提交生成任务。它保留其他供应商和仍有效的默认模型；初次没有默认模型时才选择目录中的首项。登录失效时先在终端执行 `atlas-skillhub gateway login`，再重新连接。
 
@@ -25,6 +25,8 @@
 ## 维护和验证
 
 无限画布补丁包含公开的 `liclickConfiguration` RPC/服务契约、设置入口、LiClick 请求 ID、模型参数选项和多结果回填。配置由画布自己的代码保存；适配层不操作其他插件的 DOM 或私有存储。新增供应商不会自动提交任务。
+
+0.20.x 上游新增的图片模型桥接（`viaImageGen`）与自动创作/桥接卡片属于上游行为，与本补丁共存在同一设置页：图片生成保留桥接分支，同时保留 LiClick 多结果回填；`flattenImageModels` 的桥接字段与 LiClick 模型元数据一起透传。升级 0.20.x 后需重新应用补丁并核对这两处共存逻辑。
 
 `npm test` 包含协议、鉴权、并发去重、参考上传、重启恢复和 CLI 参数边界测试。对安装了补丁的隔离 `DSH_HOME` 运行 `npm run test:liclick-canvas`，使用实际画布调用代码与模拟网关验证图片、视频、参考素材模式和提交前任务 ID 保存，不消耗生成额度。真实模型目录/登录验证不等于收费生成已成功；真实生成应使用用户明确指定的素材和预算。
 

@@ -249,9 +249,9 @@
       "dsh-better-sidebar": {
         "source": "https://github.com/omdsh-dev/DSH-better-sidebar",
         "patch": "config/patches/dsh-better-sidebar.patch",
-        "testedVersion": "0.28.2",
+        "testedVersion": "0.30.1",
         "nativeLayoutVersion": "0.2.1-rc.5",
-        "reason": "Restore denied-spawn timer initialization guard; cap native left global-panel navigation height, reuse native scrollbar styling and provide an accessible persistent navigation/workspace resize separator; bound the native right Start guide scrollport so all tool cards remain reachable. Native navigation labels require renewed UI validation on host upgrades. Scroll styles precede upstream CSS to avoid its unclosed reduced-motion media block.",
+        "reason": "Keep the denied-spawn timer initialization guard only where upstream 0.30.1 still declares the timer after the finish callback (probeTool); 0.30.1 already hoists it in verify() and in the search-engine/archive-tools sources, so those hunks were retired. Also cap native left global-panel navigation height, reuse native scrollbar styling and provide an accessible persistent navigation/workspace resize separator, and bound the native right Start guide scrollport so all tool cards remain reachable. Native navigation labels require renewed UI validation on host upgrades. Scroll styles precede upstream CSS to keep the existing override order.",
         "mechanism": "native pnpm-workspace patchedDependencies"
       },
       "agentero-dsh-pdf": {
