@@ -57,12 +57,13 @@ Agentero 注意：本机对 `agentero-dsh-pdf` 另有服务注入名修复——
 
 ## 技能
 
-`config/skill-sources.json` 记录新增 45 项技能的来源和必要修改：27 项 lark 技能、LiClick、find-skills、5 项 Ponytail 附属技能、ub-mode、inline-figure、9 项兼容旧入口名的自写 OpenSpec CLI 包装。自写包装固定调用 1.14.3，未复制缺少独立许可文本的旧包装原文；原有 6 项官方 OpenSpec 技能保留。HTML、JSX、XML、PNG 和 LiClick 脚本锁文件一起分发，PNG 按二进制复制。
+`config/skill-sources.json` 记录新增 46 项技能的来源和必要修改：27 项 lark 技能、LiClick、find-skills、5 项 Ponytail 附属技能、ub-mode、cangjie-skill、inline-figure、9 项兼容旧入口名的自写 OpenSpec CLI 包装。自写包装固定调用 1.14.3，未复制缺少独立许可文本的旧包装原文；原有 6 项官方 OpenSpec 技能保留。HTML、JSX、XML、PNG、`.template` 模板和 LiClick 脚本锁文件一起分发，PNG 按二进制复制。
 
 - lark 技能需安装 `@larksuite/cli` 并使用自己的飞书授权；本机核对版本为 1.0.84。来源为 larksuite/cli，许可文本保留在 `licenses/Lark-CLI-MIT.txt`。
 - LiClick 需 Atlas CLI 与自己的登录态；3D 缩略图辅助脚本首次使用时按其 package-lock 安装依赖。生成能力本身由 Atlas/LiClick 服务提供。
 - inline-figure 可降级为 HTML；不因此宣称 DSH 已注册 visualize MCP。其 Windows 浏览器路径改为按环境变量发现。
 - ub-mode 原样分发上游 `SKILL.md`（unclebob/ub-mode，MIT，许可文本 `licenses/UncleBob-ub-mode-LICENSE.txt`）；它的 crapper、dryer、mutator 质量门是上游独立 CLI，本仓库不安装，也不把这些工具计入验收。
+- cangjie-skill 原样分发上游 v2.5.0 通用技能包（kangarooking/cangjie-skill，MIT，许可文本 `licenses/Cangjie-Skill-MIT.txt`）；包内 `BUILD_INFO.json` 记录来源提交 `3adf9e6`，ZIP 的 SHA256 记录在 `config/skill-sources.json`。确定性脚本需要 Python 3.10+ 与 PyYAML（tiktoken、jsonschema 可选），本仓库不代装 Python 依赖；`.template` 模板随技能一起分发。
 - 新增共享技能及 RTK 修正版受管部署到 DSH 用户技能根，避免共享目录里的旧规则胜出；不修改其他应用的共享技能。若已有不同的 DSH 同名文件，安装会停止要求解决冲突。
 - skills-manager 的来源开关和禁用名单可复用；分类、排序等用户数据保留。
 

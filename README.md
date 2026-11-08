@@ -40,6 +40,7 @@ rtk proxy node scripts/harness.mjs status
 - [Workflow](docs/WORKFLOW.md)：上游原版 `/workflow`，兼容性和恢复边界。
 - [OpenSpec](docs/OPENSPEC.md)：按需规格技能，没有强制分工或自动嵌套交付策略。
 - [ub-mode](skills/ub-mode/SKILL.md)：按需编码纪律技能，“First Make it Work → Then Make it Right → Follow Practice”；配套的 crapper/dryer/mutator 质量门是上游独立 CLI，不随仓库安装。
+- [cangjie-skill](skills/cangjie-skill/SKILL.md)：把书、长视频、播客、课程蒸馏成可执行技能的元技能（RIA-TV++ 流水线）；确定性脚本需 Python 3.10+ 与 PyYAML。
 - [浏览器与桌面控制](docs/BROWSER-COMPUTER-USE.md)：截图、批注及官方 computer-use。
 - [桌面命令](docs/DESKTOP-COMMANDS.md)：会话导航和 Rewind。
 - [LiClick](docs/LICLICK-ADAPTER.md)：无限画布模型目录与本机接入。

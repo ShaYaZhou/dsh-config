@@ -7,6 +7,17 @@
     ],
     "implementation": "Local wrapper using public OpenSpec CLI; upstream entry name retained for compatibility."
   },
+  "cangjie-skill": {
+    "source": "kangarooking/cangjie-skill",
+    "sourceUrl": "https://github.com/kangarooking/cangjie-skill.git",
+    "version": "2.5.0",
+    "sourceCommit": "3adf9e61eec96edf34055432942f2952cfd7cfd9",
+    "packageUrl": "https://github.com/kangarooking/cangjie-skill/releases/download/v2.5.0/cangjie-skill-2.5.0.zip",
+    "packageSha256": "c08bd78239fde0593dffdd5c315f9eceb59c22872baa5df54d34798449070906",
+    "localChanges": [],
+    "licenseFile": "licenses/Cangjie-Skill-MIT.txt",
+    "implementation": "Verbatim contents of the official v2.5.0 generic-skill ZIP (BUILD_INFO.json source_commit verified). Deterministic scripts need Python 3.10+ with PyYAML; tiktoken and jsonschema are optional."
+  },
   "checking-openspec-status": {
     "source": "yu-iskw/openspec-skills",
     "sourceUrl": "https://github.com/yu-iskw/openspec-skills.git",
