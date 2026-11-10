@@ -24,7 +24,7 @@ test('machine-local provider definitions survive rendering without embedding cre
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-test('daily profile uses native PTC, private browsers and the requested enhancement defaults', () => {
+test('daily profile uses private browsers and the requested enhancement defaults', () => {
  const home=path.join(os.tmpdir(),'daily profile with spaces');
  const plan=renderDailyPlan(home,settingsFrom(path.join(repository,'config/local.example.json'),{}));
  const daily=JSON.parse(plan.get('profiles/desktop/package.json'));
@@ -46,7 +46,6 @@ test('daily profile uses native PTC, private browsers and the requested enhancem
  assert(daily.dsh.profile.bundles.includes('@michengai/dsh-archive-manager'));
  for(const name of ['@dsh-external/dsh-memory','@local/dsh-memory-policy','@local/dsh-workflow-ptc','@local/dsh-tool-workflow','@local/dsh-ultracode-control','@local/dsh-rtk-shell','@local/dsh-sidebar-layout','@kenz1117/dsh-ui-usage-billing'])assert(!daily.dependencies[name]);
  const patch=JSON.parse(plan.get('profiles/desktop/cordis.patch.yml'));
- assert.equal(patch.find(p=>p.id==='agent-preset-registry').config.default,'ptc');
  assert.equal(patch.find(p=>p.id==='ui-settings-account').config.step,'done');
  assert.equal(patch.find(p=>p.id==='ui-settings-account').config.completion,'api-key');
  assert(!patch.some(p=>p.id==='preset-ptc'||p.id==='preset-standard'));

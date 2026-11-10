@@ -143,7 +143,7 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
  // UI preferences would send an already configured desktop back into onboarding.
  for(const row of configuration('desktop.patch.json'))
   if(['ui-settings-account','locale','ui-theme'].includes(row.id))patch.push(row);
- patch.push({id:'agent-preset-registry',config:{default:'ptc',selectedDefault:'ptc'}});
+ patch.push({id:'agent-preset-registry',config:{default:'standard',selectedDefault:'standard'}});
  patch.push({id:'mnemon',config:{...configuration('mnemon.json'),storageScope:'custom',dataDir:path.join(home,'mnemon'),runtimeUserScope:'storage',
   cliPath:path.join(oldPath,'node_modules','@mnemon-dev','mnemon','bin','mnemon.js')}});
  for(const id of ['mnemon-strategy-scoped','mnemon-strategy-auto-capture','mnemon-strategy-light-context'])patch.push({id,disabled:false});
