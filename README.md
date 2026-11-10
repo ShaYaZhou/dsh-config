@@ -37,6 +37,7 @@ rtk proxy node scripts/harness.mjs status
 完整安装清单、技能与 Hook 对齐范围、外部服务前置条件及明确排除项见 [安装对齐说明](docs/INSTALLATION-PARITY.md)。`status` 也会列出本机额外安装但未纳入仓库的包和 bundle，避免将“无文件漂移”误认为“所有插件已同步”。
 
 - [桌面配置](docs/DAILY-PTC.md)：Mnemon、Hooks/RTK、压缩阈值及独立功能开关。
+- [Mnemon 嵌入与记忆积累](docs/MNEMON-EMBEDDING.md)：换嵌入模型后的维度重算、后台复盘不写向量的边界，以及 CLI 默认模型在 Windows/macOS 上的兜底。
 - [Workflow](docs/WORKFLOW.md)：上游原版 `/workflow`，兼容性和恢复边界。
 - [OpenSpec](docs/OPENSPEC.md)：按需规格技能，没有强制分工或自动嵌套交付策略。
 - [ub-mode](skills/ub-mode/SKILL.md)：按需编码纪律技能，“First Make it Work → Then Make it Right → Follow Practice”；配套的 crapper/dryer/mutator 质量门是上游独立 CLI，不随仓库安装。
