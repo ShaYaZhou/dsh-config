@@ -10,6 +10,7 @@ import {pathToFileURL} from 'node:url';
 import {assertMatchingRuntimes,bindRuntimeDependencies,latestDependencies,repository,renderPlan as renderBasePlan,renderDailyPlan,settingsFrom,emitYaml,parseArgs,status,capture,staleModulePaths} from '../scripts/harness.mjs';
 import {createHash} from 'node:crypto';
 import {deploymentInputs} from '../scripts/deployment-state.mjs';
+import {applyAgentSkill,planAgentSkill,syncedSkillNames} from '../scripts/sync-agent-skills.mjs';
 const hash=p=>createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 
 test('matching desktop and CLI releases do not depend on the npm latest channel',()=>{
@@ -175,4 +176,39 @@ test('Windows RTK preflight checks the real executable and no-profile PowerShell
  assert.match(calls[6].args.at(-1),/Get-Command rtk.exe -CommandType Application/);
  assert.throws(()=>checkRtk({platform:'win32',run:(file,args,opts)=>file==='pwsh.exe'?{status:1,stdout:''}:run(file,args,opts)}),/PowerShell 7 cannot run/);
  assert.throws(()=>checkRtk({platform:'win32',run:()=>({status:0,stdout:'unrelated program'})}),/RTK CLI unavailable/);
+});
+
+
+test('registered shared skills deploy from the repository into DSH_HOME/skills with their resources',()=>{
+ const plan=renderDailyPlan(path.join(os.tmpdir(),'shared-skill-home'),settings,{});
+ const sources=JSON.parse(fs.readFileSync(path.join(repository,'config/skill-sources.json'),'utf8'));
+ for(const name of Object.keys(sources)){
+  const source=path.join(repository,'skills',name,'SKILL.md');
+  assert(fs.existsSync(source),'missing registered skill source: skills/'+name);
+  assert.equal(plan.get('skills/'+name+'/SKILL.md'),fs.readFileSync(source,'utf8'),'not deployed to DSH_HOME/skills: '+name);
+  assert(![...plan.keys()].some(key=>key.includes('/agent-capabilities/skills/'+name+'/')||key.includes('/inline-skills/catalog/'+name+'/')),'duplicate copy outside DSH_HOME/skills: '+name);
+ }
+ assert(plan.has('skills/wizard/template.sh'));
+ assert(plan.has('skills/aisland-teach/references/assessment-rubric.md'));
+});
+
+test('cross-agent sync copies only registered upstream skills and refuses to overwrite extra files',()=>{
+ const names=syncedSkillNames();
+ assert(names.includes('aisland-teach'));assert(names.includes('grilling'));assert(names.includes('wizard'));
+ assert(!names.includes('dynamic-ui'));assert(!names.includes('check'));
+ const home=fs.mkdtempSync(path.join(os.tmpdir(),'dsh-agent-sync-'));
+ try{
+  const root=path.join(home,'.claude','skills'),target=path.join(root,'grilling'),backup=path.join(home,'.claude','skill-backups','grilling.pre-sync-1');
+  fs.mkdirSync(target,{recursive:true});fs.writeFileSync(path.join(target,'SKILL.md'),'old copy');
+  const first=planAgentSkill('grilling',root);
+  assert.deepEqual(first.copy,['SKILL.md','agents/openai.yaml']);
+  assert.equal(applyAgentSkill(first,backup),true);
+  assert.equal(fs.readFileSync(path.join(backup,'SKILL.md'),'utf8'),'old copy');
+  assert(fs.readFileSync(path.join(target,'SKILL.md')).equals(fs.readFileSync(path.join(repository,'skills/grilling/SKILL.md'))));
+  assert.equal(planAgentSkill('grilling',root).copy.length,0);
+  fs.writeFileSync(path.join(target,'LOCAL.md'),'local edit');
+  const drift=planAgentSkill('grilling',root);
+  assert.deepEqual(drift.localOnly,['LOCAL.md']);
+  assert.throws(()=>applyAgentSkill(drift,path.join(home,'.claude','skill-backups','grilling.pre-sync-2')),/仓库没有的文件/);
+ }finally{fs.rmSync(home,{recursive:true,force:true});}
 });

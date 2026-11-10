@@ -57,7 +57,11 @@ Agentero 注意：本机对 `agentero-dsh-pdf` 另有服务注入名修复——
 
 ## 技能
 
-`config/skill-sources.json` 记录新增 46 项技能的来源和必要修改：27 项 lark 技能、LiClick、find-skills、5 项 Ponytail 附属技能、ub-mode、cangjie-skill、inline-figure、9 项兼容旧入口名的自写 OpenSpec CLI 包装。自写包装固定调用 1.14.3，未复制缺少独立许可文本的旧包装原文；原有 6 项官方 OpenSpec 技能保留。HTML、JSX、XML、PNG、`.template` 模板和 LiClick 脚本锁文件一起分发，PNG 按二进制复制。
+`config/skill-sources.json` 记录新增 74 项技能的来源和必要修改：27 项 lark 技能、LiClick、find-skills、5 项 Ponytail 附属技能、ub-mode、cangjie-skill、inline-figure、9 项兼容旧入口名的自写 OpenSpec CLI 包装、27 项 Matt Pocock promoted 技能、aisland-teach。自写包装固定调用 1.14.3，未复制缺少独立许可文本的旧包装原文；原有 6 项官方 OpenSpec 技能保留。HTML、JSX、XML、PNG、`.sh` 脚本、`.template` 模板和 LiClick 脚本锁文件一起分发，PNG 按二进制复制。
+
+- 27 项 Matt Pocock 技能来自 mattpocock/skills 提交 `4ae2317`（包版本 1.3.2，MIT，`licenses/Matt-Pocock-Skills-MIT.txt`）；只装上游 promoted 集合，`in-progress`、`misc`、`deprecated` 不分发。原有 6 项同名技能是同一上游旧提交的原文，已升级到当前版本。
+- aisland-teach 来自 Aisland-SJL/Aisland-teach 提交 `e11b8fc`（MIT，`licenses/Aisland-Teach-MIT.txt`），是中文优先的交互式教学技能；只分发技能资源，不含上游 README 与 LICENSE 副本。
+- 这两项来源另用 `scripts/sync-agent-skills.mjs --apply` 同步到 Claude Code 与 Codex 的全局技能目录，覆盖前整目录备份；DSH 侧仍只由安装器写入。
 
 - lark 技能需安装 `@larksuite/cli` 并使用自己的飞书授权；本机核对版本为 1.0.84。来源为 larksuite/cli，许可文本保留在 `licenses/Lark-CLI-MIT.txt`。
 - LiClick 需 Atlas CLI 与自己的登录态；3D 缩略图辅助脚本首次使用时按其 package-lock 安装依赖。生成能力本身由 Atlas/LiClick 服务提供。

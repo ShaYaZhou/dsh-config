@@ -1,4 +1,12 @@
 {
+  "aisland-teach": {
+    "source": "Aisland-SJL/Aisland-teach",
+    "sourceUrl": "https://github.com/Aisland-SJL/Aisland-teach.git",
+    "sourceCommit": "e11b8fc333449076a3360151e4bcaf3e86cf3e8d",
+    "localChanges": [],
+    "licenseFile": "licenses/Aisland-Teach-MIT.txt",
+    "implementation": "Verbatim upstream single-skill repository root (SKILL.md, agents metadata, references/ and CHANGELOG.md); repository READMEs stay in git history upstream."
+  },
   "archiving-openspec-change": {
     "source": "yu-iskw/openspec-skills",
     "sourceUrl": "https://github.com/yu-iskw/openspec-skills.git",
@@ -6,6 +14,15 @@
       "SKILL.md rewritten locally; fixed CLI version 1.14.3"
     ],
     "implementation": "Local wrapper using public OpenSpec CLI; upstream entry name retained for compatibility."
+  },
+  "ask-matt": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/ask-matt (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
   },
   "cangjie-skill": {
     "source": "kangarooking/cangjie-skill",
@@ -26,6 +43,24 @@
     ],
     "implementation": "Local wrapper using public OpenSpec CLI; upstream entry name retained for compatibility."
   },
+  "code-review": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/code-review (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "codebase-design": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/codebase-design (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
   "creating-openspec-change": {
     "source": "yu-iskw/openspec-skills",
     "sourceUrl": "https://github.com/yu-iskw/openspec-skills.git",
@@ -33,6 +68,24 @@
       "SKILL.md rewritten locally; fixed CLI version 1.14.3"
     ],
     "implementation": "Local wrapper using public OpenSpec CLI; upstream entry name retained for compatibility."
+  },
+  "diagnosing-bugs": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/diagnosing-bugs (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "domain-modeling": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/domain-modeling (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
   },
   "find-skills": {
     "source": "vercel-labs/skills",
@@ -47,6 +100,69 @@
       "SKILL.md rewritten locally; fixed CLI version 1.14.3"
     ],
     "implementation": "Local wrapper using public OpenSpec CLI; upstream entry name retained for compatibility."
+  },
+  "grill-me": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/productivity/grill-me (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "grill-with-docs": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/grill-with-docs (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "grilling": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/productivity/grilling (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "handoff": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/productivity/handoff (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "implement": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/implement (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "implement-spec": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/implement-spec (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "improve-codebase-architecture": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/improve-codebase-architecture (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
   },
   "initializing-openspec": {
     "source": "yu-iskw/openspec-skills",
@@ -286,6 +402,105 @@
     "localChanges": [],
     "licenseFile": "licenses/Ponytail-LICENSE.txt"
   },
+  "pr": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/pr (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "prototype": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/prototype (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "research": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/research (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "retro": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/retro (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "setup-matt-pocock-skills": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/setup-matt-pocock-skills (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "tdd": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/tdd (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "teach": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/productivity/teach (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "to-questionnaire": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/productivity/to-questionnaire (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "to-spec": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/to-spec (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "to-tickets": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/to-tickets (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "triage": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/triage (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
   "ub-mode": {
     "source": "unclebob/ub-mode",
     "sourceUrl": "https://github.com/unclebob/ub-mode.git",
@@ -316,5 +531,41 @@
       "SKILL.md rewritten locally; fixed CLI version 1.14.3"
     ],
     "implementation": "Local wrapper using public OpenSpec CLI; upstream entry name retained for compatibility."
+  },
+  "wait-what": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/productivity/wait-what (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "wayfinder": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/wayfinder (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "wizard": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/engineering/wizard (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
+  },
+  "writing-for-agents": {
+    "source": "mattpocock/skills",
+    "sourceUrl": "https://github.com/mattpocock/skills.git",
+    "version": "1.3.2",
+    "sourceCommit": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d",
+    "licenseFile": "licenses/Matt-Pocock-Skills-MIT.txt",
+    "localChanges": [],
+    "implementation": "Verbatim upstream SKILL.md, companion Markdown and agents metadata from skills/productivity/writing-for-agents (promoted plugin set; in-progress, misc and deprecated groups are not vendored)."
   }
 }

@@ -104,7 +104,7 @@ export function renderPlan(home,settings,artifacts={}, {clean=true}={}){
  files.set('profiles/desktop/agent-capabilities/manifest.json',json({managedBy:'deepseek-harness-config',flavor:clean?'native':provenance.flavor,runtime:provenance.runtime,modules:Object.fromEntries(moduleNames.map(name=>[name,digest(path.join(repository,'modules',name))])),artifacts}));
  return files;
 }
-const SKILL_RESOURCE_EXTENSIONS=new Set(['.mjs','.js','.json','.md','.py','.txt','.yaml','.yml','.html','.jsx','.xml','.png','.template']);
+const SKILL_RESOURCE_EXTENSIONS=new Set(['.mjs','.js','.json','.md','.py','.sh','.txt','.yaml','.yml','.html','.jsx','.xml','.png','.template']);
 const skillContent=file=>fs.readFileSync(file,path.extname(file)==='.png'?undefined:'utf8');
 function skillResources(directory,prefix=''){
  const found=[];

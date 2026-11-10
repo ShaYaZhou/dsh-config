@@ -1,0 +1,6 @@
+interface:
+  display_name: "Aisland-teach"
+  short_description: "从零基础开始、由浅入深并通过复述验证理解的个性化教学"
+  default_prompt: "Use $aisland-teach to teach me this topic from my current level, verify my understanding, and ask before creating any HTML course."
+policy:
+  allow_implicit_invocation: true

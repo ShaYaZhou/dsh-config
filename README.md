@@ -42,6 +42,9 @@ rtk proxy node scripts/harness.mjs status
 - [OpenSpec](docs/OPENSPEC.md)：按需规格技能，没有强制分工或自动嵌套交付策略。
 - [ub-mode](skills/ub-mode/SKILL.md)：按需编码纪律技能，“First Make it Work → Then Make it Right → Follow Practice”；配套的 crapper/dryer/mutator 质量门是上游独立 CLI，不随仓库安装。
 - [cangjie-skill](skills/cangjie-skill/SKILL.md)：把书、长视频、播客、课程蒸馏成可执行技能的元技能（RIA-TV++ 流水线）；确定性脚本需 Python 3.10+ 与 PyYAML。
+- [Matt Pocock skills](docs/SKILLS-ALIGNMENT.md#matt-pocock-skills)：27 项工程与效率技能，按上游 promoted 集合分发，user-invoked 与 model-invoked 边界保留。
+- [Aisland-teach](skills/aisland-teach/SKILL.md)：中文优先的交互式教学技能，七步教学环加复述评分；HTML 课程需用户明确同意。
+- [跨 agent 技能同步](docs/SKILLS-ALIGNMENT.md#其他-agent-的同步)：`scripts/sync-agent-skills.mjs` 把上述两个来源同步到 Claude Code 与 Codex 的全局技能目录；DSH 侧仍只走安装器。
 - [浏览器与桌面控制](docs/BROWSER-COMPUTER-USE.md)：截图、批注及官方 computer-use。
 - [桌面命令](docs/DESKTOP-COMMANDS.md)：会话导航和 Rewind。
 - [LiClick](docs/LICLICK-ADAPTER.md)：无限画布模型目录与本机接入。

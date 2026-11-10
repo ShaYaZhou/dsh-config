@@ -4,6 +4,7 @@
 |---|---|
 | `scripts/harness.mjs`、`deployment-state.mjs` | 生成配置、打包、安装、合并配置、漂移检查、备份与回滚 |
 | `scripts/node-command.mjs`、`installation-audit.mjs` | 选择稳定 Node 入口，核对安装声明与宿主版本 |
+| `scripts/sync-agent-skills.mjs` | 把登记的上游技能同步到 Claude Code、Codex 的用户技能目录；只显式 `--apply` 写入，DSH 侧不经过它 |
 | `config/`、`presets/native/` | 当前配置模板与原生恢复基线 |
 | `plugins/external-workflow/` | 未修改的上游 Workflow，兼容性由上游声明和宿主检查决定 |
 | `plugins/browser-review/` | 内嵌浏览器截图与批注 |

@@ -14,14 +14,41 @@
 | 通用技能和六项官方 OpenSpec 技能 | `skills/`、`.dsh/skills/` | `profiles/desktop/agent-capabilities/inline-skills/catalog/` |
 | 新增共享技能 | `config/skill-sources.json` 对应目录 | `DSH_HOME/skills/<名称>/`，同时复制附带资源 |
 | RTK 参考技能 | `skills/rtk-reference/` | `DSH_HOME/skills/rtk-reference/`，优先使用受管修正版 |
+| 其他 agent 的全局技能 | `scripts/sync-agent-skills.mjs` | `~/.claude/skills/<名称>/`、`~/.codex/skills/<名称>/`，显式 `--apply` 才写入 |
 
-以 `scripts/harness.mjs` 的生成计划为准。技能正文按需加载，不把整套手册注入每轮提示。DSH 用户技能目录不等于其他 agent 的全局目录；部署不会修改 `~/.claude/skills`、`~/.agents/skills` 或 `~/.codex/skills`。外部技能来源仍可能产生同名覆盖，验收时应检查实际解析路径。
+以 `scripts/harness.mjs` 的生成计划为准。技能正文按需加载，不把整套手册注入每轮提示。DSH 用户技能目录不等于其他 agent 的全局目录；安装器只写 DSH，不修改 `~/.claude/skills`、`~/.agents/skills` 或 `~/.codex/skills`；需要让其他 agent 也装上同一批技能时，用 `scripts/sync-agent-skills.mjs` 显式执行（见下文）。外部技能来源仍可能产生同名覆盖，验收时应检查实际解析路径。
 
 技能复制为真实文件，不建立目录联接。既有 DSH 同名技能若不受本仓库管理且内容不同，安装器会停止，不能擅自覆盖。会话、记忆、凭据、个人图库和本机展开路径不提交。
 
 ## Ponytail
 
 仓库已包含 [ponytail](../skills/ponytail/SKILL.md)，上游为 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)。正常部署后在日常桌面会话按需调用，不需要启动 enhanced，也不需要另装 Claude/Codex 插件。正文与附属技能作为已审阅资源分发；更新上游时须核对差异和许可证。
+
+## Matt Pocock skills
+
+仓库包含 [mattpocock/skills](https://github.com/mattpocock/skills) 的 27 项 promoted 技能（engineering 20 项、productivity 7 项），来源提交 `4ae2317`，包版本 1.3.2，MIT，许可文本在 `licenses/Matt-Pocock-Skills-MIT.txt`。上游只发布 promoted 集合：`in-progress` 明确排除在插件之外，`misc` 已冻结，`deprecated` 目前为空，因此其余目录不安装。
+
+- 技能按上游原样分发，每个目录带 `agents/openai.yaml`；`wizard` 与 `diagnosing-bugs` 的 `.sh` 脚本随技能一起部署。
+- 16 项 user-invoked 技能保留 `disable-model-invocation: true`，DSH 不把它们放进模型可选清单（如 grill-me、handoff、implement、teach）；11 项 model-invoked 技能按需自动加载。
+- 仓库原有的 6 项同名技能来自同一上游的旧提交，不含本地改写，已升级到当前上游版本。
+
+## Aisland-teach
+
+[aisland-teach](../skills/aisland-teach/SKILL.md) 来自 [Aisland-SJL/Aisland-teach](https://github.com/Aisland-SJL/Aisland-teach)，来源提交 `e11b8fc`，MIT，许可文本在 `licenses/Aisland-Teach-MIT.txt`。它是 Matt Pocock `teach` 的中文增强版：按七步教学环确认起点与结果，用复述评分判断理解；HTML 课程只在用户明确同意后生成。只分发技能资源（`SKILL.md`、`agents/openai.yaml`、`references/*.md`、`CHANGELOG.md`），上游 README 与 LICENSE 不随技能部署。
+
+## 其他 agent 的同步
+
+`scripts/sync-agent-skills.mjs` 把上述两个来源共 28 项技能复制到 Claude Code 与 Codex 的用户技能目录：
+
+```powershell
+rtk proxy node scripts/sync-agent-skills.mjs --check
+rtk proxy node scripts/sync-agent-skills.mjs --apply --agents claude,codex
+```
+
+- 名单只取 `config/skill-sources.json` 中 `source` 为 `mattpocock/skills` 或 `Aisland-SJL/Aisland-teach` 的条目，脚本里不重复维护。
+- 写入前把原目录整体备份到 `<home>/.claude/skill-backups/<名称>.pre-sync-<时间戳>/`（Codex 同名结构）；目录联接会替换为真实文件副本，内容与仓库字节一致。
+- 目标目录出现仓库没有的文件时拒绝覆盖并报错，先手工解决再重跑。
+- 这是独立的显式命令，`harness.mjs install` 仍然只写 DSH；DSH 侧不要用本脚本代替安装器。
 
 ## RTK
 
