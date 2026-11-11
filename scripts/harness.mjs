@@ -144,9 +144,8 @@ export function renderDailyPlan(home, settings, artifacts = {}) {
  for(const row of configuration('desktop.patch.json'))
   if(['ui-settings-account','locale','ui-theme'].includes(row.id))patch.push(row);
  patch.push({id:'agent-preset-registry',config:{default:'standard',selectedDefault:'standard'}});
- patch.push({id:'mnemon',config:{...configuration('mnemon.json'),storageScope:'custom',dataDir:path.join(home,'mnemon'),runtimeUserScope:'storage',
-  cliPath:path.join(oldPath,'node_modules','@mnemon-dev','mnemon','bin','mnemon.js')}});
- for(const id of ['mnemon-strategy-scoped','mnemon-strategy-auto-capture','mnemon-strategy-light-context'])patch.push({id,disabled:false});
+ // dsh-memu-memory 自带 cordis.patch.yml 注册宿主工具与客户端界面，用户设置存在
+ // <DSH_HOME>/dsh-memu-memory/state.json，不进 profile patch，这里无需追加行。
  patch.push({insert:[
   {id:'computer-use',name:'@deepseek-ai/dsh-computer-use'},
   {id:'computer-use-native',name:'@deepseek-ai/dsh-experimental-computer-use-cua-driver-native'},

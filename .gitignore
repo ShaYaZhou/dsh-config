@@ -9,6 +9,7 @@ build/
 sessions/
 memories/
 agent-memory/
+draft.json
 backups/
 .DS_Store
 .deck/

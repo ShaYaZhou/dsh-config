@@ -16,11 +16,13 @@
 
 ## 记忆
 
-dsh-mnemon 提供分层记忆和管理界面，@mnemon-dev/mnemon 提供本地 CLI，均随安装跟随 latest。最近验收分别为 0.5.39 和 0.2.13，不是固定安装约束。安装器使用当前电脑的 profile 路径定位 CLI；数据位于当前 DSH_HOME 下的 mnemon 目录，测试配置不会共享正式记忆目录。不自动连接第三方记忆服务。
+记忆插件为 dsh-memu-memory，随安装跟随 latest。它自带 bundle 层注册宿主工具与客户端界面，安装器只在 desktop profile 依赖和 bundle 里声明它，不往 cordis patch 追加配置行。数据与用户设置位于当前 DSH_HOME 下的 dsh-memu-memory 目录，测试配置不会共享正式记忆目录。不自动连接第三方记忆服务。
 
-按用户最新要求，Mnemon 使用上游发布包，不再加载本地设置页补丁、禁写服务或父子会话禁写补丁。记忆行为由 Mnemon 原生能力和用户设置决定。旧 dsh-memory 文件保留，不自动导入或删除；它们不会因此自动出现在 Mnemon 召回中。
+记忆行为由插件原生能力和用户设置决定（记忆后端、向量来源、注入预算等都在插件设置里改，`state.json` 不纳入仓库）。旧 dsh-memory 文件保留，不自动导入或删除；它们不会因此自动出现在召回中。
 
-记忆界面和授权均使用上游实现，不再应用本地前端补丁。读写工具报 `not offered` 时先检查范围组合，详见[记忆来源选择](MNEMON-SOURCE-SELECTION.md)。
+旧的 dsh-memory 插件已在 `config/headless.patch.json` 里置为 `disabled`：它指向 `${MEMORY_URL}` 的外部记忆服务，不再随 headless profile 加载，配置原样保留以便需要时恢复。desktop profile 从未声明过它。
+
+dsh-mnemon 及其 CLI @mnemon-dev/mnemon 已按 714 题 A/B 结果卸载（62.04% 对 73.81%），本地 mnemon 配置、专用界面测试与来源选择文档一并移除。
 
 ## Hooks 与 RTK
 

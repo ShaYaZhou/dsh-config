@@ -12,7 +12,7 @@ async function main(){
  const {loadLayeredEnv}=await load('dsh-app-boot');
  const {readPluginInventory}=await load('dsh-host-plugin-inventory');
  const patch=path.join(home,'installed-parity.patch.json');
- fs.writeFileSync(patch,JSON.stringify([{id:'orca-agent-hooks',disabled:true},{id:'desktop-product-telemetry',disabled:true},{id:'product-analytics',disabled:true},{id:'mnemon',config:{lifecycleEnabled:false,writeEnabled:false}}]));
+ fs.writeFileSync(patch,JSON.stringify([{id:'orca-agent-hooks',disabled:true},{id:'desktop-product-telemetry',disabled:true},{id:'product-analytics',disabled:true}]));
  const runtime=await runProfile({environment:loadLayeredEnv('dsh'),profile:'desktop',patchFiles:[patch],args:['--port','0','--no-open']});
  let passed=false;
  try{

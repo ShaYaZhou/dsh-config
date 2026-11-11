@@ -32,7 +32,7 @@ test('render to another home with spaces without changing source or creating fil
  const patch=plan.get('profiles/desktop/cordis.patch.yml');
  if(plugins.length)assert(patch.includes(pathToFileURL(path.join(target,'profiles/desktop/agent-capabilities')).href));
  assert(!patch.includes('${'));
- assert(!plan.get('profiles/headless/package.json').includes('dsh-mnemon'));
+ assert(!plan.get('profiles/headless/package.json').includes('dsh-memu-memory'));
  for(const profile of ['desktop','headless'])assert.doesNotThrow(()=>JSON.parse(plan.get('profiles/'+profile+'/package.json')));
  fs.rmdirSync(base);
 });

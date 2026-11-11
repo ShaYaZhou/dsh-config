@@ -28,7 +28,7 @@ test('daily profile uses private browsers and the requested enhancement defaults
  const home=path.join(os.tmpdir(),'daily profile with spaces');
  const plan=renderDailyPlan(home,settingsFrom(path.join(repository,'config/local.example.json'),{}));
  const daily=JSON.parse(plan.get('profiles/desktop/package.json'));
- for(const name of ['dsh-mnemon','@local/dsh-idle-settings','dsh-meme','dsh-whale-widget','dsh-comfyui','dsh-ego-browser','dsh-media-desk','dsh-guizang-design','dsh-context','agentero-dsh','@local/dsh-today-todo','@local/dsh-notion-mcp','@linxin666/dsh-client-ui-git-graph']) {
+ for(const name of ['dsh-memu-memory','@local/dsh-idle-settings','dsh-meme','dsh-whale-widget','dsh-comfyui','dsh-ego-browser','dsh-media-desk','dsh-guizang-design','dsh-context','agentero-dsh','@local/dsh-today-todo','@local/dsh-notion-mcp','@linxin666/dsh-client-ui-git-graph']) {
   assert(daily.dependencies[name]); assert(daily.dsh.profile.bundles.includes(name));
  }
  for(const name of ['@deepseek-ai/dsh-experimental-session-titles-bundle','@deepseek-ai/dsh-experimental-forge-bundle']){
@@ -64,9 +64,10 @@ test('daily profile uses private browsers and the requested enhancement defaults
  assert.deepEqual(optional.filter(p=>!p.disabled).map(p=>p.id),['claude-context']);
  for(const row of optional) assert(plan.has('profiles/desktop/agent-capabilities/'+path.basename(new URL(row.name).pathname)));
  assert.deepEqual(JSON.parse(plan.get('cordis.patch.yml')),[]);
- assert.equal(patch.find(p=>p.id==='mnemon').config.embedding.model,'qwen3-embedding:0.6b');
- assert(!Object.hasOwn(patch.find(p=>p.id==='mnemon').config.embedding,'apiKey'));
- for(const id of ['mnemon-strategy-scoped','mnemon-strategy-auto-capture','mnemon-strategy-light-context'])assert.equal(patch.find(p=>p.id===id).disabled,false);
+ // 记忆插件改由 dsh-memu-memory 自带 bundle 层注册，不再生成 mnemon 行；
+ // 用户设置在 <DSH_HOME>/dsh-memu-memory/state.json，安装器不写、也不携带凭据。
+ assert(!patch.some(p=>p.id==='mnemon'||String(p.id).startsWith('mnemon-strategy-')));
+ assert(!plan.get('profiles/desktop/package.json').includes('mnemon'));
  assert.deepEqual(JSON.parse(plan.get('dsh-expression.json')),{sendGear:'active',pickerSendOnClick:false});
 });
 

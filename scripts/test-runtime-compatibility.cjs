@@ -43,7 +43,7 @@ async function main() {
       assert(ctx.get('clientModules').graph().entries.some(row => row.id === '@local/dsh-desktop-commands'), 'Desktop /agents UI must be registered');
       for (const name of ['btw','rewind'])
         assert(ctx.get('commands').find(resolved.agent, name), `Missing command: ${name}`);
-      for (const name of ['dsh-mnemon','@deepseek-ai/dsh-experimental-computer-use-cua-driver-native']) {
+      for (const name of ['dsh-memu-memory','@deepseek-ai/dsh-experimental-computer-use-cua-driver-native']) {
         const row=inventory.entries.find(row=>row.moduleName===name);
         assert(row?.enabled&&row.fiberPhase==='active', `${name} must be active`);
       }
@@ -60,10 +60,11 @@ async function main() {
         await agent.ctx.waterfall('agent/pre-step',{agent,messages:[message],turn:1,step:1,signal:AbortSignal.timeout(15000)},async()=>({kind:'accept',messages:[message]}));
       };
       const call=async (agent,name,args)=>agent.ctx.tools.execute({agent,name,arguments:args,callId:randomUUID(),signal:AbortSignal.timeout(15000)});
-      await begin(resolved.agent,'Remember the isolated acceptance marker only.');
-      const marker='isolated-mnemon-policy-'+randomUUID();
-      const saved=await call(resolved.agent,'mnemon_runtime_memory',{action:'add',target:'memory',content:marker});
-      assert.equal(saved.isError,false,JSON.stringify(saved));
+      await begin(resolved.agent,'Report memory status only.');
+      // 记忆插件必须真的挂上工具，而不只是 bundle 加载成功；status 是只读调用，
+      // 不会给未绑定的会话创建记忆库。
+      const status=await call(resolved.agent,'memu_status',{});
+      assert.equal(status.isError,false,JSON.stringify(status));
       const route=ctx.get('agentDefaultModel').currentSelection();
       console.log('ACCEPTANCE_MODEL_CATALOG',JSON.stringify({route,models:(await ctx.get('llm').listModels(route.provider)).map(item=>item.id)}));
       assert(!ctx.get('dynamicWorkflows'), 'Original Workflow must remain unmounted pending upstream compatibility');

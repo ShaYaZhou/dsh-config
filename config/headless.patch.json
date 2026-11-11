@@ -130,6 +130,7 @@
     "insert": [
       {
         "id": "dsh-memory",
+        "disabled": true,
         "config": {
           "scopedMemory": true,
           "seedFromAgentsMd": false,

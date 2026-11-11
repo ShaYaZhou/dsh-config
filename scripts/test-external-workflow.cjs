@@ -18,7 +18,6 @@ async function main() {
     {id:'orca-agent-hooks',disabled:true},
     {id:'desktop-product-telemetry',disabled:true},
     {id:'product-analytics',disabled:true},
-    {id:'mnemon',config:{lifecycleEnabled:false,writeEnabled:false}},
     {id:'dsh-external-workflow',config:{approvalMode:'never',maxAgents:4,maxConcurrency:2}},
   ]));
   const runtime=await runProfile({environment:loadLayeredEnv('dsh'),profile:'desktop',patchFiles:[patch],args:['--port','0','--no-open']});
