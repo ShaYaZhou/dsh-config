@@ -1,6 +1,6 @@
 # DeepSeek Harness 可迁移配置
 
-DSH 运行时以实际桌面版本为准，全局 CLI 必须与桌面同版，不要求等于 npm `latest` 标签。独立上游插件仍按各自的 `latest` 声明更新。保留原生 Standard/PTC、官方 computer-use、上游 Mnemon，以及按需 Workflow、浏览器批注、dynamic-ui、LiClick 接入和桌面辅助功能。
+DSH 运行时以实际桌面版本为准，全局 CLI 必须与桌面同版，不要求等于 npm `latest` 标签。独立上游插件仍按各自的 `latest` 声明更新。保留原生 Standard/PTC、官方 computer-use、上游 dsh-memu-memory，以及按需 Workflow、浏览器批注、dynamic-ui、LiClick 接入和桌面辅助功能。
 
 仓库不保存凭据、个人绝对路径、会话或记忆。安装器在目标电脑生成路径，并备份受管理文件。修改模板后需要重新部署才能生效。
 
@@ -36,8 +36,7 @@ rtk proxy node scripts/harness.mjs status
 
 完整安装清单、技能与 Hook 对齐范围、外部服务前置条件及明确排除项见 [安装对齐说明](docs/INSTALLATION-PARITY.md)。`status` 也会列出本机额外安装但未纳入仓库的包和 bundle，避免将“无文件漂移”误认为“所有插件已同步”。
 
-- [桌面配置](docs/DAILY-PTC.md)：Mnemon、Hooks/RTK、压缩阈值及独立功能开关。
-- [Mnemon 嵌入与记忆积累](docs/MNEMON-EMBEDDING.md)：换嵌入模型后的维度重算、后台复盘不写向量的边界，以及 CLI 默认模型在 Windows/macOS 上的兜底。
+- [桌面配置](docs/DAILY-PTC.md)：记忆插件、Hooks/RTK、压缩阈值及独立功能开关。
 - [Workflow](docs/WORKFLOW.md)：上游原版 `/workflow`，兼容性和恢复边界。
 - [OpenSpec](docs/OPENSPEC.md)：按需规格技能，没有强制分工或自动嵌套交付策略。
 - [ub-mode](skills/ub-mode/SKILL.md)：按需编码纪律技能，“First Make it Work → Then Make it Right → Follow Practice”；配套的 crapper/dryer/mutator 质量门是上游独立 CLI，不随仓库安装。
@@ -64,7 +63,7 @@ rtk proxy node scripts/harness.mjs install --dry-run
 
 等待任务结束并完全退出 Harness，再运行 `rtk proxy node scripts/harness.mjs install`，重开后运行 `rtk proxy node scripts/harness.mjs status` 检查源文件与部署一致性。仅 git pull 不会更新正在使用的插件。
 
-受版本管理的插件、技能、全局 AGENTS 模板和 RTK Hook 定义都由安装器分发。Hook 中的 Node 与脚本路径按目标电脑生成，安装检查会验证 RTK JSON Hook 接口。现有个人开关、其他 Hook 和凭据通过配置合并保留；因此“对齐”指受管代码和定义一致，不意味着覆盖他人的账号、模型、权限或历史。LiClick 仍需各自的 Atlas 登录态，Mnemon 数据各自保留。
+受版本管理的插件、技能、全局 AGENTS 模板和 RTK Hook 定义都由安装器分发。Hook 中的 Node 与脚本路径按目标电脑生成，安装检查会验证 RTK JSON Hook 接口。现有个人开关、其他 Hook 和凭据通过配置合并保留；因此“对齐”指受管代码和定义一致，不意味着覆盖他人的账号、模型、权限或历史。LiClick 仍需各自的 Atlas 登录态，记忆数据各自保留。
 
 原生技能发现允许项目或用户目录中的同名技能覆盖随配置分发的版本。需要完全相同的技能行为时，也应核对技能管理器中的实际来源；安装器不会擅自删除其他目录的个人技能。
 
@@ -77,7 +76,7 @@ rtk proxy node scripts/harness.mjs install --home <隔离测试目录> --setting
 
 每次安装通过原生插件管理器更新声明为 `latest` 的上游包；已有本机固定版本和本地修改版不被强制替换。官方 `@deepseek-ai/*` 插件声明为 `${DSH_RUNTIME_VERSION}`，安装时自动跟随已安装桌面的实际版本：部分官方插件的 npm `latest` 标签仍指向旧 alpha，不能独立用它升级。没有写死 rc.5 数字。锁文件只在目标电脑生成，用于记录实际安装和回滚，不再从仓库分发；`lock` 命令仅检查本地锁文件，不写回固定模板。`latest` 不等于 `next` 或 `alpha`，也不绕过供应链、发布时间与兼容性检查。
 
-本地修改版仍由仓库构建，保留版本元数据、来源及已验证的宿主兼容范围；这不是上游版本锁。插件市场和 Mnemon 使用未打补丁的上游包。目前保留：
+本地修改版仍由仓库构建，保留版本元数据、来源及已验证的宿主兼容范围；这不是上游版本锁。插件市场和 dsh-memu-memory 使用未打补丁的上游包。目前保留：
 
 - 无限画布：LiClick 接入补丁。新版不兼容时安装失败并保留备份，不静默丢弃功能。
 - Better Sidebar：工具探测异常修复；左侧插件导航独立滚动并复用原生滚动条样式；导航/工作区之间可拖动分隔条，支持方向键调整、双击恢复默认及保存高度；右侧“开始”页使用限定高度的独立滚动容器。
