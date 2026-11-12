@@ -18,6 +18,7 @@ w.ResizeObserver = class {
   disconnect() { observerCount--; }
 };
 const root = w.document.querySelector('main');
+root.classList.add('native_scrollArea');
 const nav = root.firstElementChild;
 const region = root.lastElementChild;
 root.getBoundingClientRect = () => ({ height: 800, width: 280 });
@@ -26,6 +27,8 @@ region.getBoundingClientRect = () => ({ height: 600 - nav.getBoundingClientRect(
 const source = fs.readFileSync(path.join(profile, 'node_modules/dsh-better-sidebar/src/client/native/sidebar-navigation.ts'), 'utf8');
 w.eval(stripTypeScriptTypes(source).replace('export function', 'function') + '\nwindow.installDivider = registerNavigationResize;');
 const dispose = w.installDivider();
+assert(root.classList.contains('dsh-navigation-split'),'rc.2 grid scrollport must use the scoped split layout');
+root.setAttribute('data-sidebar-scrollport', ''); // Native host adds this only after expanding the sidebar.
 const bar = root.querySelector('[role="separator"]');
 assert(bar && nav.nextElementSibling === bar && bar.nextElementSibling === region);
 const key = name => bar.dispatchEvent(new w.KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true }));
@@ -46,6 +49,7 @@ assert.equal(w.localStorage.getItem('dsh-better-sidebar.navigation-height.v1'), 
 pointer('pointerdown', 100); pointer('pointermove', 160); pointer('pointerup', 160);
 assert.equal(nav.getBoundingClientRect().height, 156);
 dispose();
+assert(!root.classList.contains('dsh-navigation-split'),'Disposal must restore the native layout');
 assert(!root.querySelector('[role="separator"]'));
 assert.equal(observerCount, 0);
 assert.equal(nav.style.getPropertyValue('--dsh-navigation-height'), '');

@@ -1,6 +1,6 @@
 # 无限画布接入 LiClick
 
-需要 PATH 中的独立 Node.js、已安装并登录的 `atlas-skillhub`，以及应用了本仓库补丁的无限画布与 `@local/dsh-liclick-adapter`。无限画布跟随 latest；补丁在 0.20.1 验证，升级后须重新检查。Atlas CLI 使用独立 Node 运行，避免 Electron 导致其命令参数解析错误。
+需要 PATH 中的独立 Node.js、已安装并登录的 `atlas-skillhub`，以及应用了本仓库补丁的无限画布与 `@local/dsh-liclick-adapter`。无限画布跟随 latest；当前补丁按宿主实际解析的 0.20.5 生成，保留上游的星标默认模型显示逻辑。pnpm 仅容忍补丁行号约 20 行偏移，不能把 Git 应用成功当作跨版本安装通过；宿主改选版本后须重新检查补丁。Atlas CLI 使用独立 Node 运行，避免 Electron 导致其命令参数解析错误。
 
 打开无限画布 → 设置 → **接入 / 刷新 LiClick 模型**。这一步仅检查登录与读取模型目录，不提交生成任务。它保留其他供应商和仍有效的默认模型；初次没有默认模型时才选择目录中的首项。登录失效时先在终端执行 `atlas-skillhub gateway login`，再重新连接。
 

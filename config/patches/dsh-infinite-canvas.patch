@@ -1,6 +1,6 @@
 --- a/client.js
 +++ b/client.js
-@@ -3728,6 +3728,22 @@
+@@ -3741,6 +3741,22 @@
      let legacyImageApiRefMap = {}; // 旧扁平配置 id → 'providerId|modelId'（节点字段懒迁移用）
      let legacyVideoApiRefMap = {};
      /** 供应商列表 → 扁平模型视图（ref = 'providerId|modelId'）；未填模型名的条目不进下拉。 */
@@ -23,7 +23,7 @@
      function flattenImageModels(settings) {
        const out = [];
        for (const p of settings.imageProviders || []) {
-@@ -3736,7 +3752,7 @@
+@@ -3749,7 +3765,7 @@
            // viaImageGen/imageGenProvider 必须透传：生成侧靠它路由到 dsh-image-gen 的 /studio；
            // 丢字段 → useBridge 判 false → 走 apiImage → baseUrl 空 → 「未配置图片 API」（桥接必炸）
            const via = !!(p.viaImageGen || m.viaImageGen);
@@ -32,7 +32,7 @@
          }
        }
        return out;
-@@ -3747,7 +3763,7 @@
+@@ -3760,7 +3776,7 @@
          for (const m of (p.models || [])) {
            if (!m || !m.id || !String(m.model || '').trim()) continue;
            // vendor 必须带出去：否则「显式选了厂商」在请求侧丢失，只能靠模型名/URL 猜协议（曾把万相误判成 Seedance）
@@ -41,7 +41,7 @@
          }
        }
        return out;
-@@ -6817,6 +6833,8 @@
+@@ -6831,6 +6847,8 @@
      async function sanbaoImageTask(prompt, refBlobs, s, opts) {
        const base = vendorBase(s.baseUrl, VIDEO_VENDORS.sanbao.base);
        const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (s.apiKey || '') };
@@ -50,7 +50,7 @@
        const o = opts || {};
        const rawRefs = refBlobs || [];
        // 扩展参数：逃生舱；uploadKey 专用上传 key 只用于 /uploads/raw，绝不进任务请求体
-@@ -6834,9 +6852,12 @@
+@@ -6848,9 +6866,12 @@
          if (!raw) continue;
          refUrls.push(await sanbaoUploadRaw(base, uploadKey, raw, 'image'));
        }
@@ -64,7 +64,7 @@
        const r1 = await fetchViaProxy(base + '/openapi/v1/images', { headers, body, timeoutMs: 120000, label: 'Sanbao 图片提交' });
        if (!r1.ok) throw new Error('Sanbao 图片提交 HTTP ' + r1.status + ' @ ' + base + '：' + r1.text.slice(0, 300));
        let j1 = null; try { j1 = JSON.parse(r1.text); } catch { throw new Error('Sanbao 图片响应非 JSON：' + r1.text.slice(0, 200)); }
-@@ -6844,13 +6865,17 @@
+@@ -6858,13 +6879,17 @@
        if (!tid) throw new Error('Sanbao 图片响应中没有任务 id：' + r1.text.slice(0, 200));
        const taskUrl = base + '/openapi/v1/images/' + encodeURIComponent(tid);
        if (o.onTask) { try { o.onTask(tid, taskUrl); } catch { /* 持久化失败不影响生成 */ } }
@@ -83,7 +83,7 @@
        return await downloadVideoWithRetry(url, {}, {
          windowMs: SANBAO_DOWNLOAD_RETRY_MS,
          stepMs: SANBAO_DOWNLOAD_RETRY_STEP_MS,
-@@ -7059,16 +7084,32 @@
+@@ -7200,16 +7225,32 @@
        async sanbao(prompt, frameBlob, s, o) {
          const base = vendorBase(s.url, VIDEO_VENDORS.sanbao.base);
          const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (s.apiKey || '') };
@@ -119,7 +119,7 @@
          // 扩展参数：逃生舱；uploadKey 专用上传 key 只用于 /uploads/raw，绝不进任务请求体
          let uploadKey = s.apiKey || '';
          try {
-@@ -7080,6 +7121,7 @@
+@@ -7221,6 +7262,7 @@
            }
          } catch (e) { throw new Error('三宝扩展参数配置有误：' + ((e && e.message) || e)); }
          const submit = (b, label) => fetchViaProxy(base + '/openapi/v1/videos', { headers, body: b, timeoutMs: 120000, label });
@@ -127,7 +127,7 @@
          let r1 = await submit(body, 'Sanbao 提交');
          // 兜底：图片/素材格式或 URL 类错误 → 用专用 uploadKey 把本地素材传 /uploads/raw 转公网 URL 后重试一次
          // （余额/鉴权/限流/账号限制类错误绝不重试——needsSanbaoMediaRetry 排除）
-@@ -7089,7 +7131,7 @@
+@@ -7230,7 +7272,7 @@
              const refUrls = [];
              for (const b of rawRefs) refUrls.push(await sanbaoUploadRaw(base, uploadKey, b, 'image'));
              const audioUrls = [];
@@ -136,7 +136,7 @@
              const body2 = buildSanbaoVideoBody(baseSpec, { frameDataUrl: frameUrl, refDataUrls: refUrls, audioDataUrls: audioUrls });
              const ex2 = parseExtraParams(s.extra);
              if (ex2) { const rest2 = { ...ex2 }; delete rest2.uploadKey; Object.assign(body2, rest2); }
-@@ -7457,7 +7499,7 @@
+@@ -7698,7 +7740,7 @@
        let vendorDowngraded = false; // IC-03：识别到厂商但无适配器 → 降级走 OpenAI 兼容通用链（节点上可见）
        // 参考素材上限检查：超出即告警（截断发生在各 runner 内，这里先把事实说清楚）。
        // 未知厂商兜底 8 = IC-03 降级后的 OpenAI 兼容链实际发送上限。
@@ -145,7 +145,7 @@
          const caps = VIDEO_REF_CAPS[vendor] || { img: 8 };
          const refCount = o.hardFrame ? 0 : (Array.isArray(o.refs) ? o.refs.length : 0);
          if (refCount > (caps.img || 0)) {
-@@ -10877,11 +10919,12 @@
+@@ -11176,11 +11218,12 @@
            const useBridge = !!(mcfg && mcfg.viaImageGen);
            if (!mcfg) throw new Error(T('errNoImageModel'));
            // 张数（1–4）：同一提示词一次生成多张；历史条保留全部结果，节点显示最后一张
@@ -160,7 +160,7 @@
                ? await apiGenBridge(p, metas, { provider: mcfg.imageGenProvider, model: mcfg.model }, { ratio: n.data.ratio })
                : await apiImage(p, metas, mcfg, {
                size: n.data.size, ratio: n.data.ratio, nodeExtra: n.data.imgExtra, warn: addWarn,
-@@ -10891,6 +10934,7 @@
+@@ -11190,6 +11233,7 @@
                  flushSave();
                },
              });
@@ -168,7 +168,7 @@
              const rec = await saveAssetRecord(S.activeId, 'image', blob, {
                name: assetNameFor(n, entities, 'image'),
                prompt: stripMentionMarks(prompt), effectivePrompt: p,
-@@ -10903,6 +10947,7 @@
+@@ -11202,6 +11246,7 @@
              });
              cases.push(rec.id);
              commitGenResult(n.id, rec.id, false, 'image');
@@ -176,7 +176,7 @@
            }
            update((s) => { const nd = s.graph.nodes[n.id]; if (nd) nd.data.progress = null; });
            if (!cases.length) throw new Error(T('noResult'));
-@@ -10970,7 +11015,7 @@
+@@ -11269,7 +11314,7 @@
            let blob = null;
            try {
              blob = await apiVideo(p, useFrame ? frameBlob : null, mcfg, {
@@ -185,10 +185,10 @@
                frameMode, // auto=尾帧降级为参考图（保留实体参考图）/ hard=硬首帧（放弃参考图）/ off=忽略首帧
                hardFrame,
                refs: refs.map((r) => r.blob),
-@@ -12779,19 +12824,34 @@
-             for (const m of (p.models || [])) opts.push({ value: p.id + '|' + m.id, label: m.name, sub: p.name, title: p.name + ' · ' + m.name });
+@@ -13152,9 +13197,9 @@
            }
          } else if (isImage) {
+           // 图片/视频无「跟随设置」：设置页有真实默认（★ 星标），节点不选 = 直接用 ★（resolveImageModelCfg 同语义）。
 -          for (const m of flattenImageModels(settings)) opts.push({ value: m.ref, label: m.model, sub: m.providerName, title: m.providerName + ' · ' + m.model + (m.ref === settings.imageStar ? ' ★' : '') });
 +          for (const m of flattenImageModels(settings)) opts.push({ value: m.ref, label: m.label || m.model, sub: m.providerName, title: m.providerName + ' · ' + m.model + (m.ref === settings.imageStar ? ' ★' : '') });
          } else if (isVideo) {
@@ -197,7 +197,10 @@
          }
          return opts;
        })();
-       const modelRef = isImage ? nodeImageModelRef(n) : isVideo ? nodeVideoModelRef(n) : (n.data.model || '');
+@@ -13164,12 +13209,27 @@
+       const modelValue = modelRef || (!isTextLike
+         ? (isImage ? settings.imageStar : settings.videoStar) || ''
+         : '');
 +      const picked = isImage ? resolveImageModelCfg(settings, modelRef) : isVideo ? resolveVideoModelCfg(settings, modelRef) : null;
 +      const lcParams = isLiClickCfg(picked) ? picked.parameters || {} : null;
 +      const batchCount = lcParams ? picked.outputCount || 1 : 1;
@@ -222,7 +225,7 @@
        });
        const setData = (key, v) => update((s) => { const nd = s.graph.nodes[n.id]; if (nd) nd.data[key] = v; });
        // 比例变化：媒体节点立即按「预览区比例 + 固定栏」重排外框（有结果才有操作栏；空态不加操作栏）
-@@ -12908,9 +12968,9 @@
+@@ -13286,9 +13346,9 @@
            try { if (ta) { ta.focus(); ta.selectionStart = ta.selectionEnd = caretAt; } } catch { /* 忽略 */ }
          }, 0);
        };
@@ -235,7 +238,7 @@
        // 视频分辨率：H3（V2 协议）扩展档位 480P/768P/1080P/2K/4K（大小写敏感），其余用标准三档；
        // 当前值不在列表里（历史数据/厂商自定义）也要能显示与保留。
        const videoModelName = (() => {
-@@ -12925,10 +12985,10 @@
+@@ -13303,10 +13363,10 @@
        const resList = baseRes.includes(String(n.data.resolution))
          ? baseRes
          : baseRes.concat([String(n.data.resolution || '720P')]);
@@ -248,7 +251,7 @@
        const canRun = kind !== 'text';
        // 是否还有高级项可折叠：没有就不渲染「更多」开关（文本类节点默认只剩提示词 + 控件行）
        const hasAdvanced = isImage || isVideo || !!(
-@@ -13073,23 +13133,23 @@
+@@ -13465,23 +13525,23 @@
                })
              : null,
            (isImage || isVideo || isFinalCut)
@@ -279,7 +282,7 @@
                })
              : null,
            h('button', {
-@@ -19976,6 +20036,32 @@
+@@ -20509,6 +20569,32 @@
              ],
        );
      }
@@ -312,7 +315,7 @@
      /** 图片模型桥接卡（0.20.0）：检测 dsh-image-gen 并直接选用它的服务商/模型（密钥留在它宿主侧）。 */
      /** 自动创作卡（实验）：开关 + 状态 + 快捷动作区。对话仍是主入口（canvas_auto_* 工具带完整上下文），
       *  此卡提供与对话同 RPC 的快捷操作，不切对话也能：启动创作（brief）→ 刷新预算（autoQuote）→
-@@ -20245,6 +20331,7 @@
+@@ -20778,6 +20864,7 @@
        );
      }
      function SettingsTab() {
@@ -320,7 +323,7 @@
        const [s, setS] = useState(loadSettings);
        const apply = (fn) => {
          // issue #6：与四张卡同根——基底现取磁盘最新，不再用挂载快照整对象写回
-@@ -20268,6 +20355,7 @@
+@@ -20801,6 +20888,7 @@
              h('option', { value: 'en' }, T('langEn'))),
          ),
          h(DataRootCard, { key: 'dataroot' }),
@@ -328,7 +331,7 @@
          h(CraftCard, { key: 'craft' }),
          h(AutoModeCard, { key: 'automode' }),
          h(ImageGenBridgeCard, { key: 'imagegenbridge' }),
-@@ -20281,8 +20369,8 @@
+@@ -20814,8 +20902,8 @@
            ),
            h(LlmModelSelect),
          ),
@@ -341,7 +344,7 @@
          h('div', {
 --- a/index.js
 +++ b/index.js
-@@ -4379,6 +4379,12 @@
+@@ -4431,6 +4431,12 @@
  
      const methods = {
        async ping() { return { ok: true, version: VERSION }; },

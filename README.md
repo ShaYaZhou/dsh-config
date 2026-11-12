@@ -76,15 +76,22 @@ rtk proxy node scripts/harness.mjs install --home <隔离测试目录> --setting
 
 每次安装通过原生插件管理器更新声明为 `latest` 的上游包；已有本机固定版本和本地修改版不被强制替换。官方 `@deepseek-ai/*` 插件声明为 `${DSH_RUNTIME_VERSION}`，安装时自动跟随已安装桌面的实际版本：部分官方插件的 npm `latest` 标签仍指向旧 alpha，不能独立用它升级。没有写死 rc.5 数字。锁文件只在目标电脑生成，用于记录实际安装和回滚，不再从仓库分发；`lock` 命令仅检查本地锁文件，不写回固定模板。`latest` 不等于 `next` 或 `alpha`，也不绕过供应链、发布时间与兼容性检查。
 
-本地修改版仍由仓库构建，保留版本元数据、来源及已验证的宿主兼容范围；这不是上游版本锁。插件市场和 dsh-memu-memory 使用未打补丁的上游包。目前保留：
+本地修改版仍由仓库构建，保留版本元数据、来源及已验证的宿主兼容范围；这不是上游版本锁。插件市场使用未打补丁的上游包。目前保留：
 
+- MemU：本地向量模式的连接测试只读检索现有本地索引，不走远程 API、不写入测试记忆；API 模式沿用上游测试。
 - 无限画布：LiClick 接入补丁。新版不兼容时安装失败并保留备份，不静默丢弃功能。
 - Better Sidebar：工具探测异常修复；左侧插件导航独立滚动并复用原生滚动条样式；导航/工作区之间可拖动分隔条，支持方向键调整、双击恢复默认及保存高度；右侧“开始”页使用限定高度的独立滚动容器。
 - Agentero PDF：服务注入名修复。客户端注入宿主提供的 `agentero` 服务，上游包仍声明包名 `agentero-dsh-host`；补丁对 0.1.4/0.1.6 验证可应用，上游改名后安装会失败并保留备份。
 
-侧栏适配基于原生 0.2.1-rc.5 与上游 0.30.1，宿主或插件升级需重新验收。上游 0.30.1 已自带工具探测的定时器提前声明修复，补丁只保留仍未修复的 `probeTool` 一处；补丁的滚动样式仍放在上游样式之前，保持既有覆盖顺序。Mac 已验证左右两区分别滚动至末尾、“更多”菜单不被裁剪；分隔条已通过隔离 DOM 交互、边界、取消、保存、重置和卸载测试；2026-11-07 用户在 Mac 桌面手动确认可正常拖动调整上下两区。Windows 界面尚未实测。
+侧栏适配覆盖原生 0.2.1-rc.5 和 0.2.2-rc.2 的布局，与上游 0.30.1 配合，宿主或插件升级需重新验收。上游 0.30.1 已自带工具探测的定时器提前声明修复，补丁只保留仍未修复的 `probeTool` 一处；补丁的滚动样式仍放在上游样式之前，保持既有覆盖顺序。Mac 已验证左右两区分别滚动至末尾、“更多”菜单不被裁剪；分隔条已通过隔离 DOM 交互、边界、取消、保存、重置和卸载测试；2026-11-07 用户在 Mac 桌面手动确认可正常拖动调整上下两区。2026-11-12 Windows rc.2 已通过原生样式与滚轮转交逻辑的浏览器回归，用户确认双向滚轮及滑块同步正常。工作区只由原生会话列表承担滚动，外层不再生成第二根滑条。rc.2 适配按稳定的布局类识别，不依赖仅展开时出现的属性，覆盖折叠启动后再展开。
 
 原生布局反馈：[DSH Discussion #12500](https://github.com/deepseek-ai/deepseek-harness/discussions/12500)。上游 CSS 缺括号已有 [Sidebar #955](https://github.com/omdsh-dev/DSH-better-sidebar/issues/955)，维护者已回复修复，不重复提交。分隔条集成回归：`node scripts/test-sidebar-navigation.mjs <隔离 profile> <已安装 jsdom 的项目目录>`。
+
+安装后的专项回归（不提交真实生成任务）：
+
+- `node scripts/test-memu-connection.mjs <profile>/node_modules/dsh-memu-memory`：验证本地只读路由、失败不转远程及 API 测试清理。
+- `node scripts/test-sidebar-layout.mjs <profile> <匹配运行时的 node_modules/@deepseek-ai 目录>`：需要 Windows Edge，使用原生侧栏、会话列表样式和滚轮处理器验证双向滚动、单一滑条与拖动；截图写入被忽略的 `.local`。
+- `node scripts/test-liclick-canvas.mjs`：设置 `DSH_HOME` 选择待验收安装，验证实际画布代码的模型参数、参考素材及任务恢复协议，生成服务使用测试替身。
 
 通用宿主测试见 `scripts/test-runtime-compatibility.cjs`，需要隔离 `DSH_HOME` 与匹配的 `DSH_NATIVE_ROOT`；Workflow 和 Hooks 当前按未挂载验收。`scripts/test-external-workflow.cjs` 保留作上游兼容性恢复后的专项测试，当前不能作为通过证明。
 

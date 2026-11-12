@@ -241,7 +241,7 @@
         "source": "https://github.com/omdsh-dev/DSH-better-sidebar",
         "patch": "config/patches/dsh-better-sidebar.patch",
         "testedVersion": "0.30.1",
-        "nativeLayoutVersion": "0.2.1-rc.5",
+        "nativeLayoutVersion": "0.2.2-rc.2",
         "reason": "Keep the denied-spawn timer initialization guard only where upstream 0.30.1 still declares the timer after the finish callback (probeTool); 0.30.1 already hoists it in verify() and in the search-engine/archive-tools sources, so those hunks were retired. Also cap native left global-panel navigation height, reuse native scrollbar styling and provide an accessible persistent navigation/workspace resize separator, and bound the native right Start guide scrollport so all tool cards remain reachable. Native navigation labels require renewed UI validation on host upgrades. Scroll styles precede upstream CSS to keep the existing override order.",
         "mechanism": "native pnpm-workspace patchedDependencies"
       },
@@ -253,6 +253,20 @@
           "0.1.6"
         ],
         "reason": "The PDF client injects the host client service name 'agentero'; upstream package.json still declares the package name 'agentero-dsh-host'. Verified against both the locally installed 0.1.4 and npm latest 0.1.6; the patch applies cleanly to either.",
+        "mechanism": "native pnpm-workspace patchedDependencies"
+      },
+      "@ninkch/dsh-infinite-canvas": {
+        "source": "https://github.com/NINKCH/dsh-infinite_canvas",
+        "patch": "config/patches/dsh-infinite-canvas.patch",
+        "testedVersion": "0.20.5",
+        "reason": "Retain LiClick model parameters, recovery ids and idempotent submissions while preserving upstream starred default model selection.",
+        "mechanism": "native pnpm-workspace patchedDependencies"
+      },
+      "dsh-memu-memory": {
+        "source": "npm:dsh-memu-memory",
+        "patch": "config/patches/dsh-memu-memory.patch",
+        "testedVersion": "1.3.1",
+        "reason": "Connection tests honor managed-local routing via read-only retrieval; no synthetic memory writes, remote fallback or credential changes.",
         "mechanism": "native pnpm-workspace patchedDependencies"
       }
     },

@@ -32,6 +32,26 @@ const adapter=await startAdapter(root,{
 });
 try {
   const config=await adapter.configuration();
+  // Exercise the installed composer block as well as the generation runners.
+  const composerStart=source.indexOf('      const modelRef = isImage ? nodeImageModelRef(n)');
+  const composerEnd=source.indexOf('      const setData =',composerStart);
+  assert(composerStart>=0&&composerEnd>composerStart);
+  for(const isImage of [true,false]){
+    const n={id:'fixture',data:{}},settings={imageStar:'default-image',videoStar:'default-video'};
+    const cfg={baseUrl:config.image.baseUrl,url:config.video.url,outputCount:4,parameters:{aspect_ratio:{options:['1:1','16:9'],default:'1:1'},resolution:{options:['768P','2K'],default:'768P'},duration:{options:[4,8],default:4}}};
+    const scope={n,settings,isImage,isVideo:!isImage,isTextLike:false,
+      nodeImageModelRef:node=>node.data.imageModel||'',nodeVideoModelRef:node=>node.data.videoModel||'',
+      resolveImageModelCfg:()=>cfg,resolveVideoModelCfg:()=>cfg,
+      update:fn=>fn({graph:{nodes:{fixture:n}}})};
+    vm.runInNewContext(['isLiClickCfg','liclickValue','liclickImageSize'].map(name=>extract(name)).join('\n')+'\n'+source.slice(composerStart,composerEnd)+'\nthis.ui={modelValue,selectedRatio,selectedResolution,selectedDuration,setModel};',scope);
+    assert.equal(scope.ui.modelValue,isImage?settings.imageStar:settings.videoStar,'Unset node must show the upstream starred default');
+    assert.equal(scope.ui.selectedRatio,'1:1');assert.equal(scope.ui.selectedResolution,'768P');assert.equal(scope.ui.selectedDuration,4);
+    n.data.ratio='invalid';n.data.resolution='invalid';n.data.duration=100;
+    scope.ui.setModel('chosen');
+    assert.equal(n.data[isImage?'imageModel':'videoModel'],'chosen');
+    assert.equal(n.data.ratio,'1:1');assert.equal(n.data.resolution,'768P');assert.equal(n.data.duration,4);
+    if(isImage)assert.equal(n.data.imageCount,4);
+  }
   const context=vm.createContext({console,Blob,crypto:webcrypto,VIDEO_VENDORS:{sanbao:{base:''}},
     SANBAO_DOWNLOAD_RETRY_MS:1,SANBAO_DOWNLOAD_RETRY_STEP_MS:1,
     parseExtraParams:value=>value?JSON.parse(value):null,

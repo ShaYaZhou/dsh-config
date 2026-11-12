@@ -1,8 +1,7 @@
 diff --git a/lib/client-registry.js b/lib/client-registry.js
-index 2493d08..850ede3 100644
 --- a/lib/client-registry.js
 +++ b/lib/client-registry.js
-@@ -33868,10 +33868,190 @@ Mode: this is a continuable side conversation. Your answers stay in this side th
+@@ -33868,10 +33868,235 @@
  			const tag = document.createElement("style");
  			tag.dataset.plugin = "dsh-external/dsh-better-sidebar";
  			tag.dataset.pluginCss = tagId;
@@ -10,6 +9,44 @@ index 2493d08..850ede3 100644
 +			tag.textContent = `/* Native left navigation, verified against Harness 0.2.1-rc.5.
 + * Keep sessions visible when many plugins register global panels.
 + * Scope to the native navigation accessible label; never style conversation lists. */
++/* rc.2 wraps navigation and workspaces in a single grid scrollport. */
++.dsh-navigation-split[data-sidebar-scrollport] {
++  display: flex;
++  flex-direction: column;
++  overflow: hidden;
++  min-height: 0;
++}
++.dsh-navigation-split[data-sidebar-scrollport]::before,
++.dsh-navigation-split[data-sidebar-scrollport]::after { display: none; }
++.dsh-navigation-split > [class$="_regionArea"] {
++  flex: 1 1 0;
++  min-height: 0;
++  container-type: size;
++  overflow: hidden;
++}
++/* The native list owns both the scrolling content and its scrollbar. */
++.dsh-navigation-split[data-sidebar-scrollport] > [class$="_regionArea"] > :has(> [data-sidebar-list-area]) {
++  flex: 1 1 0;
++  height: 100%;
++  max-height: 100%;
++  min-height: 0;
++}
++.dsh-navigation-split[data-sidebar-scrollport] > [class$="_regionArea"] [data-sidebar-list-area] {
++  overflow-y: auto;
++  margin-inline: 0;
++  padding-inline: 0;
++  overscroll-behavior-y: contain;
++}
++.dsh-navigation-split > nav,
++.dsh-navigation-split [data-sidebar-list-area] {
++  --dsh-scrollbar-thumb: var(--dsw-alias-label-tertiary, #999);
++  --dsh-scrollbar-thumb-hover: var(--dsw-alias-label-secondary, #777);
++  scrollbar-width: auto;
++  scrollbar-gutter: stable;
++}
++.dsh-navigation-split > nav::-webkit-scrollbar,
++.dsh-navigation-split [data-sidebar-list-area]::-webkit-scrollbar { display: block; }
++
 +nav[aria-label="全局面板"], nav[aria-label="Global panels"] {
 +  max-height: var(--dsh-navigation-height, min(36vh, 320px));
 +  height: var(--dsh-navigation-height, auto);
@@ -91,6 +128,8 @@ index 2493d08..850ede3 100644
 +    const root = nav.parentElement
 +    const region = nav.nextElementSibling
 +    if (!root || !(region instanceof HTMLElement) || !Array.from(region.classList).some(c => c.endsWith('_regionArea'))) return
++    const split = Array.from(root.classList).some(name => name.endsWith('_scrollArea'))
++    if (split) root.classList.add('dsh-navigation-split')
 +    const bar = document.createElement('div')
 +    bar.className = 'dsh-navigation-divider'
 +    bar.setAttribute('role', 'separator')
@@ -99,6 +138,10 @@ index 2493d08..850ede3 100644
 +    bar.tabIndex = 0
 +    nav.after(bar)
 +    const events = new AbortController()
++    // Independent scrollports must not feed the native shared-viewport wheel handoff.
++    if (split) for (const area of [nav, region]) area.addEventListener('wheel', event => {
++      if (!event.ctrlKey && event.deltaY !== 0 && Math.abs(event.deltaY) >= Math.abs(event.deltaX)) event.stopPropagation()
++    }, { passive: true, signal: events.signal })
 +    let desired = saved
 +    let drag                                                               = null
 +    let max = 320
@@ -172,6 +215,7 @@ index 2493d08..850ede3 100644
 +      events.abort()
 +      resize.disconnect()
 +      nav.style.removeProperty('--dsh-navigation-height')
++      if (split) root.classList.remove('dsh-navigation-split')
 +      bar.remove()
 +      mounted.delete(nav)
 +    })
@@ -194,7 +238,7 @@ index 2493d08..850ede3 100644
  		//#region src/client/index.tsx
  		/**
  		* Client half of dsh-better-sidebar: resolves the user's "Side card"
-@@ -33982,6 +34162,7 @@ Mode: this is a continuable side conversation. Your answers stay in this side th
+@@ -33982,6 +34207,7 @@
  					fail(`native ${phase}`, error);
  				}
  			}), "dsh-better-sidebar: native right-Sidebar registrations");
@@ -203,10 +247,9 @@ index 2493d08..850ede3 100644
  			ctx.effect(() => () => {
  				nativeSurface.dispose();
 diff --git a/lib/client.js b/lib/client.js
-index fa8d119..5dbd291 100644
 --- a/lib/client.js
 +++ b/lib/client.js
-@@ -33868,10 +33868,190 @@ Mode: this is a continuable side conversation. Your answers stay in this side th
+@@ -33868,10 +33868,235 @@
  			const tag = document.createElement("style");
  			tag.dataset.plugin = "dsh-better-sidebar";
  			tag.dataset.pluginCss = tagId;
@@ -214,6 +257,44 @@ index fa8d119..5dbd291 100644
 +			tag.textContent = `/* Native left navigation, verified against Harness 0.2.1-rc.5.
 + * Keep sessions visible when many plugins register global panels.
 + * Scope to the native navigation accessible label; never style conversation lists. */
++/* rc.2 wraps navigation and workspaces in a single grid scrollport. */
++.dsh-navigation-split[data-sidebar-scrollport] {
++  display: flex;
++  flex-direction: column;
++  overflow: hidden;
++  min-height: 0;
++}
++.dsh-navigation-split[data-sidebar-scrollport]::before,
++.dsh-navigation-split[data-sidebar-scrollport]::after { display: none; }
++.dsh-navigation-split > [class$="_regionArea"] {
++  flex: 1 1 0;
++  min-height: 0;
++  container-type: size;
++  overflow: hidden;
++}
++/* The native list owns both the scrolling content and its scrollbar. */
++.dsh-navigation-split[data-sidebar-scrollport] > [class$="_regionArea"] > :has(> [data-sidebar-list-area]) {
++  flex: 1 1 0;
++  height: 100%;
++  max-height: 100%;
++  min-height: 0;
++}
++.dsh-navigation-split[data-sidebar-scrollport] > [class$="_regionArea"] [data-sidebar-list-area] {
++  overflow-y: auto;
++  margin-inline: 0;
++  padding-inline: 0;
++  overscroll-behavior-y: contain;
++}
++.dsh-navigation-split > nav,
++.dsh-navigation-split [data-sidebar-list-area] {
++  --dsh-scrollbar-thumb: var(--dsw-alias-label-tertiary, #999);
++  --dsh-scrollbar-thumb-hover: var(--dsw-alias-label-secondary, #777);
++  scrollbar-width: auto;
++  scrollbar-gutter: stable;
++}
++.dsh-navigation-split > nav::-webkit-scrollbar,
++.dsh-navigation-split [data-sidebar-list-area]::-webkit-scrollbar { display: block; }
++
 +nav[aria-label="全局面板"], nav[aria-label="Global panels"] {
 +  max-height: var(--dsh-navigation-height, min(36vh, 320px));
 +  height: var(--dsh-navigation-height, auto);
@@ -295,6 +376,8 @@ index fa8d119..5dbd291 100644
 +    const root = nav.parentElement
 +    const region = nav.nextElementSibling
 +    if (!root || !(region instanceof HTMLElement) || !Array.from(region.classList).some(c => c.endsWith('_regionArea'))) return
++    const split = Array.from(root.classList).some(name => name.endsWith('_scrollArea'))
++    if (split) root.classList.add('dsh-navigation-split')
 +    const bar = document.createElement('div')
 +    bar.className = 'dsh-navigation-divider'
 +    bar.setAttribute('role', 'separator')
@@ -303,6 +386,10 @@ index fa8d119..5dbd291 100644
 +    bar.tabIndex = 0
 +    nav.after(bar)
 +    const events = new AbortController()
++    // Independent scrollports must not feed the native shared-viewport wheel handoff.
++    if (split) for (const area of [nav, region]) area.addEventListener('wheel', event => {
++      if (!event.ctrlKey && event.deltaY !== 0 && Math.abs(event.deltaY) >= Math.abs(event.deltaX)) event.stopPropagation()
++    }, { passive: true, signal: events.signal })
 +    let desired = saved
 +    let drag                                                               = null
 +    let max = 320
@@ -376,6 +463,7 @@ index fa8d119..5dbd291 100644
 +      events.abort()
 +      resize.disconnect()
 +      nav.style.removeProperty('--dsh-navigation-height')
++      if (split) root.classList.remove('dsh-navigation-split')
 +      bar.remove()
 +      mounted.delete(nav)
 +    })
@@ -398,7 +486,7 @@ index fa8d119..5dbd291 100644
  		//#region src/client/index.tsx
  		/**
  		* Client half of dsh-better-sidebar: resolves the user's "Side card"
-@@ -33982,6 +34162,7 @@ Mode: this is a continuable side conversation. Your answers stay in this side th
+@@ -33982,6 +34207,7 @@
  					fail(`native ${phase}`, error);
  				}
  			}), "dsh-better-sidebar: native right-Sidebar registrations");
@@ -407,10 +495,9 @@ index fa8d119..5dbd291 100644
  			ctx.effect(() => () => {
  				nativeSurface.dispose();
 diff --git a/lib/index.js b/lib/index.js
-index 7d9bb9e..9e028ce 100644
 --- a/lib/index.js
 +++ b/lib/index.js
-@@ -4183,6 +4183,7 @@ const PROBE_TIMEOUT_MS = 3e3;
+@@ -4183,6 +4183,7 @@
  function probeTool(bin, spawner) {
  	return new Promise((resolve) => {
  		let settled = false;
@@ -418,7 +505,7 @@ index 7d9bb9e..9e028ce 100644
  		const finish = (ok) => {
  			if (settled) return;
  			settled = true;
-@@ -4199,7 +4200,7 @@ function probeTool(bin, spawner) {
+@@ -4199,7 +4200,7 @@
  			finish(false);
  			return;
  		}
@@ -428,10 +515,9 @@ index 7d9bb9e..9e028ce 100644
  			finish(false);
  		}, PROBE_TIMEOUT_MS);
 diff --git a/src/archive-tools.ts b/src/archive-tools.ts
-index 915a36f..e18ea38 100644
 --- a/src/archive-tools.ts
 +++ b/src/archive-tools.ts
-@@ -90,6 +90,7 @@ export interface ArchivePlan {
+@@ -90,6 +90,7 @@
  function probeTool(bin: string, spawner: ArchiveSpawn): Promise<boolean> {
    return new Promise<boolean>((resolve) => {
      let settled = false
@@ -439,7 +525,7 @@ index 915a36f..e18ea38 100644
      const finish = (ok: boolean): void => {
        if (settled) return
        settled = true
-@@ -103,7 +104,7 @@ function probeTool(bin: string, spawner: ArchiveSpawn): Promise<boolean> {
+@@ -103,7 +104,7 @@
        finish(false)
        return
      }
@@ -449,7 +535,6 @@ index 915a36f..e18ea38 100644
        finish(false)
      }, PROBE_TIMEOUT_MS)
 diff --git a/src/client/index.tsx b/src/client/index.tsx
-index fca3bed..37a69fd 100644
 --- a/src/client/index.tsx
 +++ b/src/client/index.tsx
 @@ -1,3 +1,4 @@
@@ -457,7 +542,7 @@ index fca3bed..37a69fd 100644
  /**
   * Client half of dsh-better-sidebar: resolves the user's "Side card"
   * preferences through the plugin's own fenced settings route, mounts the
-@@ -198,6 +199,7 @@ export function apply(ctx: Context): void {
+@@ -198,6 +199,7 @@
    )
    // The bottom workbench's expand/collapse button in DSH's session header
    // (the header's corner seat belongs to the native sidebar's own control).
@@ -466,13 +551,50 @@ index fca3bed..37a69fd 100644
      () => registerBottomToggle(ctx, sidebarStore),
      'dsh-better-sidebar: bottom-workbench toggle',
 diff --git a/src/client/layout.css b/src/client/layout.css
-index 5ff9ef4..bce44cf 100644
 --- a/src/client/layout.css
 +++ b/src/client/layout.css
-@@ -1,3 +1,68 @@
+@@ -1,3 +1,106 @@
 +/* Native left navigation, verified against Harness 0.2.1-rc.5.
 + * Keep sessions visible when many plugins register global panels.
 + * Scope to the native navigation accessible label; never style conversation lists. */
++/* rc.2 wraps navigation and workspaces in a single grid scrollport. */
++.dsh-navigation-split[data-sidebar-scrollport] {
++  display: flex;
++  flex-direction: column;
++  overflow: hidden;
++  min-height: 0;
++}
++.dsh-navigation-split[data-sidebar-scrollport]::before,
++.dsh-navigation-split[data-sidebar-scrollport]::after { display: none; }
++.dsh-navigation-split > [class$="_regionArea"] {
++  flex: 1 1 0;
++  min-height: 0;
++  container-type: size;
++  overflow: hidden;
++}
++/* The native list owns both the scrolling content and its scrollbar. */
++.dsh-navigation-split[data-sidebar-scrollport] > [class$="_regionArea"] > :has(> [data-sidebar-list-area]) {
++  flex: 1 1 0;
++  height: 100%;
++  max-height: 100%;
++  min-height: 0;
++}
++.dsh-navigation-split[data-sidebar-scrollport] > [class$="_regionArea"] [data-sidebar-list-area] {
++  overflow-y: auto;
++  margin-inline: 0;
++  padding-inline: 0;
++  overscroll-behavior-y: contain;
++}
++.dsh-navigation-split > nav,
++.dsh-navigation-split [data-sidebar-list-area] {
++  --dsh-scrollbar-thumb: var(--dsw-alias-label-tertiary, #999);
++  --dsh-scrollbar-thumb-hover: var(--dsw-alias-label-secondary, #777);
++  scrollbar-width: auto;
++  scrollbar-gutter: stable;
++}
++.dsh-navigation-split > nav::-webkit-scrollbar,
++.dsh-navigation-split [data-sidebar-list-area]::-webkit-scrollbar { display: block; }
++
 +nav[aria-label="全局面板"], nav[aria-label="Global panels"] {
 +  max-height: var(--dsh-navigation-height, min(36vh, 320px));
 +  height: var(--dsh-navigation-height, auto);
@@ -540,10 +662,9 @@ index 5ff9ef4..bce44cf 100644
   * the conversation. The right column belongs to DSH's native Sidebar, so this
 diff --git a/src/client/native/sidebar-navigation.ts b/src/client/native/sidebar-navigation.ts
 new file mode 100644
-index 0000000..11c4904
 --- /dev/null
 +++ b/src/client/native/sidebar-navigation.ts
-@@ -0,0 +1,114 @@
+@@ -0,0 +1,121 @@
 +/** Native rc.5 layout adapter. Own only the separator and navigation sizing. */
 +export function registerNavigationResize(): () => void {
 +  const selector = 'nav[aria-label="全局面板"], nav[aria-label="Global panels"]'
@@ -559,6 +680,8 @@ index 0000000..11c4904
 +    const root = nav.parentElement
 +    const region = nav.nextElementSibling
 +    if (!root || !(region instanceof HTMLElement) || !Array.from(region.classList).some(c => c.endsWith('_regionArea'))) return
++    const split = Array.from(root.classList).some(name => name.endsWith('_scrollArea'))
++    if (split) root.classList.add('dsh-navigation-split')
 +    const bar = document.createElement('div')
 +    bar.className = 'dsh-navigation-divider'
 +    bar.setAttribute('role', 'separator')
@@ -567,6 +690,10 @@ index 0000000..11c4904
 +    bar.tabIndex = 0
 +    nav.after(bar)
 +    const events = new AbortController()
++    // Independent scrollports must not feed the native shared-viewport wheel handoff.
++    if (split) for (const area of [nav, region]) area.addEventListener('wheel', event => {
++      if (!event.ctrlKey && event.deltaY !== 0 && Math.abs(event.deltaY) >= Math.abs(event.deltaX)) event.stopPropagation()
++    }, { passive: true, signal: events.signal })
 +    let desired = saved
 +    let drag: { y: number; height: number; desired: number | null } | null = null
 +    let max = 320
@@ -640,6 +767,7 @@ index 0000000..11c4904
 +      events.abort()
 +      resize.disconnect()
 +      nav.style.removeProperty('--dsh-navigation-height')
++      if (split) root.classList.remove('dsh-navigation-split')
 +      bar.remove()
 +      mounted.delete(nav)
 +    })

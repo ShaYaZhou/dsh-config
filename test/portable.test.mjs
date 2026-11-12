@@ -81,7 +81,10 @@ test('upstream packages track latest without distributing a frozen resolution',(
  assert.throws(()=>bindRuntimeDependencies({dependencies:{community:'${DSH_RUNTIME_VERSION}'}},'9.0.0'));
  assert.deepEqual(latestDependencies({dependencies:{managed:'latest',personal:'1.2.3',local:'file:a.tgz'}}),['managed']);
  const patches=JSON.parse(plan.get('profiles/desktop/pnpm-workspace.yaml')).patchedDependencies;
- assert.deepEqual(Object.keys(patches).sort(), ['@ninkch/dsh-infinite-canvas', 'agentero-dsh-pdf', 'dsh-better-sidebar']);
+ assert.deepEqual(Object.keys(patches).sort(), ['@ninkch/dsh-infinite-canvas', 'agentero-dsh-pdf', 'dsh-better-sidebar', 'dsh-memu-memory']);
+ const metadata=JSON.parse(fs.readFileSync(path.join(repository,'provenance.json'),'utf8')).integrations.dependencyPatches;
+ assert.deepEqual(Object.keys(metadata).sort(),Object.keys(patches).sort(),'Every deployed patch needs a source record');
+ for(const [name,file] of Object.entries(patches))assert.equal(metadata[name].patch,'config/'+file);
 });
 test('machine settings reject embedded credentials and unsupported settings',()=>{
  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'dsh-settings-'));const file=path.join(folder,'settings.json');
